@@ -114,8 +114,9 @@ struct gcip_fw_tracing *gcip_firmware_tracing_create(const struct gcip_fw_tracin
 
 	dentry = debugfs_create_dir("fw_tracing", args->dentry);
 	if (IS_ERR(dentry)) {
+		struct gcip_fw_tracing *err = (void *)dentry;
 		kfree(fw_tracing);
-		return (struct gcip_fw_tracing *)dentry;
+		return err;
 	}
 
 	fw_tracing->dentry = dentry;
