@@ -1,4 +1,4 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-only
 
-exec tools/build_dist.sh caimito "$@"
+exec tools/build_dist.sh caimito --disable_slab_canary "$@"
