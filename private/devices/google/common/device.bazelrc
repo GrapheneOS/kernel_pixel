@@ -12,10 +12,10 @@ build --flag_alias=nouse_prebuilt_fips140=no//private/devices/google/common:use_
 # build --kernel_package=gki --nouse_prebuilt_kernel
 
 # Use prebuilt GKI
-build --kernel_package=gki
+build --kernel_package=ack
 
 # Use prebuilt fips140.ko
-build --use_prebuilt_fips140
+#build --use_prebuilt_fips140
 
 # include unsafe header list
 build --allow_ddk_unsafe_headers
