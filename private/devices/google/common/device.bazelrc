@@ -18,10 +18,10 @@ build --action_env=KLEAF_DOWNLOAD_BUILD_NUMBER_MAP="gki_prebuilts=16261587,gki_p
 build --use_prebuilt_gki --use_signed_prebuilts
 
 # Use prebuilt GKI
-build --kernel_package=gki
+build --kernel_package=ack
 
 # Use prebuilt fips140.ko
-build --use_prebuilt_fips140
+#build --use_prebuilt_fips140
 
 # Debug configs
 import %workspace%/private/devices/google/common/debug/debug.bazelrc
