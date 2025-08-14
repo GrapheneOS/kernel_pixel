@@ -387,26 +387,26 @@ static const struct pixel_reboot_data pixel_reboot_data_v1 = {
 	.warm_reboot_offset = 0x3a00,
 	.warm_reboot_value = 0x2,
 	.reboot_cmd_offset = 0x810,
-	.thermal_warm_reboot = true,
+	.thermal_warm_reboot = false,
 	.bms_persist_reboot_mode = true,
 };
 
 static const struct pixel_reboot_data pixel_reboot_data_v2 = {
 	.version = PIXEL_REBOOT_VER_02_00,
 	.reboot_cmd_offset = 0x810,
-	.thermal_warm_reboot = true,
+	.thermal_warm_reboot = false,
 	.bms_persist_reboot_mode = true,
 };
 
 static const struct pixel_reboot_data pixel_reboot_data_v3 = {
 	.version = PIXEL_REBOOT_VER_03_00,
-	.thermal_warm_reboot = true,
+	.thermal_warm_reboot = false,
 	.bms_persist_reboot_mode = true,
 };
 
 static const struct pixel_reboot_data pixel_reboot_data_v3p1 = {
 	.version = PIXEL_REBOOT_VER_03_01,
-	.thermal_warm_reboot = true,
+	.thermal_warm_reboot = false,
 	.bms_persist_reboot_mode = false,
 };
 
