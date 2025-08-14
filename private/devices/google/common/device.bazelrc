@@ -18,8 +18,7 @@ build --action_env=KLEAF_DOWNLOAD_BUILD_NUMBER_MAP="gki_prebuilts=16385437,gki_p
 # Build GKI from local source instead of downloading prebuilts over HTTP
 build --nouse_prebuilt_kernel
 
-# Use prebuilt GKI
-build --kernel_package=gki
+build --kernel_package=ack
 
 # Do not download prebuilt fips140.ko over HTTP
 build --nouse_prebuilt_fips140
