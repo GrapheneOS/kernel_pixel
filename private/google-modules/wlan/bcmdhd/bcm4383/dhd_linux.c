@@ -25535,13 +25535,12 @@ dhd_file_delete(char *path)
 		FALSE) {
 		err = -EINVAL;
 	} else {
-		dir = dget_parent(file_path.dentry);
+		dir = file_path.dentry->d_parent;
 
-		if (!IS_ERR(dir)) {
+		if (dir && !IS_ERR(dir)) {
 			err = DHD_VFS_UNLINK(dir, file_path.dentry, NULL);
-			dput(dir);
 		} else {
-			err = PTR_ERR(dir);
+			err = dir ? PTR_ERR(dir) : -EINVAL;
 		}
 	}
 
