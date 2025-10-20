@@ -67,33 +67,22 @@ StubVMMUnmapDevPhysHeap(void)
 static VMM_PVZ_CLIENT_CONNECTION gsStubPvzClient =
 {
 	.sClientFuncTab = {
-		/* pfnMapDevPhysHeap */
-		&StubVMMMapDevPhysHeap,
-
-		/* pfnUnmapDevPhysHeap */
-		&StubVMMUnmapDevPhysHeap
+		.pfnMapDevPhysHeap = &StubVMMMapDevPhysHeap,
+		.pfnUnmapDevPhysHeap = &StubVMMUnmapDevPhysHeap
 	}
 };
 
 static VMM_PVZ_SERVER_CONNECTION gsStubPvzServer =
 {
 	.sServerFuncTab = {
-		/* pfnMapDevPhysHeap */
-		&PvzServerMapDevPhysHeap,
-
-		/* pfnUnmapDevPhysHeap */
-		&PvzServerUnmapDevPhysHeap
+		.pfnMapDevPhysHeap = &PvzServerMapDevPhysHeap,
+		.pfnUnmapDevPhysHeap = &PvzServerUnmapDevPhysHeap
 	},
 
 	.sVmmFuncTab = {
-		/* pfnOnVmOnline */
-		&PvzServerOnVmOnline,
-
-		/* pfnOnVmOffline */
-		&PvzServerOnVmOffline,
-
-		/* pfnVMMConfigure */
-		&PvzServerVMMConfigure
+		.pfnOnVmOnline = &PvzServerOnVmOnline,
+		.pfnOnVmOffline = &PvzServerOnVmOffline,
+		.pfnVMMConfigure = &PvzServerVMMConfigure
 	}
 };
 
