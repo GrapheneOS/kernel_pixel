@@ -77,3 +77,13 @@ alias(
     name = "kernel_compile_commands",
     actual = ":muzel/kernel_compile_commands",
 )
+
+alias(
+    name = "lga_muzel_abi_update_symbol_list",
+    actual = ":muzel/kernel_abi_update_symbol_list",
+)
+
+alias(
+    name = "kernel_abi_update_symbol_list",
+    actual = ":muzel/kernel_abi_update_symbol_list",
+)
