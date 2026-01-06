@@ -190,6 +190,9 @@ static struct attribute *google_role_sw_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(google_role_sw_device);
 
+static bool modparam_disable_usb_data_by_default;
+module_param_named(disable_usb_data_by_default, modparam_disable_usb_data_by_default, bool, 0444);
+
 static int google_role_sw_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -230,6 +233,11 @@ static int google_role_sw_probe(struct platform_device *pdev)
 
 	gvotable_set_vote2str(grole_sw->usb_data_role_votable, gvotable_v2s_int);
 	gvotable_election_set_name(grole_sw->usb_data_role_votable, VOTABLE_USB_DATA_ROLE);
+
+	if (modparam_disable_usb_data_by_default) {
+		gvotable_cast_vote(grole_sw->usb_data_role_votable, DISABLE_USB_DATA_VOTER,
+				(void *)(long)1, 1);
+	}
 
 	/*
 	 * For systems without aoc, cast a default vote to align the logic. As a side-effect, there
