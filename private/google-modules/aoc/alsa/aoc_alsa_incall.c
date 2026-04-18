@@ -362,9 +362,9 @@ static long get_wait_time(struct snd_pcm_substream *substream)
 	case IDX_INCALL_CAP1_TX:
 	case IDX_INCALL_CAP2_TX:
 	case IDX_INCALL_CAP3_TX:
-		return msecs_to_jiffies(chip->voice_pcm_wait_time_in_ms);
+		return chip->voice_pcm_wait_time_in_ms;
 	default:
-		return msecs_to_jiffies(chip->pcm_wait_time_in_ms);
+		return chip->pcm_wait_time_in_ms;
 	}
 }
 
