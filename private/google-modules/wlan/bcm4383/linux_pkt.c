@@ -891,9 +891,6 @@ osl_pkt_orphan_partial(struct sk_buff *skb)
 	if (!skb->destructor || skb->destructor == sock_wfree)
 		return;
 
-	if (!skb->sk || skb->sk->sk_protocol != IPPROTO_TCP)
-	    return;
-
 	if (unlikely(!p_tcp_wfree)) {
 		/* this is a hack to get tcp_wfree pointer since it's not
 		 * exported. There are two possible call back function pointer
