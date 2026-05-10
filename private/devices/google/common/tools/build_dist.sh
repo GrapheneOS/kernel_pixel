@@ -41,6 +41,7 @@ echo "Build: $("${WORKSPACE_DIR}/tools/bazel" --quiet cquery \
 echo "========================"
 
 "${WORKSPACE_DIR}/tools/bazel" run \
+  --config=stamp \
   --config="${DEVICE}" \
   "${DEVICE_TARGET}/dist" \
   "${BAZEL_FLAGS[@]}" "$@" || exit 1
