@@ -1,3 +1,5 @@
 /bazel-*
 out/
 
+device.bazelrc
+
