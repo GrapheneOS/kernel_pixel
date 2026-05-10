@@ -31,6 +31,7 @@ fi
 
 "${WORKSPACE_DIR}/tools/bazel" run \
   "${parameters[@]}" \
+  --config=stamp \
   --config="${DEVICE}" \
   "//private/devices/google/${DEVICE}:${DEVICE}/dist" \
   "$@" || exit 1
