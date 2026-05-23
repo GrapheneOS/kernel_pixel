@@ -118,7 +118,7 @@ static void *chunk_heap_protect(struct samsung_dma_buffer *buffer,
 		paddr = virt_to_phys(paddr_array);
 	}
 
-	priv = samsung_dma_buffer_protect(buffer, chunk_size, nr_pages, paddr);
+	priv = samsung_dma_buffer_protect(buffer, chunk_size, nr_pages, paddr, paddr_array);
 	if (IS_ERR(priv))
 		kfree(paddr_array);
 
@@ -132,7 +132,8 @@ static int chunk_heap_unprotect(struct samsung_dma_buffer *buffer)
 	int ret;
 
 	if (protdesc->chunk_count > 1)
-		paddr_array = phys_to_virt(protdesc->bus_address);
+		paddr_array = protdesc->bus_address_vaddr ?
+			protdesc->bus_address_vaddr : phys_to_virt(protdesc->bus_address);
 
 	ret = samsung_dma_buffer_unprotect(buffer);
 
