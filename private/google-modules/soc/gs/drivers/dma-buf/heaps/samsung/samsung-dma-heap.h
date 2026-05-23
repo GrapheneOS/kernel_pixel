@@ -144,6 +144,8 @@ static inline bool dma_heap_tzmp_buffer(struct device *dev, unsigned long flags)
  *               if @chunk_count > 1, this is the physical address of unsigned
  *               long array of @chunk_count elements that contains the physical
  *               address of each chunk.
+ * @bus_address_vaddr: original virtual address for @bus_address when
+ *                     @chunk_count > 1.
  */
 struct buffer_prot_info {
 	unsigned int chunk_count;
@@ -151,18 +153,20 @@ struct buffer_prot_info {
 	unsigned int flags;
 	unsigned int chunk_size;
 	unsigned long bus_address;
+	void *bus_address_vaddr;
 };
 
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
 				 unsigned int chunk_size, unsigned int nr_pages,
-				 unsigned long paddr);
+				 unsigned long paddr, void *paddr_vaddr);
 int samsung_dma_buffer_unprotect(struct samsung_dma_buffer *buffer);
 #else
 static inline void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
 					       unsigned int chunk_size,
 					       unsigned int nr_pages,
-					       unsigned long paddr)
+					       unsigned long paddr,
+					       void *paddr_vaddr)
 {
 	return NULL;
 }

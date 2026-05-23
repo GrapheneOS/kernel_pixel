@@ -61,7 +61,7 @@ static struct dma_buf *cma_heap_allocate(struct dma_heap *heap, unsigned long le
 
 	if (dma_heap_flags_protected(samsung_dma_heap->flags)) {
 		buffer->priv = samsung_dma_buffer_protect(buffer, size, 1,
-							  page_to_phys(pages));
+							  page_to_phys(pages), NULL);
 		if (IS_ERR(buffer->priv)) {
 			ret = PTR_ERR(buffer->priv);
 			buffer->priv = NULL;
