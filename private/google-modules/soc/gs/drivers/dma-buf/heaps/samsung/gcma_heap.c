@@ -277,7 +277,7 @@ static struct dma_buf *gcma_heap_allocate(struct dma_heap *heap, unsigned long l
 		unsigned long paddr = page_to_phys(sg_page(buffer->sg_table.sgl));
 
 		buffer->priv = samsung_dma_buffer_protect(
-				buffer, len, heap_pages.count, paddr);
+				buffer, len, heap_pages.count, paddr, NULL);
 		if (IS_ERR(buffer->priv)) {
 			ret = PTR_ERR(buffer->priv);
 			buffer->priv = NULL;
