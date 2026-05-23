@@ -17,7 +17,7 @@ static void *gcma_heap_trusty_buffer_protect(struct samsung_dma_buffer *buffer,
 					unsigned int nr_pages,
 					unsigned long paddr)
 {
-	return samsung_dma_buffer_protect(buffer, chunk_size, nr_pages, paddr);
+	return samsung_dma_buffer_protect(buffer, chunk_size, nr_pages, paddr, NULL);
 }
 
 static int gcma_heap_trusty_buffer_unprotect(struct samsung_dma_buffer *buffer)
