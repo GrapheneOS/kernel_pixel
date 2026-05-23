@@ -62,7 +62,8 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap, unsigned lo
 	heap_cache_flush(buffer);
 
 	if (dma_heap_flags_protected(samsung_dma_heap->flags)) {
-		buffer->priv = samsung_dma_buffer_protect(buffer, size, 1, paddr);
+		/* One contiguous buffer, so there is no address array to retain. */
+		buffer->priv = samsung_dma_buffer_protect(buffer, size, 1, paddr, NULL);
 		if (IS_ERR(buffer->priv)) {
 			ret = PTR_ERR(buffer->priv);
 			buffer->priv = NULL;
