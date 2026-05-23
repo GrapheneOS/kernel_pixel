@@ -62,7 +62,7 @@ static int buffer_unprotect_trusty(struct samsung_dma_buffer *buffer)
 
 void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
 				 unsigned int chunk_size, unsigned int nr_pages,
-				 unsigned long paddr)
+				 unsigned long paddr, void *paddr_vaddr)
 {
 	struct samsung_dma_heap *heap = buffer->heap;
 	struct device *dev = dma_heap_get_dev(heap->dma_heap);
@@ -81,9 +81,10 @@ void *samsung_dma_buffer_protect(struct samsung_dma_buffer *buffer,
 	protdesc->flags = heap->protection_id;
 	protdesc->chunk_size = ALIGN(chunk_size, protalign);
 	protdesc->bus_address = paddr;
+	protdesc->bus_address_vaddr = paddr_vaddr;
 
 	if (protdesc->chunk_count > 1) {
-		void *vaddr = phys_to_virt(paddr);
+		void *vaddr = paddr_vaddr ? paddr_vaddr : phys_to_virt(paddr);
 
 		array_size = sizeof(paddr) * nr_pages;
 
