@@ -1147,8 +1147,13 @@ wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	}
 	else if (status == WLC_E_STATUS_SUCCESS) {
 		dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
-		if ((dhdp->dhd_induce_error == DHD_INDUCE_SCAN_TIMEOUT) ||
-			(dhdp->dhd_induce_error == DHD_INDUCE_SCAN_TIMEOUT_SCHED_ERROR)) {
+		if (dhdp->dhd_induce_error == DHD_INDUCE_SCAN_TIMEOUT) {
+			dhdp->dhd_induce_error = DHD_INDUCE_ERROR_CLEAR;
+			WL_ERR(("%s: Skip escan complete to induce scantimeout\n", __FUNCTION__));
+			err = BCME_ERROR;
+			goto exit;
+		}
+		if (dhdp->dhd_induce_error == DHD_INDUCE_SCAN_TIMEOUT_SCHED_ERROR) {
 			WL_ERR(("%s: Skip escan complete to induce scantimeout\n", __FUNCTION__));
 			err = BCME_ERROR;
 			goto exit;
