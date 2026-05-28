@@ -816,6 +816,34 @@ wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 		else
 			ndev = cfg->escan_info.ndev;
 	}
+
+	/*
+	 * Keep the existing scan-readiness gate before terminal escan handling.
+	 * Timeout events do not carry scan result payload, so the gate needs to
+	 * run before data is interpreted as wl_escan_result_t.
+	 */
+	if (!ndev || (!wl_get_drv_status(cfg, SCANNING, ndev) && !cfg->sched_scan_running)) {
+		WL_ERR_RLMT(("escan is not ready. drv_scan_status 0x%x"
+			" e_type %d e_status %d\n",
+			wl_get_drv_status(cfg, SCANNING, ndev),
+			ntoh32(e->event_type), ntoh32(e->status)));
+		goto exit;
+	}
+
+	/*
+	 * wl_scan_timeout() synthesizes WLC_E_STATUS_TIMEOUT with NULL data.
+	 * wl_enq_event() still dispatches the zero-length trailing edata member,
+	 * which is non-NULL but has no wl_escan_result_t behind it.
+	 */
+	if (status == WLC_E_STATUS_TIMEOUT) {
+		WL_ERR(("WLC_E_STATUS_TIMEOUT : scan_request[%p]\n", cfg->scan_request));
+		WL_ERR(("reason[0x%x]\n", e->reason));
+		if (e->reason == 0xFFFFFFFF) {
+			_wl_cfgscan_cancel_scan(cfg);
+		}
+		goto exit;
+	}
+
 	escan_result = (wl_escan_result_t *)data;
 	if (!escan_result) {
 		WL_ERR(("Invalid escan result (NULL data)\n"));
@@ -835,13 +863,6 @@ wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 		goto exit;
 	}
 #endif /* WL_BCNRECV */
-	if (!ndev || (!wl_get_drv_status(cfg, SCANNING, ndev) && !cfg->sched_scan_running)) {
-		WL_ERR_RLMT(("escan is not ready. drv_scan_status 0x%x"
-			" e_type %d e_status %d\n",
-			wl_get_drv_status(cfg, SCANNING, ndev),
-			ntoh32(e->event_type), ntoh32(e->status)));
-		goto exit;
-	}
 
 #ifndef WL_DRV_AVOID_SCANCACHE
 	if (wl_escan_check_sync_id(cfg, status, escan_result->sync_id,
@@ -1174,12 +1195,6 @@ wl_escan_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 		}
 		/* scan aborted, need to set previous success result */
 		wl_escan_increment_sync_id(cfg, SCAN_BUF_CNT);
-	} else if (status == WLC_E_STATUS_TIMEOUT) {
-		WL_ERR(("WLC_E_STATUS_TIMEOUT : scan_request[%p]\n", cfg->scan_request));
-		WL_ERR(("reason[0x%x]\n", e->reason));
-		if (e->reason == 0xFFFFFFFF) {
-			_wl_cfgscan_cancel_scan(cfg);
-		}
 	} else {
 		WL_ERR(("unexpected Escan Event %d : abort\n", status));
 		cfg->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
