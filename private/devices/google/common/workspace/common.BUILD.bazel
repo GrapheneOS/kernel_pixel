@@ -40,25 +40,6 @@ kernel_selection(
             aliases = ["@//aosp"],
             package = "//common/ack",
         ),
-        kernel_package(
-            name = "gki",
-            aliases = ["@//aosp-with-prebuilts"],
-            package = "//common/gki",
-            prebuilt_repos = {
-                "kernel_aarch64": "download_or_build",
-                "kernel_aarch64_16k": "download_or_build",
-            },
-        ),
-        kernel_package(
-            name = "staging",
-            aliases = ["@//aosp-staging"],
-            package = "//common/staging",
-        ),
-        kernel_package(
-            name = "bringup",
-            aliases = ["@//aosp-bringup"],
-            package = "//common/bringup",
-        ),
     ],
     targets = _KERNEL_TARGETS,
 )
