@@ -298,38 +298,6 @@ static void vh_kcompactd_cpu_online(void *data, int cpu) {
 	}
 }
 
-static inline void SetPageSkippedZero(struct page *page)
-{
-	set_bit(PG_oem_reserved_1, &page->flags);
-}
-
-static inline void ClearPageSkippedZero(struct page *page)
-{
-	clear_bit(PG_oem_reserved_1, &page->flags);
-}
-
-static inline bool PageSkippedZero(struct page *page)
-{
-	return test_bit(PG_oem_reserved_1, &page->flags);
-}
-
-static void vh_free_pages_prepare_init(void *data, struct page *page,
-				       int nr_pages, bool *init)
-{
-	if (kasan_enabled() || !want_init_on_free())
-		return;
-
-	if (unlikely(current_is_kswapd() ||
-		     current->flags & PF_MEMALLOC ||
-		     (current->mm && test_bit(MMF_UNSTABLE, &current->mm->flags)))) {
-		int i;
-
-		*init = false;
-		for (i = 0; i < nr_pages; i++)
-			SetPageSkippedZero(page + i);
-	}
-}
-
 static void vh_swap_writepage(void *data,
 			      unsigned long *sis_flag,
 			      struct page *page)
@@ -383,12 +351,12 @@ static void rvh_gup_longterm_locked(void *data,
 	}
 }
 
+#if IS_ENABLED(CONFIG_DEBUG_VM)
 static void reset_page_oem_fields(unsigned long *check_flags)
 {
 	*check_flags = *check_flags & ~(1UL << PG_oem_reserved_1);
 }
 
-#if IS_ENABLED(CONFIG_DEBUG_VM)
 static void vh_free_one_page_flag_check(void *data, unsigned long *check_flags)
 {
 	if (kasan_enabled() || !want_init_on_free())
@@ -397,31 +365,6 @@ static void vh_free_one_page_flag_check(void *data, unsigned long *check_flags)
 	reset_page_oem_fields(check_flags);
 }
 #endif
-
-static void vh_post_alloc_hook(void *data, struct page *page,
-			       unsigned int order, bool *init)
-{
-	int i, nr_pages;
-
-	if (kasan_enabled() || !want_init_on_free())
-		return;
-
-	nr_pages = 1 << order;
-	for (i = 0; i < nr_pages; i++) {
-		if (PageSkippedZero(page + i)) {
-			ClearPageSkippedZero(page + i);
-			*init = true;
-		}
-	}
-}
-
-static void vh_check_new_page(void *data, unsigned long *check_flags)
-{
-	if (kasan_enabled() || !want_init_on_free())
-		return;
-
-	reset_page_oem_fields(check_flags);
-}
 
 VENDOR_MM_RW(kcompactd_cpu_affinity);
 
@@ -569,22 +512,6 @@ static int vh_mm_init(void)
 
 	ret = register_trace_android_vh_mm_kcompactd_cpu_online(
 		vh_kcompactd_cpu_online, NULL);
-	if (ret)
-		goto out_err;
-
-	/* Do not reorder this three functions */
-	ret = register_trace_android_vh_check_new_page(
-		vh_check_new_page, NULL);
-	if (ret)
-		goto out_err;
-
-	ret = register_trace_android_vh_post_alloc_hook(
-		vh_post_alloc_hook, NULL);
-	if (ret)
-		goto out_err;
-
-	ret = register_trace_android_vh_free_pages_prepare_init(
-		vh_free_pages_prepare_init, NULL);
 	if (ret)
 		goto out_err;
 
