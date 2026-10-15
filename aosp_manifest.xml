@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="aosp" fetch="https://android.googlesource.com/" />
+  <remote name="grapheneos" fetch="https://github.com/GrapheneOS/" />
+  <default revision="main-kernel-build-2023" remote="aosp" sync-c="true" sync-j="32" />
+
+  <project name="kernel_build" path="build/kernel" remote="grapheneos" revision="5e5e378c627ec4d8fbc6e82eda51d9d086869d23" upstream="refs/heads/17" dest-branch="refs/heads/17" groups="dependencies" />
+  <project name="kernel_common-6.1" path="common/ack" remote="grapheneos" revision="e4c76d08d7b27a2ac32eddc5a976d341238eadb8" upstream="refs/heads/17" dest-branch="refs/heads/17" groups="dependencies">
+    <linkfile dest="common/build.config.constants" src="build.config.constants" />
+    <linkfile dest="common/modules.bzl" src="modules.bzl" />
+    <linkfile dest=".clang-format" src=".clang-format" />
+    <linkfile dest="aosp" src="." />
+  </project>
+  <project name="platform/build/bazel_common_rules" path="build/bazel_common_rules" revision="62c496cd1d821948d2f4a7fcf702e54416e5a754" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" />
+  <project name="platform/external/bazel-skylib" path="external/bazel-skylib" revision="f998e5dc13c03f0eae9e373263d3afff0932c738" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" />
+  <!-- platform/bionic is pinned separately; this revision matches the local sources -->
+  <project name="platform/bionic" path="external/bionic" revision="fdbf6201151fe07b01b57c2828109f5e250e7420" upstream="main-kernel-2026" dest-branch="main-kernel-2026" groups="dependencies" />
+  <project name="platform/external/python/absl-py" path="external/python/absl-py" revision="2f199605a9875340569e039657f8b4c72d51b84d" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" />
+  <project name="platform/external/stardoc" path="external/stardoc" revision="e83f522ee95419e55d2c5654aa6e0143beeef595" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" />
+  <project name="platform/prebuilts/bazel/linux-x86_64" path="prebuilts/bazel/linux-x86_64" revision="7bfbec9e829bbae6816d5f39aba345df76e627c1" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="platform/prebuilts/build-tools" path="prebuilts/build-tools" revision="4649614b4030ad825f2e94401d04526651f44e88" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="platform/prebuilts/clang/host/linux-x86" path="prebuilts/clang/host/linux-x86" revision="382db94fa9597402b69e252c36bf9902cc283b82" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="platform/prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8" path="prebuilts/gcc/linux-x86/host/x86_64-linux-glibc2.17-4.8" revision="f6d40532273c8bd628b960ecc0970c7294c8d891" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="platform/prebuilts/jdk/jdk11" path="prebuilts/jdk/jdk11" revision="649eec4416e2ed6298af49a56876772767a0e5ae" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="kernel/prebuilts/build-tools" path="prebuilts/kernel-build-tools" revision="e905be252a53d20c52bd9e59df3ff8fdd46b9eab" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="toolchain/prebuilts/ndk/r23" path="prebuilts/ndk-r23" revision="19ac7e4eded12adb99d4f613490dde6dd0e72664" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" clone-depth="1" />
+  <project name="platform/system/tools/mkbootimg" path="tools/mkbootimg" revision="615a1fced5f8e2755642d30357674d3bfa21b85e" upstream="main-kernel-build-2023" dest-branch="main-kernel-build-2023" groups="dependencies" />
+</manifest>

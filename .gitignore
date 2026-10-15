@@ -1,0 +1,12 @@
+/bazel-*
+out/
+
+device.bazelrc
+
+/.repo/
+/build/
+/common/*
+!/common/BUILD.bazel
+/external/
+/prebuilts/
+/tools/
