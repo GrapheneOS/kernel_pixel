@@ -286,10 +286,11 @@ int kbase_mem_init(struct kbase_device *kbdev)
 			return err;
 	}
 
+page_metadata_slab_fail:
+	/* Deferred frees still need the metadata slab. */
+	kbase_mem_migrate_term(kbdev);
 	kmem_cache_destroy(kbdev->page_metadata_slab);
 	kbdev->page_metadata_slab = NULL;
-page_metadata_slab_fail:
-	kbase_mem_migrate_term(kbdev);
 	kmem_cache_destroy(kbdev->va_region_slab);
 	kbdev->va_region_slab = NULL;
 
