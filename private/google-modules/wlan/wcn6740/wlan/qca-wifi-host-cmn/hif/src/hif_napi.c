@@ -257,6 +257,8 @@ int hif_napi_create(struct hif_opaque_softc   *hif_ctx,
 	return napid->ce_map;
 
 napii_free:
+	/* Stop hotplug readers before releasing partially published contexts. */
+	hif_napi_cpu_deinit(hif_ctx);
 	for (i = 0; i < hif->ce_count; i++) {
 		napii = napid->napis[i];
 		napid->napis[i] = NULL;
@@ -272,6 +274,8 @@ napii_free:
 		}
 		napid->ce_map &= ~(0x01 << i);
 	}
+	qdf_spinlock_destroy(&napid->lock);
+	memset(napid, 0, sizeof(*napid));
 
 hnc_err:
 	NAPI_DEBUG("<--napi_instances_map=%x]", napid->ce_map);
@@ -408,6 +412,7 @@ int hif_napi_destroy(struct hif_opaque_softc *hif_ctx,
 			qdf_lro_deinit(napii->lro_ctx);
 			netif_napi_del(&(napii->napi));
 			free_netdev(napii->netdev);
+			napii->netdev = NULL;
 			hif_deinit_rx_thread_napi(napii);
 
 			napid->ce_map &= ~(0x01 << ce);

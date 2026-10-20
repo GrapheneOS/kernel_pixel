@@ -880,8 +880,7 @@ static QDF_STATUS dp_rx_tm_thread_deinit(struct dp_rx_thread *rx_thread)
 	qdf_event_destroy(&rx_thread->shutdown_event);
 	qdf_event_destroy(&rx_thread->vdev_del_event);
 
-	if (cdp_cfg_get(dp_rx_tm_get_soc_handle(rx_thread->rtm_handle_cmn),
-			cfg_dp_gro_enable))
+	if (rx_thread->netdev)
 		dp_rx_tm_thread_napi_deinit(rx_thread);
 
 	return QDF_STATUS_SUCCESS;
@@ -1311,7 +1310,7 @@ static QDF_STATUS dp_rx_tm_shutdown(struct dp_rx_tm_handle *rx_tm_hdl)
 	int i;
 
 	for (i = 0; i < rx_tm_hdl->num_dp_rx_threads; i++) {
-		if (!rx_tm_hdl->rx_thread[i])
+		if (!rx_tm_hdl->rx_thread[i] || !rx_tm_hdl->rx_thread[i]->task)
 			continue;
 		qdf_set_bit(RX_SHUTDOWN_EVENT,
 			    &rx_tm_hdl->rx_thread[i]->event_flag);
@@ -1322,7 +1321,7 @@ static QDF_STATUS dp_rx_tm_shutdown(struct dp_rx_tm_handle *rx_tm_hdl)
 
 
 	for (i = 0; i < rx_tm_hdl->num_dp_rx_threads; i++) {
-		if (!rx_tm_hdl->rx_thread[i])
+		if (!rx_tm_hdl->rx_thread[i] || !rx_tm_hdl->rx_thread[i]->task)
 			continue;
 		dp_debug("waiting for shutdown of thread %d", i);
 		qdf_wait_single_event(&rx_tm_hdl->rx_thread[i]->shutdown_event,
