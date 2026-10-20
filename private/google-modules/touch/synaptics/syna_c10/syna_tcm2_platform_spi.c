@@ -50,6 +50,8 @@ static unsigned int buf_size;
 
 static struct spi_transfer *xfer;
 
+static unsigned int xfer_count;
+
 static struct platform_device *syna_spi_device;
 
 
@@ -773,7 +775,6 @@ static int syna_spi_parse_dt(struct syna_hw_interface *hw_if,
  */
 static int syna_spi_alloc_mem(unsigned int count, unsigned int size)
 {
-	static unsigned int xfer_count;
 
 	if (count > xfer_count) {
 		syna_pal_mem_free((void *)xfer);
@@ -1122,6 +1123,9 @@ static void syna_spi_remove(struct spi_device *spi)
 	struct syna_hw_rst_data *rst = &syna_spi_hw_if.bdata_rst;
 	struct syna_hw_bus_data *bus = &syna_spi_hw_if.bdata_io;
 
+	/* Stop the child while its hardware providers and transfer buffers live. */
+	platform_device_del(syna_spi_device);
+
 	/* disable gpios */
 	if (pwr->avdd_gpio >= 0)
 		syna_spi_request_gpio(pwr->avdd_gpio, false, 0, 0, NULL);
@@ -1138,9 +1142,18 @@ static void syna_spi_remove(struct spi_device *spi)
 	syna_pal_mutex_free(&attn->irq_en_mutex);
 	syna_pal_mutex_free(&bus->io_mutex);
 
-	/* remove the platform device */
+	/* The child is stopped; retire its parent-owned transfer storage. */
+	syna_pal_mem_free((void *)buf);
+	buf = NULL;
+	buf_size = 0;
+	syna_pal_mem_free((void *)xfer);
+	xfer = NULL;
+	xfer_count = 0;
+
 	syna_spi_device->dev.platform_data = NULL;
-	platform_device_unregister(syna_spi_device);
+	platform_device_put(syna_spi_device);
+	syna_spi_device = NULL;
+	syna_spi_hw_if.pdev = NULL;
 }
 
 /**
@@ -1206,10 +1219,6 @@ int syna_hw_interface_init(void)
  */
 void syna_hw_interface_exit(void)
 {
-	syna_pal_mem_free((void *)buf);
-
-	syna_pal_mem_free((void *)xfer);
-
 	spi_unregister_driver(&syna_spi_driver);
 }
 
