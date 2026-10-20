@@ -296,8 +296,9 @@ QDF_STATUS tgt_p2p_mgmt_frame_rx_cb(struct wlan_objmgr_psoc *psoc,
 
 	p2p_debug("psoc:%pK, peer:%pK, type:%d", psoc, peer, frm_type);
 
-	if (!mgmt_rx_params) {
-		p2p_err("mgmt rx params is NULL");
+	if (!buf || !mgmt_rx_params ||
+	    mgmt_rx_params->buf_len > qdf_nbuf_len(buf)) {
+		p2p_err("invalid management frame buffer or length");
 		qdf_nbuf_free(buf);
 		return QDF_STATUS_E_INVAL;
 	}
