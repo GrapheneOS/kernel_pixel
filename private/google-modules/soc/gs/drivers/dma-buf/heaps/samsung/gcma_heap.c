@@ -387,12 +387,12 @@ static int gcma_heap_probe(struct platform_device *pdev)
 
 	ret = samsung_heap_add(&pdev->dev, gcma_heap, gcma_heap_release,
 			       &gcma_heap_ops);
-	if (ret == -ENODEV)
-		return 0;
+	if (ret)
+		return ret == -ENODEV ? 0 : ret;
 
 	register_heap_sysfs(gcma_heap, pdev->name);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id gcma_heap_of_match[] = {

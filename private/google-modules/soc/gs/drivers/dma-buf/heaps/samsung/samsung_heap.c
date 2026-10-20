@@ -198,7 +198,7 @@ static struct samsung_dma_heap *__samsung_heap_add(struct device *dev, void *pri
 
 	heap->dma_heap = dma_heap_add(&exp_info);
 	if (IS_ERR(heap->dma_heap))
-		return heap;
+		return ERR_CAST(heap->dma_heap);
 
 	pr_info("Registered %s dma-heap successfully\n", heap_name);
 
