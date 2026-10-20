@@ -1468,7 +1468,11 @@ void rvh_find_lowest_rq_pixel_mod(void *data, struct task_struct *p,
 					 struct task_struct *exec_ctx,
 					 struct cpumask *lowest_mask,
 					 int ret, int *cpu);
-int pmu_poll_init(void);
+int pmu_poll_prepare(void);
+void pmu_poll_start(void);
+void pmu_poll_abort_prepare(void);
+int prepare_sched_controls(void);
+void release_sched_controls(void);
 void vh_sched_resume_end(void *data, void *unused);
 void vh_set_task_comm_pixel_mod(void *data, struct task_struct *p, bool exec);
 void vh_exit_check_pixel_mod(void *data, struct task_struct *tsk);

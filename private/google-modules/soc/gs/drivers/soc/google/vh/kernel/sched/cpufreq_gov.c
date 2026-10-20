@@ -116,6 +116,7 @@ static cpumask_t pixel_sched_governor_mask = CPU_MASK_NONE;
 static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 DEFINE_PER_CPU(struct uclamp_stats, uclamp_stats);
 static struct kthread_worker pmu_worker;
+static struct task_struct *pmu_poll_thread;
 static struct kthread_work pmu_work;
 static struct irq_work pmu_irq_work;
 static DEFINE_SPINLOCK(pmu_poll_enable_lock);
@@ -1219,7 +1220,7 @@ static void sugov_irq_work(struct irq_work *irq_work)
 
 int pmu_poll_enable(void)
 {
-	// Check pmu_poll_init finish successfully
+	// Check PMU worker startup finished successfully
 	if (!pmu_work.func || !pmu_worker.task)
 		return -EBUSY;
 
@@ -1802,7 +1803,7 @@ static void pmu_poll_irq_work(struct irq_work *irq_work)
 	kthread_queue_work(&pmu_worker, &pmu_work);
 }
 
-int pmu_poll_init(void)
+int pmu_poll_prepare(void)
 {
 	int ret = 0;
 	struct task_struct *thread;
@@ -1827,9 +1828,21 @@ int pmu_poll_init(void)
 		return ret;
 	}
 
-	wake_up_process(thread);
+	pmu_poll_thread = thread;
 
 	return ret;
+}
+
+void pmu_poll_start(void)
+{
+	wake_up_process(pmu_poll_thread);
+}
+
+void pmu_poll_abort_prepare(void)
+{
+	/* No published producer/control can queue work before permanent admission. */
+	kthread_stop(pmu_poll_thread);
+	pmu_poll_thread = NULL;
 }
 
 static int sugov_kthread_create(struct sugov_policy *sg_policy)
