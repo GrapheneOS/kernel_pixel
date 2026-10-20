@@ -144,6 +144,7 @@ static struct gxp_mailbox *create_mailbox(struct gxp_mailbox_manager *mgr,
 	mailbox->gxp = mgr->gxp;
 	mailbox->csr_reg_base = mgr->get_mailbox_csr_base(mgr->gxp, core_id);
 	mailbox->data_reg_base = mgr->get_mailbox_data_base(mgr->gxp, core_id);
+	spin_lock_init(&mailbox->interrupt_handlers_lock);
 	mailbox->type = args->type;
 	mailbox->queue_wrap_bit = args->queue_wrap_bit;
 	mailbox->cmd_elem_size = args->cmd_elem_size;
@@ -474,11 +475,15 @@ int gxp_mailbox_register_interrupt_handler(struct gxp_mailbox *mailbox,
 					   u32 int_bit,
 					   struct work_struct *handler)
 {
+	unsigned long flags;
+
 	/* Bit 0 is reserved for incoming mailbox responses */
 	if (int_bit == 0 || int_bit >= GXP_MAILBOX_INT_BIT_COUNT)
 		return -EINVAL;
 
+	spin_lock_irqsave(&mailbox->interrupt_handlers_lock, flags);
 	mailbox->interrupt_handlers[int_bit] = handler;
+	spin_unlock_irqrestore(&mailbox->interrupt_handlers_lock, flags);
 
 	return 0;
 }
@@ -486,13 +491,34 @@ int gxp_mailbox_register_interrupt_handler(struct gxp_mailbox *mailbox,
 int gxp_mailbox_unregister_interrupt_handler(struct gxp_mailbox *mailbox,
 					     u32 int_bit)
 {
+	unsigned long flags;
+
 	/* Bit 0 is reserved for incoming mailbox responses */
 	if (int_bit == 0 || int_bit >= GXP_MAILBOX_INT_BIT_COUNT)
 		return -EINVAL;
 
+	spin_lock_irqsave(&mailbox->interrupt_handlers_lock, flags);
 	mailbox->interrupt_handlers[int_bit] = NULL;
+	spin_unlock_irqrestore(&mailbox->interrupt_handlers_lock, flags);
 
 	return 0;
+}
+
+bool gxp_mailbox_schedule_interrupt_handler(struct gxp_mailbox *mailbox, u32 int_bit)
+{
+	struct work_struct *handler;
+	unsigned long flags;
+
+	if (int_bit == 0 || int_bit >= GXP_MAILBOX_INT_BIT_COUNT)
+		return false;
+
+	spin_lock_irqsave(&mailbox->interrupt_handlers_lock, flags);
+	handler = mailbox->interrupt_handlers[int_bit];
+	if (handler)
+		schedule_work(handler);
+	spin_unlock_irqrestore(&mailbox->interrupt_handlers_lock, flags);
+
+	return handler != NULL;
 }
 
 int gxp_mailbox_send_cmd(struct gxp_mailbox *mailbox, void *cmd, void *resp,
