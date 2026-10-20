@@ -1335,4 +1335,9 @@ static inline void send_trace_sched_group_tracker(struct task_struct *p, bool is
 	trace_sched_group_tracker(p, GRP_NAME[vp->group], vp->group);
 }
 
+int pmu_poll_prepare(void);
+void pmu_poll_start(void);
+void pmu_poll_abort_prepare(void);
+int prepare_sched_controls(void);
+
 void rvh_wake_up_new_task_pixel_mod(void *data, struct task_struct *tsk);
