@@ -3520,7 +3520,11 @@ static int __init syna_dev_module_init(void)
 	if (retval < 0)
 		return retval;
 
-	return platform_driver_register(&syna_dev_driver);
+	retval = platform_driver_register(&syna_dev_driver);
+	if (retval < 0)
+		syna_hw_interface_exit();
+
+	return retval;
 }
 
 /**
