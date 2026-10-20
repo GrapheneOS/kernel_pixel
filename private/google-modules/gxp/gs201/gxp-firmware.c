@@ -811,6 +811,21 @@ out_fw_destroy:
 	return ret;
 }
 
+void gxp_fw_quiesce_debugfs_client(struct gxp_dev *gxp)
+{
+	debugfs_lookup_and_remove(DEBUGFS_FIRMWARE_RUN, gxp->d_entry);
+	/* Also exclude the mailbox debugfs command path using this client. */
+	mutex_lock(&gxp->debugfs_client_lock);
+	if (gxp->debugfs_client) {
+		mutex_lock(&gxp->client_list_lock);
+		list_del(&gxp->debugfs_client->list_entry);
+		mutex_unlock(&gxp->client_list_lock);
+		gxp_client_destroy(gxp->debugfs_client);
+		gxp->debugfs_client = NULL;
+	}
+	mutex_unlock(&gxp->debugfs_client_lock);
+}
+
 void gxp_fw_destroy(struct gxp_dev *gxp)
 {
 	uint core;
@@ -819,14 +834,7 @@ void gxp_fw_destroy(struct gxp_dev *gxp)
 	if (IS_GXP_TEST && !mgr)
 		return;
 
-	debugfs_remove(debugfs_lookup(DEBUGFS_FIRMWARE_RUN, gxp->d_entry));
-	/*
-	 * Now that debugfs is torn down, and no other calls to
-	 * `debugfs_firmware_run_set()` can occur, destroy any client that may
-	 * have been left running.
-	 */
-	if (gxp->debugfs_client)
-		gxp_client_destroy(gxp->debugfs_client);
+	gxp_fw_quiesce_debugfs_client(gxp);
 
 	device_remove_group(gxp->dev, &gxp_firmware_attr_group);
 
