@@ -262,9 +262,12 @@ static int vh_sched_init(void)
 		return ret;
 
 	init_vendor_rt_rq();
-	ret = pmu_poll_prepare();
+	ret = prepare_sched_controls();
 	if (ret)
 		goto release_topology;
+	ret = pmu_poll_prepare();
+	if (ret)
+		goto release_controls;
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
 	init_uclamp_stats();
@@ -282,8 +285,6 @@ static int vh_sched_init(void)
 		goto unregister_dup;
 
 	/* First permanent hook: no return may unload reachable module text below. */
-	ret = prepare_sched_controls();
-	require_init_success("prepare_sched_controls", ret);
 	ret = stop_machine(init_vendor_task_data, NULL, cpumask_of(raw_smp_processor_id()));
 	require_init_success("initial task metadata walk", ret);
 	register_set_cluster_enabled_cb(set_cluster_enabled_cb);
@@ -507,6 +508,8 @@ unregister_dup:
 	tracepoint_synchronize_unregister();
 abort_pmu:
 	pmu_poll_abort_prepare();
+release_controls:
+	release_sched_controls();
 release_topology:
 	release_prepared_topology();
 	return ret;
