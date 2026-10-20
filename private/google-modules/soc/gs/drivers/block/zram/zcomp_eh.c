@@ -26,7 +26,6 @@ static int zcomp_eh_decompress(struct zcomp *comp, void *src,
 static void zcomp_eh_destroy(struct zcomp *comp)
 {
 	eh_destroy(comp->private);
-	module_put(THIS_MODULE);
 }
 
 static int zcomp_eh_create(struct zcomp *comp, const char *name)
@@ -37,12 +36,12 @@ static int zcomp_eh_create(struct zcomp *comp, const char *name)
 		return -ENODEV;
 
 	comp->private = eh_dev;
-	__module_get(THIS_MODULE);
 
 	return 0;
 }
 
 const struct zcomp_operation zcomp_eh_op = {
+	.owner = THIS_MODULE,
 	.create = zcomp_eh_create,
 	.destroy = zcomp_eh_destroy,
 	.compress_async = zcomp_eh_compress,
