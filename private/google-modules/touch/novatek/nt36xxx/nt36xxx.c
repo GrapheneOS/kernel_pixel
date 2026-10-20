@@ -2658,6 +2658,7 @@ err_goog_touch_interface:
 	ts->g_usi_handle = G_USI_INVALID_HANDLE;
 err_goog_usi_register_failed:
 	input_unregister_device(ts->input_dev);
+	ts->input_dev = NULL;
 err_input_register_device_failed:
 	if (ts->input_dev) {
 		input_free_device(ts->input_dev);
