@@ -293,6 +293,7 @@ qdf_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 		return -ENODEV;
 	}
 
+	size = get_pktlog_bufsize(pl_dev);
 	local.data = &size;
 	local.maxlen = sizeof(size);
 
@@ -303,7 +304,6 @@ qdf_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 			ret = pl_dev->pl_funcs->pktlog_setsize(
 					(struct hif_opaque_softc *)scn, size);
 	} else {
-		size = get_pktlog_bufsize(pl_dev);
 		ret = QDF_SYSCTL_PROC_DOINTVEC(&local, write, filp, buffer,
 					       lenp, ppos);
 	}
@@ -394,6 +394,8 @@ static int pktlog_sysctl_register(struct hif_opaque_softc *scn)
 	path = kasprintf(GFP_KERNEL, "%s/%s", PKTLOG_PROC_DIR, proc_name);
 	if (!path)
 		return -ENOMEM;
+
+	/* Native sysctl owns copies of the directory names, not this path. */
 	pl_info_lnx->sysctl_header = register_sysctl(path, pl_info_lnx->sysctls);
 	kfree(path);
 
@@ -519,9 +521,10 @@ static void pktlog_detach(struct hif_opaque_softc *scn)
 		ASSERT(0);
 		return;
 	}
-	mutex_lock(&pl_info->pktlog_mutex);
+	/* Withdraw and drain callbacks before taking the state lock they need. */
 	remove_proc_entry(WLANDEV_BASENAME, g_pktlog_pde);
 	pktlog_sysctl_unregister(pl_dev);
+	mutex_lock(&pl_info->pktlog_mutex);
 
 	qdf_spin_lock_bh(&pl_info->log_lock);
 
