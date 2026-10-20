@@ -109,6 +109,11 @@ static QDF_STATUS tdls_process_rx_mgmt(
 		   rx_mgmt->rx_freq, rx_mgmt->vdev_id, rx_mgmt->frm_type,
 		   rx_mgmt->rx_rssi, rx_mgmt->buf);
 
+	if (rx_mgmt->frame_len < TDLS_PUBLIC_ACTION_FRAME_OFFSET + 2) {
+		tdls_err("management frame lacks its action category and type");
+		return QDF_STATUS_E_INVAL;
+	}
+
 	if (rx_mgmt->buf[TDLS_PUBLIC_ACTION_FRAME_OFFSET + 1] ==
 						TDLS_PUBLIC_ACTION_DISC_RESP) {
 		mac = &rx_mgmt->buf[TDLS_80211_PEER_ADDR_OFFSET];
