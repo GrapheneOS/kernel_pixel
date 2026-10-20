@@ -3334,10 +3334,13 @@ QDF_STATUS p2p_process_rx_mgmt(
 	struct p2p_frame_info frame_info;
 	uint8_t *mac_from;
 
+	if (!rx_mgmt_event)
+		return QDF_STATUS_E_INVAL;
+
 	p2p_soc_obj = rx_mgmt_event->p2p_soc_obj;
 	rx_mgmt = rx_mgmt_event->rx_mgmt;
 
-	if (!p2p_soc_obj || !(p2p_soc_obj->start_param)) {
+	if (!p2p_soc_obj || !rx_mgmt || !(p2p_soc_obj->start_param)) {
 		p2p_err("Invalid psoc object or start parameters");
 		qdf_mem_free(rx_mgmt);
 		return QDF_STATUS_E_INVAL;
@@ -3347,6 +3350,12 @@ QDF_STATUS p2p_process_rx_mgmt(
 		  p2p_soc_obj->soc, rx_mgmt->frame_len,
 		  rx_mgmt->rx_freq, rx_mgmt->vdev_id, rx_mgmt->frm_type,
 		  rx_mgmt->rx_rssi, rx_mgmt->buf);
+
+	if (rx_mgmt->frame_len < SRC_MAC_ADDR_OFFSET + QDF_MAC_ADDR_SIZE) {
+		p2p_err("management frame does not contain a source address");
+		qdf_mem_free(rx_mgmt);
+		return QDF_STATUS_E_INVAL;
+	}
 
 	if (rx_mgmt->frm_type == MGMT_ACTION_VENDOR_SPECIFIC) {
 		p2p_get_frame_info(rx_mgmt->buf, rx_mgmt->frame_len,
