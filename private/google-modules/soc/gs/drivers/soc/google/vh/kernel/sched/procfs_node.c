@@ -3638,6 +3638,19 @@ static struct pentry entries[] = {
 };
 
 
+void release_sched_controls(void)
+{
+	if (iidev_b)
+		idle_inject_unregister(iidev_b);
+	if (iidev_m)
+		idle_inject_unregister(iidev_m);
+	if (iidev_l)
+		idle_inject_unregister(iidev_l);
+	iidev_l = NULL;
+	iidev_m = NULL;
+	iidev_b = NULL;
+}
+
 int prepare_sched_controls(void)
 {
 	struct uclamp_se uc_max = {};
@@ -3659,7 +3672,7 @@ int prepare_sched_controls(void)
 		cpumask_set_cpu(i, &cpumask);
 	iidev_l = idle_inject_register(&cpumask);
 	if (!iidev_l)
-		return -ENOMEM;
+		goto fail;
 	idle_inject_set_duration(iidev_l, 2000, 14000);
 	idle_inject_set_latency(iidev_l, 5000);
 
@@ -3668,7 +3681,7 @@ int prepare_sched_controls(void)
 		cpumask_set_cpu(i, &cpumask);
 	iidev_m = idle_inject_register(&cpumask);
 	if (!iidev_m)
-		return -ENOMEM;
+		goto fail;
 	idle_inject_set_duration(iidev_m, 2000, 14000);
 	idle_inject_set_latency(iidev_m, 5000);
 
@@ -3677,11 +3690,14 @@ int prepare_sched_controls(void)
 		cpumask_set_cpu(i, &cpumask);
 	iidev_b = idle_inject_register(&cpumask);
 	if (!iidev_b)
-		return -ENOMEM;
+		goto fail;
 	idle_inject_set_duration(iidev_b, 2000, 14000);
 	idle_inject_set_latency(iidev_b, 5000);
 
 	return 0;
+fail:
+	release_sched_controls();
+	return -ENOMEM;
 }
 
 int create_procfs_node(void)

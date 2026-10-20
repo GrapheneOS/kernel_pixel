@@ -1472,6 +1472,7 @@ int pmu_poll_prepare(void);
 void pmu_poll_start(void);
 void pmu_poll_abort_prepare(void);
 int prepare_sched_controls(void);
+void release_sched_controls(void);
 void vh_sched_resume_end(void *data, void *unused);
 void vh_set_task_comm_pixel_mod(void *data, struct task_struct *p, bool exec);
 void vh_exit_check_pixel_mod(void *data, struct task_struct *tsk);
