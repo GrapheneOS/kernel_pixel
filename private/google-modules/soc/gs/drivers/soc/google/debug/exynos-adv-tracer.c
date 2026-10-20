@@ -646,11 +646,17 @@ static struct platform_driver eat_info_driver = {
 	.probe	= adv_tracer_probe,
 	.driver	= {
 		.name = "exynos-adv-tracer",
+		.suppress_bind_attrs = true,
 		.owner	= THIS_MODULE,
 		.of_match_table	= eat_match,
 	},
 };
-module_platform_driver(eat_info_driver);
+/* Global IPC users and framework callbacks require kernel-lifetime state. */
+static int __init adv_tracer_init(void)
+{
+	return platform_driver_register(&eat_info_driver);
+}
+module_init(adv_tracer_init);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Exynos Advanced Tracer Driver");
