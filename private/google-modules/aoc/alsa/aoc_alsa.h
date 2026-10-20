@@ -35,6 +35,7 @@ struct iov_iter;
 
 #include "../aoc-interface.h"
 #include "google-aoc-enum.h"
+#include "aoc_alsa_usb.h"
 #include "usbaudio.h"
 #include "audiometrics.h"
 
@@ -608,13 +609,6 @@ int aoc_audio_mic_mask_set(struct aoc_chip *chip, bool is_voice);
 
 int aoc_audio_us_record(struct aoc_chip *chip, bool enable);
 
-bool aoc_alsa_usb_callback_register(
-	void (*callback)(struct usb_device *, struct usb_host_endpoint *));
-void aoc_alsa_usb_callback_unregister(void);
-
-
 bool aoc_alsa_dp_playback_enabled(void);
-int aoc_alsa_usb_register_notifier(struct notifier_block *nb);
-void aoc_alsa_usb_unregister_notifier(struct notifier_block *nb);
 
 #endif
