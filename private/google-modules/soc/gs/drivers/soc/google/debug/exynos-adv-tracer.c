@@ -306,8 +306,8 @@ static int adv_tracer_ipc_channel_init(unsigned int id, unsigned int offset,
 	channel->buff_regs = (void __iomem *)(eat_ipc->mailbox_base + offset);
 	channel->cmd = devm_kzalloc(eat_ipc->dev,
 			sizeof(struct adv_tracer_ipc_cmd), GFP_KERNEL);
-	if (IS_ERR(channel->cmd))
-		return PTR_ERR(channel->cmd);
+	if (!channel->cmd)
+		return -ENOMEM;
 
 	channel->ipc_callback = handler;
 	channel->used = true;
@@ -490,8 +490,8 @@ static int adv_tracer_ipc_channel_probe(void)
 	eat_ipc->channel = devm_kcalloc(eat_ipc->dev, eat_ipc->num_channels,
 			sizeof(struct adv_tracer_ipc_ch), GFP_KERNEL);
 
-	if (IS_ERR(eat_ipc->channel))
-		return PTR_ERR(eat_ipc->channel);
+	if (!eat_ipc->channel)
+		return -ENOMEM;
 
 	for (i = 0; i < eat_ipc->num_channels; i++) {
 		init_completion(&eat_ipc->channel[i].wait);
@@ -519,49 +519,30 @@ static int adv_tracer_ipc_channel_probe(void)
 static int adv_tracer_ipc_init(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	int ret = 0;
-	struct cpumask aff_mask;
+	struct cpumask *aff_mask;
 	const char *buf;
+	int irq, ret;
+#ifdef ADV_TRACER_SSCOREDUMP
+	bool sscd_registered = false;
+#endif
 
 	eat_ipc = devm_kzalloc(&pdev->dev,
 			sizeof(struct adv_tracer_ipc_main), GFP_KERNEL);
 	if (!eat_ipc)
 		return -ENODEV;
+	eat_ipc->dev = &pdev->dev;
 
 	/* Mailbox interrupt, AP -- Debug Core */
-	eat_ipc->irq = platform_get_irq(pdev, 0);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
+	eat_ipc->irq = irq;
 	eat_ipc->recovery = false;
 
 	/* Mailbox base register */
 	eat_ipc->mailbox_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(eat_ipc->mailbox_base))
-		return -ENODEV;
-
-	adv_tracer_ipc_interrupt_clear(EAT_FRM_CHANNEL);
-	ret = devm_request_threaded_irq(&pdev->dev, eat_ipc->irq,
-			adv_tracer_ipc_irq_handler,
-			adv_tracer_ipc_irq_handler_thread,
-			IRQF_ONESHOT, dev_name(&pdev->dev), eat_ipc);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register interrupt: %d\n", ret);
-		return ret;
-	}
-	ret = of_property_read_string(node, "irq_affinity", &buf);
-	if (!ret) {
-		cpulist_parse(buf, &aff_mask);
-		ret = irq_set_affinity_hint(eat_ipc->irq, &aff_mask);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to set interrupt affinity: %d\n", ret);
-			return ret;
-		}
-	}
-	eat_ipc->dev = &pdev->dev;
-
-	ret = adv_tracer_ipc_channel_probe();
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register channel: %d\n", ret);
-		return ret;
-	}
+		return PTR_ERR(eat_ipc->mailbox_base);
 
 	if (of_property_read_u32(node, "pmu-dbgcore-config",
 				&eat_ipc->dbgc_config))
@@ -573,15 +554,62 @@ static int adv_tracer_ipc_init(struct platform_device *pdev)
 				&eat_ipc->intr_bitoffset))
 		eat_ipc->intr_bitoffset = INTR_FLAG_OFFSET;
 
+	adv_tracer_ipc_interrupt_clear(EAT_FRM_CHANNEL);
+	ret = devm_request_threaded_irq(&pdev->dev, eat_ipc->irq,
+			adv_tracer_ipc_irq_handler,
+			adv_tracer_ipc_irq_handler_thread,
+			IRQF_ONESHOT | IRQF_NO_AUTOEN, dev_name(&pdev->dev), eat_ipc);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register interrupt: %d\n", ret);
+		return ret;
+	}
+
+	ret = of_property_read_string(node, "irq_affinity", &buf);
+	if (!ret) {
+		/* IRQ affinity hints retain this mask until the hint is cleared. */
+		aff_mask = devm_kzalloc(&pdev->dev, cpumask_size(), GFP_KERNEL);
+		if (!aff_mask) {
+			ret = -ENOMEM;
+			goto free_irq;
+		}
+		ret = cpulist_parse(buf, aff_mask);
+		if (ret)
+			goto free_irq;
+		ret = irq_set_affinity_hint(eat_ipc->irq, aff_mask);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to set interrupt affinity: %d\n", ret);
+			goto free_irq;
+		}
+	}
+
 #ifdef ADV_TRACER_SSCOREDUMP
 	ret = platform_device_register(&sscd_dev);
 	if (ret) {
 		platform_device_put(&sscd_dev);
-		return ret;
+		goto free_irq;
 	}
+	sscd_registered = true;
 #endif
 
+	ret = adv_tracer_ipc_channel_probe();
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register channel: %d\n", ret);
+		goto free_irq;
+	}
+
+	/* Framework buffers, recovery state and optional reporting are ready. */
+	enable_irq(eat_ipc->irq);
 	dev_info(&pdev->dev, "%s successful.\n", __func__);
+	return 0;
+
+free_irq:
+	irq_set_affinity_hint(eat_ipc->irq, NULL);
+	/* Drain callbacks before devres can release their channel buffers. */
+	devm_free_irq(&pdev->dev, eat_ipc->irq, eat_ipc);
+#ifdef ADV_TRACER_SSCOREDUMP
+	if (sscd_registered)
+		platform_device_unregister(&sscd_dev);
+#endif
 	return ret;
 }
 
@@ -596,8 +624,12 @@ static int adv_tracer_probe(struct platform_device *pdev)
 
 	adv_tracer->dev = &pdev->dev;
 	eat_info = adv_tracer;
-	if (adv_tracer_ipc_init(pdev))
+	ret = adv_tracer_ipc_init(pdev);
+	if (ret) {
+		eat_ipc = NULL;
+		eat_info = NULL;
 		goto out;
+	}
 
 	dev_info(&pdev->dev, "%s successful.\n", __func__);
 out:
