@@ -34,7 +34,6 @@ void gxp_mailbox_reset_hw(struct gxp_mailbox *mailbox)
 void gxp_mailbox_chip_irq_handler(struct gxp_mailbox *mailbox)
 {
 	u32 intr_bits;
-	struct work_struct **handlers = mailbox->interrupt_handlers;
 	u32 next_int;
 
 	/* Contains only the non-masked, pending interrupt bits */
@@ -52,9 +51,7 @@ void gxp_mailbox_chip_irq_handler(struct gxp_mailbox *mailbox)
 		next_int--; /* ffs returns 1-based indices */
 		intr_bits &= ~BIT(next_int);
 
-		if (handlers[next_int])
-			schedule_work(handlers[next_int]);
-		else
+		if (!gxp_mailbox_schedule_interrupt_handler(mailbox, next_int))
 			dev_warn_ratelimited(mailbox->gxp->dev,
 					     "mailbox%d: received unknown interrupt bit 0x%X\n",
 					     mailbox->core_id, next_int);
