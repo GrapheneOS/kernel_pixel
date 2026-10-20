@@ -339,6 +339,7 @@ QDF_STATUS tgt_p2p_mgmt_frame_rx_cb(struct wlan_objmgr_psoc *psoc,
 			mgmt_rx_params->buf_len);
 	if (!rx_mgmt) {
 		p2p_debug_rl("Failed to allocate rx mgmt frame");
+		qdf_mem_free(rx_mgmt_event);
 		qdf_nbuf_free(buf);
 		return QDF_STATUS_E_NOMEM;
 	}
