@@ -303,62 +303,67 @@ static int snd_aoc_alsa_probe(void)
 	err = aoc_voice_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc voice\n");
-		goto out;
+		goto err_pcm;
 	}
 
 	err = aoc_compr_init();
 	if (err) {
 		pr_err("ERR:%d failed to init aoc compress offload\n", err);
-		goto out;
+		goto err_voice;
 	}
 
 	err = aoc_path_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc path\n");
-		goto out;
+		goto err_compr;
 	}
 
 	err = aoc_nohost_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc nohost driver\n");
-		goto out;
+		goto err_path;
 	}
 
 	err = aoc_incall_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc incall driver\n");
-		goto out;
+		goto err_nohost;
 	}
 
 	err = aoc_voip_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc voip driver\n");
-		goto out;
-	}
-
-	err = aoc_usb_init();
-	if (err) {
-		pr_err("ERR: fail to init aoc usb driver\n");
-		goto out;
+		goto err_incall;
 	}
 
 	err = aoc_dp_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc dp driver\n");
-		aoc_usb_exit();
-		goto out;
+		goto err_voip;
 	}
 
 	return 0;
-
+err_voip:
+	aoc_voip_exit();
+err_incall:
+	aoc_incall_exit();
+err_nohost:
+	aoc_nohost_exit();
+err_path:
+	aoc_path_exit();
+err_compr:
+	aoc_compr_exit();
+err_voice:
+	aoc_voice_exit();
+err_pcm:
+	aoc_pcm_exit();
 out:
 	return err;
 }
 
-static int snd_aoc_alsa_remove(void)
+static void snd_aoc_alsa_remove(void)
 {
 	aoc_dp_exit();
-	aoc_usb_exit();
 	aoc_voip_exit();
 	aoc_incall_exit();
 	aoc_nohost_exit();
@@ -366,8 +371,6 @@ static int snd_aoc_alsa_remove(void)
 	aoc_compr_exit();
 	aoc_voice_exit();
 	aoc_pcm_exit();
-
-	return 0;
 }
 
 static int aoc_alsa_probe(struct aoc_service_dev *adev)
@@ -502,7 +505,7 @@ static struct aoc_driver aoc_alsa_driver = {
 
 static int __init aoc_alsa_init(void)
 {
-	int i;
+	int i, err;
 
 	pr_debug("aoc alsa driver init\n");
 
@@ -517,8 +520,23 @@ static int __init aoc_alsa_init(void)
 		init_waitqueue_head(&service_lists[i].wait_head);
 	}
 
-	snd_aoc_alsa_probe();
-	aoc_driver_register(&aoc_alsa_driver);
+	err = snd_aoc_alsa_probe();
+	if (err)
+		return err;
+	err = aoc_driver_register(&aoc_alsa_driver);
+	if (err) {
+		snd_aoc_alsa_remove();
+		return err;
+	}
+
+	/* Publish USB callbacks only after all other registrations succeeded. */
+	err = aoc_usb_init();
+	if (err) {
+		pr_err("Failed to register AoC USB audio: %d\n", err);
+		snd_aoc_alsa_remove();
+		aoc_driver_unregister(&aoc_alsa_driver);
+		return err;
+	}
 
 	pr_debug("aoc alsa driver init done\n");
 	return 0;
@@ -528,10 +546,10 @@ static void __exit aoc_alsa_exit(void)
 {
 	pr_debug("aoc alsa driver exit\n");
 
-	if (drv_registered) {
-		snd_aoc_alsa_remove();
-		drv_registered = false;
-	}
+	aoc_usb_exit();
+	/* Global drivers were registered even if AoC services never became ready. */
+	snd_aoc_alsa_remove();
+	drv_registered = false;
 
 	aoc_driver_unregister(&aoc_alsa_driver);
 	cleanup_resources();
