@@ -390,7 +390,7 @@ int hif_napi_destroy(struct hif_opaque_softc *hif_ctx,
 		}
 
 
-		if (hif->napi_data.state == HIF_NAPI_CONF_UP) {
+		if (hif->napi_data.state & HIF_NAPI_CONF_UP) {
 			if (force) {
 				napi_disable(&(napii->napi));
 				hif_debug("NAPI entry %d force disabled", id);
