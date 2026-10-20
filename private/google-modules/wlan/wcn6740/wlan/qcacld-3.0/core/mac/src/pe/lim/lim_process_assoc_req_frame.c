@@ -1914,7 +1914,7 @@ static bool lim_update_sta_ds(struct mac_context *mac_ctx, tSirMacAddr sa,
  * lim_update_sta_ctx() - add/del sta depending on connection state machine
  * @mac_ctx: pointer to Global MAC structure
  * @session: pointer to pe session entry
- * @assoc_req: pointer to ASSOC/REASSOC Request frame
+ * @assoc_req: request ownership pointer, updated after rejection frees it
  * @sub_type: Assoc(=0) or Reassoc(=1) Requestframe
  * @sta_ds: station dph entry
  * @update_ctx: indicates if STA context already exist
@@ -1924,7 +1924,7 @@ static bool lim_update_sta_ds(struct mac_context *mac_ctx, tSirMacAddr sa,
  * Return: true of no error, false otherwise
  */
 static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *session,
-			       tpSirAssocReq assoc_req, uint8_t sub_type,
+			       tpSirAssocReq *assoc_req, uint8_t sub_type,
 			       tpDphHashNode sta_ds, uint8_t update_ctx)
 {
 	tLimMlmStates mlm_prev_state;
@@ -1956,7 +1956,7 @@ static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *s
 				session);
 
 			if (session->parsedAssocReq)
-				assoc_req =
+				*assoc_req =
 				    session->parsedAssocReq[sta_ds->assocId];
 			return false;
 		}
@@ -1990,7 +1990,7 @@ static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *s
 				/* Restoring the state back. */
 				sta_ds->mlmStaContext.mlmState = mlm_prev_state;
 				if (session->parsedAssocReq)
-					assoc_req = session->parsedAssocReq[
+					*assoc_req = session->parsedAssocReq[
 						sta_ds->assocId];
 				return false;
 			}
@@ -2012,7 +2012,7 @@ static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *s
 				/* Restoring the state back. */
 				sta_ds->mlmStaContext.mlmState = mlm_prev_state;
 				if (session->parsedAssocReq)
-					assoc_req = session->parsedAssocReq[
+					*assoc_req = session->parsedAssocReq[
 							sta_ds->assocId];
 				return false;
 			}
@@ -2112,7 +2112,7 @@ static void lim_defer_sme_indication(struct mac_context *mac_ctx,
 bool lim_send_assoc_ind_to_sme(struct mac_context *mac_ctx,
 			       struct pe_session *session,
 			       uint8_t sub_type, tSirMacAddr sa,
-			       tpSirAssocReq assoc_req,
+			       tpSirAssocReq *assoc_req_ptr,
 			       enum ani_akm_type akm_type,
 			       bool pmf_connection, bool *assoc_req_copied,
 			       bool dup_entry, bool force_1x1,
@@ -2124,6 +2124,7 @@ bool lim_send_assoc_ind_to_sme(struct mac_context *mac_ctx,
 	tHalBitVal qos_mode;
 	tAniAuthType auth_type;
 	uint8_t update_ctx = false;
+	tpSirAssocReq assoc_req = *assoc_req_ptr;
 
 	limGetQosMode(session, &qos_mode);
 	/* Extract 'associated' context for STA, if any. */
@@ -2249,8 +2250,13 @@ send_ind_to_sme:
 	if (!lim_update_sta_ds(mac_ctx, sa, session, assoc_req,
 			       sub_type, sta_ds, auth_type, akm_type,
 			       assoc_req_copied, peer_idx, qos_mode,
-			       pmf_connection, force_1x1))
+			       pmf_connection, force_1x1)) {
+		/* The caller still owns this rejected request and will free it. */
+		if (session->parsedAssocReq &&
+		    session->parsedAssocReq[sta_ds->assocId] == assoc_req)
+			session->parsedAssocReq[sta_ds->assocId] = NULL;
 		return false;
+	}
 
 	/* BTAMP: Storing the parsed assoc request in the session array */
 	if (session->parsedAssocReq)
@@ -2259,7 +2265,7 @@ send_ind_to_sme:
 
 	/* If it is duplicate entry wait till the peer is deleted */
 	if (!dup_entry) {
-		if (!lim_update_sta_ctx(mac_ctx, session, assoc_req,
+		if (!lim_update_sta_ctx(mac_ctx, session, assoc_req_ptr,
 					sub_type, sta_ds, update_ctx))
 			return false;
 	}
@@ -2522,7 +2528,7 @@ QDF_STATUS lim_proc_assoc_req_frm_cmn(struct mac_context *mac_ctx,
 
 	/* Send assoc indication to SME */
 	if (!lim_send_assoc_ind_to_sme(mac_ctx, session, sub_type, sa,
-				       assoc_req, akm_type, pmf_connection,
+				       &assoc_req, akm_type, pmf_connection,
 				       &assoc_req_copied, dup_entry, force_1x1,
 				       peer_aid))
 		goto error;
