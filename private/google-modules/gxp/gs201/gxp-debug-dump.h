@@ -345,6 +345,8 @@ struct gxp_debug_dump_work {
 
 struct gxp_debug_dump_manager {
 	struct gxp_dev *gxp;
+	/* Protected by gxp->vd_semaphore; prevents new handler admission. */
+	bool stopping;
 	/* Buffer holding debug dump data from core firmware. */
 	struct gxp_coherent_buf core_buf;
 	/* Buffer holding debug dump data from MCU firmware. */
@@ -369,6 +371,9 @@ struct gxp_debug_dump_manager {
 };
 
 int gxp_debug_dump_init(struct gxp_dev *gxp, void *sscd_dev, void *sscd_pdata);
+/* Sleepable teardown: caller must hold neither VD nor debug-dump locks. */
+void gxp_debug_dump_quiesce(struct gxp_dev *gxp);
+/* Firmware/VD buffer users must be stopped before final storage release. */
 void gxp_debug_dump_exit(struct gxp_dev *gxp);
 struct work_struct *gxp_debug_dump_get_notification_handler(struct gxp_dev *gxp,
 							    uint core);

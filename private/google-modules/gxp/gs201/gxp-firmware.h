@@ -72,6 +72,9 @@ int gxp_fw_init(struct gxp_dev *gxp);
  */
 void gxp_fw_destroy(struct gxp_dev *gxp);
 
+/* Withdraw the firmware control and destroy its owned persistent VD/client. */
+void gxp_fw_quiesce_debugfs_client(struct gxp_dev *gxp);
+
 /*
  * Requests and loads core firmware into memories.
  * If the loaded firmware is ELF, rearranges it.
