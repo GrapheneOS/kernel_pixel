@@ -291,7 +291,6 @@ static int init_pixel_cpu(void)
 
 	pixel_cpu_init = true;
 
-	register_set_cluster_enabled_cb(set_cluster_enabled_cb);
 
 	return 0;
 
@@ -336,300 +335,254 @@ static struct notifier_block vh_sched_pm_nb = {
 	.notifier_call = vh_sched_pm_notify,
 };
 
+/* Restricted hooks have no unregister API after successful publication. */
+static void require_init_success(const char *stage, int ret)
+{
+	if (ret)
+		panic("vh_sched: %s failed after permanent publication: %d\n", stage, ret);
+}
+
+static void release_prepared_topology(void)
+{
+	pixel_cpu_init = false;
+	kfree(pixel_cpd_exit_latency);
+	kfree(pixel_cluster_enabled);
+	kfree(pixel_cluster_cpu_num);
+	kfree(pixel_cluster_start_cpu);
+	kfree(pixel_cpu_to_cluster);
+}
+
 static int vh_sched_init(void)
 {
 	int ret;
 
 	init_sched_params();
-
 	ret = init_pixel_cpu();
-	if (ret) {
-		pr_err("pixel cpu init failed\n");
-		return ret;
-	}
-
-	ret = pmu_poll_init();
-	if (ret) {
-		pr_err("pmu poll init failed\n");
-		return ret;
-	}
-
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-	init_uclamp_stats();
-#endif
-
-	update_auto_fits_capacity();
-
-	ret = create_procfs_node();
 	if (ret)
 		return ret;
 
 	init_vendor_rt_rq();
+	ret = pmu_poll_prepare();
+	if (ret)
+		goto release_topology;
 
+#if IS_ENABLED(CONFIG_UCLAMP_STATS)
+	init_uclamp_stats();
+#endif
+	update_auto_fits_capacity();
 	init_vendor_group_data();
-
 	init_pixel_em();
 
-	register_pm_notifier(&vh_sched_pm_nb);
-
-	/*
-	 * We must register this first but it won't do anything until we
-	 * initialize vendor task data for all currently running tasks.
-	 *
-	 * We can't call this directly in init_vendor_task_data() as it'll hold
-	 * a mutex and the context in stop_machine is atomic.
-	 *
-	 * init_vendor_task_data() should set a flag to enable this function to
-	 * work as soon as we have initialized the task data.
-	 */
+	/* With readiness false this ordinary hook allocates no task metadata. */
 	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
 	if (ret)
-		return ret;
-
+		goto abort_pmu;
 	ret = register_trace_android_rvh_wake_up_new_task(rvh_wake_up_new_task_pixel_mod, NULL);
 	if (ret)
-		return ret;
+		goto unregister_dup;
 
-	/*
-	 * Heavy handed, but necessary. We want to initialize our private data
-	 * structure for every task running in the system now. And register
-	 * a hook to ensure we initialize them for future ones via
-	 * dup_task_struct() vh.
-	 *
-	 * stop_machine provides atomic way to guarantee this without races.
-	 */
+	/* First permanent hook: no return may unload reachable module text below. */
+	ret = prepare_sched_controls();
+	require_init_success("prepare_sched_controls", ret);
 	ret = stop_machine(init_vendor_task_data, NULL, cpumask_of(raw_smp_processor_id()));
-	if (ret)
-		return ret;
+	require_init_success("initial task metadata walk", ret);
+	register_set_cluster_enabled_cb(set_cluster_enabled_cb);
+	ret = register_pm_notifier(&vh_sched_pm_nb);
+	require_init_success("register_pm_notifier", ret);
+	pmu_poll_start();
 
 	ret = register_trace_android_rvh_enqueue_task(rvh_enqueue_task_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_enqueue_task", ret);
 
 	ret = register_trace_android_rvh_dequeue_task(rvh_dequeue_task_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_dequeue_task", ret);
 
 	ret = register_trace_android_rvh_can_migrate_task(rvh_can_migrate_task_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_can_migrate_task", ret);
 
 	ret = register_trace_android_rvh_enqueue_task_fair(rvh_enqueue_task_fair_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_enqueue_task_fair", ret);
 
 	ret = register_trace_android_rvh_dequeue_task_fair(rvh_dequeue_task_fair_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_dequeue_task_fair", ret);
 
 	ret = register_trace_android_rvh_after_enqueue_task(rvh_after_enqueue_task_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_after_enqueue_task", ret);
 
 	static_branch_enable(&enqueue_dequeue_ready);
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 	ret = register_trace_android_rvh_attach_entity_load_avg(
 		rvh_attach_entity_load_avg_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_attach_entity_load_avg", ret);
 
 	ret = register_trace_android_rvh_detach_entity_load_avg(
 		rvh_detach_entity_load_avg_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_detach_entity_load_avg", ret);
 
 	ret = register_trace_android_rvh_update_load_avg(rvh_update_load_avg_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_update_load_avg", ret);
 
 	ret = register_trace_android_rvh_remove_entity_load_avg(
 		rvh_remove_entity_load_avg_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_remove_entity_load_avg", ret);
 
 	ret = register_trace_android_rvh_update_blocked_fair(
 		rvh_update_blocked_fair_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_update_blocked_fair", ret);
 #endif
 
 	ret = register_trace_android_rvh_rtmutex_prepare_setprio(
 		rvh_rtmutex_prepare_setprio_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_rtmutex_prepare_setprio", ret);
 
 	ret = register_trace_android_rvh_update_rt_rq_load_avg(rvh_update_rt_rq_load_avg_pixel_mod,
 							       NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_update_rt_rq_load_avg", ret);
 
 	ret = register_trace_android_rvh_set_task_cpu(rvh_set_task_cpu_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_set_task_cpu", ret);
 
 	ret = register_trace_android_rvh_set_iowait(rvh_set_iowait_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_set_iowait", ret);
 
 	ret = register_trace_android_rvh_select_task_rq_rt(rvh_select_task_rq_rt_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_select_task_rq_rt", ret);
 
 	ret = register_trace_android_vh_scheduler_tick(vh_scheduler_tick_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_scheduler_tick", ret);
 
 	ret = register_trace_sched_switch(vh_sched_switch_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_sched_switch", ret);
 
 	ret = register_trace_android_rvh_cpu_overutilized(rvh_cpu_overutilized_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_cpu_overutilized", ret);
 
 	ret = register_trace_android_rvh_uclamp_eff_get(rvh_uclamp_eff_get_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_uclamp_eff_get", ret);
 
 	ret = register_trace_android_rvh_util_est_update(rvh_util_est_update_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_util_est_update", ret);
 
 #if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 
 	ret = register_trace_android_rvh_cpu_cgroup_online(
 		rvh_cpu_cgroup_online_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_cpu_cgroup_online", ret);
 #endif
 
 	ret = register_trace_android_rvh_sched_newidle_balance(
 		sched_newidle_balance_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_sched_newidle_balance", ret);
 
 	ret = register_trace_android_rvh_post_init_entity_util_avg(
 		rvh_post_init_entity_util_avg_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_post_init_entity_util_avg", ret);
 
 	ret = register_trace_android_rvh_check_preempt_wakeup(
 		rvh_check_preempt_wakeup_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_check_preempt_wakeup", ret);
 
 	ret = register_trace_android_rvh_select_task_rq_fair(rvh_select_task_rq_fair_pixel_mod,
 							     NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_select_task_rq_fair", ret);
 
 	ret = register_trace_android_rvh_set_cpus_allowed_by_task(
 		rvh_set_cpus_allowed_by_task, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_set_cpus_allowed_by_task", ret);
 
 #if IS_ENABLED(CONFIG_VH_SCHED) && IS_ENABLED(CONFIG_PIXEL_EM)
 	ret = register_trace_android_vh_arch_set_freq_scale(vh_arch_set_freq_scale_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_arch_set_freq_scale", ret);
 #endif
 
 	ret = register_trace_android_vh_uclamp_validate(
 		vh_sched_uclamp_validate_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_uclamp_validate", ret);
 
 	ret = register_trace_android_vh_setscheduler_uclamp(
 		vh_sched_setscheduler_uclamp_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_setscheduler_uclamp", ret);
 
 	ret = cpufreq_register_governor(&sched_pixel_gov);
-	if (ret)
-		return ret;
+	require_init_success("cpufreq_register_governor", ret);
 
 	ret = register_trace_android_vh_dump_throttled_rt_tasks(vh_dump_throttled_rt_tasks_mod,
 								NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_dump_throttled_rt_tasks", ret);
 
 #if IS_ENABLED(CONFIG_RVH_SCHED_LIB)
 
 	ret = register_trace_android_rvh_sched_setaffinity(rvh_sched_setaffinity_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_sched_setaffinity", ret);
 #endif /* IS_ENABLED(CONFIG_RVH_SCHED_LIB) */
 
 	ret = register_trace_android_vh_binder_set_priority(
 		vh_binder_set_priority_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_binder_set_priority", ret);
 
 	ret = register_trace_android_vh_binder_restore_priority(
 		vh_binder_restore_priority_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_binder_restore_priority", ret);
 
 	ret = register_trace_android_vh_binder_proc_transaction_finish(vh_binder_proc_transaction_finish, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_binder_proc_transaction_finish", ret);
 
 	ret = register_trace_android_vh_use_amu_fie(android_vh_use_amu_fie_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_use_amu_fie", ret);
 
 	ret = register_trace_android_rvh_set_user_nice_locked(rvh_set_user_nice_locked_pixel_mod,
 		NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_set_user_nice_locked", ret);
 
 	ret = register_trace_android_rvh_setscheduler_prio(rvh_setscheduler_prio_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_setscheduler_prio", ret);
 
 	ret = register_trace_android_rvh_find_lowest_rq(rvh_find_lowest_rq_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_find_lowest_rq", ret);
 
 #if IS_ENABLED(CONFIG_VH_PRIO_INHERITANCE)
 	ret = register_trace_android_vh_prio_inheritance(vh_prio_inheritance, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_prio_inheritance", ret);
 
 	ret = register_trace_android_vh_prio_restore(vh_prio_restore, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_prio_restore", ret);
 #endif
 
 	ret = register_trace_android_rvh_util_fits_cpu(rvh_util_fits_cpu_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_util_fits_cpu", ret);
 
 	ret = register_trace_android_vh_resume_end(vh_sched_resume_end, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_resume_end", ret);
 
 	ret = register_trace_android_rvh_try_to_wake_up_success(
 		rvh_try_to_wake_up_success_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_rvh_try_to_wake_up_success", ret);
 
 	ret = register_trace_android_vh_set_task_comm(vh_set_task_comm_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_set_task_comm", ret);
 
 
 	ret = register_trace_android_vh_alter_futex_plist_add(
 			vh_alter_futex_plist_add_pixel_mod, NULL);
-	if (ret)
-		return ret;
+	require_init_success("register_trace_android_vh_alter_futex_plist_add", ret);
 
 	// Disable TTWU_QUEUE.
 	sysctl_sched_features &= ~(1UL << __SCHED_FEAT_TTWU_QUEUE);
 	static_key_disable(&sched_feat_keys[__SCHED_FEAT_TTWU_QUEUE]);
 
+	ret = create_procfs_node();
+	require_init_success("create_procfs_node", ret);
 	return 0;
+
+unregister_dup:
+	unregister_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	tracepoint_synchronize_unregister();
+abort_pmu:
+	pmu_poll_abort_prepare();
+release_topology:
+	release_prepared_topology();
+	return ret;
 }
 
 module_init(vh_sched_init);

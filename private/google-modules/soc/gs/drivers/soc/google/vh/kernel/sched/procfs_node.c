@@ -3727,15 +3727,58 @@ static struct pentry entries[] = {
 };
 
 
+int prepare_sched_controls(void)
+{
+	struct uclamp_se uc_max = {};
+	enum uclamp_id clamp_id;
+	cpumask_t cpumask;
+	int i;
+
+	uc_max.value = uclamp_none(UCLAMP_MAX);
+	uc_max.bucket_id = get_bucket_id(uc_max.value);
+	uc_max.user_defined = false;
+	for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++)
+		uclamp_default[clamp_id] = uc_max;
+
+	initialize_vendor_group_property();
+
+	/* Register idle injection */
+	cpumask_clear(&cpumask);
+	for (i = pixel_cluster_start_cpu[0]; i < pixel_cluster_start_cpu[1]; i++)
+		cpumask_set_cpu(i, &cpumask);
+	iidev_l = idle_inject_register(&cpumask);
+	if (!iidev_l)
+		return -ENOMEM;
+	idle_inject_set_duration(iidev_l, 2000, 14000);
+	idle_inject_set_latency(iidev_l, 5000);
+
+	cpumask_clear(&cpumask);
+	for (i = pixel_cluster_start_cpu[1]; i < pixel_cluster_start_cpu[2]; i++)
+		cpumask_set_cpu(i, &cpumask);
+	iidev_m = idle_inject_register(&cpumask);
+	if (!iidev_m)
+		return -ENOMEM;
+	idle_inject_set_duration(iidev_m, 2000, 14000);
+	idle_inject_set_latency(iidev_m, 5000);
+
+	cpumask_clear(&cpumask);
+	for (i = pixel_cluster_start_cpu[2]; i < pixel_cpu_num; i++)
+		cpumask_set_cpu(i, &cpumask);
+	iidev_b = idle_inject_register(&cpumask);
+	if (!iidev_b)
+		return -ENOMEM;
+	idle_inject_set_duration(iidev_b, 2000, 14000);
+	idle_inject_set_latency(iidev_b, 5000);
+
+	return 0;
+}
+
 int create_procfs_node(void)
 {
 	int i;
-	struct uclamp_se uc_max = {};
-	enum uclamp_id clamp_id;
 	struct proc_dir_entry *parent_directory;
 	struct proc_dir_entry *group_root_dir;
 	struct proc_dir_entry *sched_qos_dir;
-	cpumask_t cpumask;
 
 	/* create vendor sched root directory */
 	vendor_sched = proc_mkdir("vendor_sched", NULL);
@@ -3791,43 +3834,6 @@ int create_procfs_node(void)
 			goto out;
 		}
 	}
-
-	uc_max.value = uclamp_none(UCLAMP_MAX);
-	uc_max.bucket_id = get_bucket_id(uc_max.value);
-	uc_max.user_defined = false;
-	for (clamp_id = 0; clamp_id < UCLAMP_CNT; clamp_id++) {
-		uclamp_default[clamp_id] = uc_max;
-	}
-
-	initialize_vendor_group_property();
-
-	/* Register idle injection */
-	cpumask_clear(&cpumask);
-	for (i = pixel_cluster_start_cpu[0]; i < pixel_cluster_start_cpu[1]; i++)
-		cpumask_set_cpu(i, &cpumask);
-	iidev_l = idle_inject_register(&cpumask);
-	if (!iidev_l)
-		goto out;
-	idle_inject_set_duration(iidev_l, 2000, 14000);
-	idle_inject_set_latency(iidev_l, 5000);
-
-	cpumask_clear(&cpumask);
-	for (i = pixel_cluster_start_cpu[1]; i < pixel_cluster_start_cpu[2]; i++)
-		cpumask_set_cpu(i, &cpumask);
-	iidev_m = idle_inject_register(&cpumask);
-	if (!iidev_m)
-		goto out;
-	idle_inject_set_duration(iidev_m, 2000, 14000);
-	idle_inject_set_latency(iidev_m, 5000);
-
-	cpumask_clear(&cpumask);
-	for (i = pixel_cluster_start_cpu[2]; i < pixel_cpu_num; i++)
-		cpumask_set_cpu(i, &cpumask);
-	iidev_b = idle_inject_register(&cpumask);
-	if (!iidev_b)
-		goto out;
-	idle_inject_set_duration(iidev_b, 2000, 14000);
-	idle_inject_set_latency(iidev_b, 5000);
 
 	return 0;
 
