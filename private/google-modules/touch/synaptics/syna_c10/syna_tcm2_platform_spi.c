@@ -328,6 +328,7 @@ static int syna_spi_get_regulator(struct syna_hw_interface *hw_if,
 		if (IS_ERR((struct regulator *)pwr->vdd_reg_dev)) {
 			LOGW("Vdd regulator is not ready\n");
 			retval = PTR_ERR((struct regulator *)pwr->vdd_reg_dev);
+			pwr->vdd_reg_dev = NULL;
 			goto exit;
 		}
 	}
@@ -341,7 +342,8 @@ static int syna_spi_get_regulator(struct syna_hw_interface *hw_if,
 		if (IS_ERR((struct regulator *)pwr->avdd_reg_dev)) {
 			LOGW("AVdd regulator is not ready\n");
 			retval = PTR_ERR((struct regulator *)pwr->avdd_reg_dev);
-			goto regulator_vdd_put;
+			pwr->avdd_reg_dev = NULL;
+			goto regulator_put;
 		}
 	}
 
@@ -356,7 +358,6 @@ regulator_put:
 #endif
 		pwr->vdd_reg_dev = NULL;
 	}
-regulator_vdd_put:
 	if (pwr->avdd_reg_dev) {
 #ifdef DEV_MANAGED_API
 		devm_regulator_put(pwr->avdd_reg_dev);
@@ -1024,7 +1025,9 @@ static int syna_spi_probe(struct spi_device *spi)
 	}
 
 #ifdef CONFIG_OF
-	syna_spi_parse_dt(&syna_spi_hw_if, &spi->dev);
+	retval = syna_spi_parse_dt(&syna_spi_hw_if, &spi->dev);
+	if (retval < 0)
+		goto put_platform_device;
 #endif
 
 	syna_pal_mutex_alloc(&attn->irq_en_mutex);
@@ -1058,29 +1061,50 @@ static int syna_spi_probe(struct spi_device *spi)
 	retval = spi_setup(spi);
 	if (retval < 0) {
 		LOGE("Fail to set up SPI protocol driver\n");
-		return retval;
+		goto free_mutexes;
 	}
 
 	/* enable the regulators */
 	retval = syna_spi_get_regulator(&syna_spi_hw_if, true);
 	if (retval < 0)
-		return retval;
+		goto free_mutexes;
 
 	/* initialize the gpio pins */
 	retval = syna_spi_config_gpio(&syna_spi_hw_if);
 	if (retval < 0) {
 		LOGE("Fail to config gpio\n");
-		return retval;
+		goto put_regulators;
 	}
 
 	/* register the spi platform device */
 	retval = platform_device_add(syna_spi_device);
 	if (retval < 0) {
 		LOGE("Fail to add platform device\n");
-		return retval;
+		goto free_gpios;
 	}
 
 	return 0;
+
+free_gpios:
+	if (syna_spi_hw_if.bdata_pwr.avdd_gpio >= 0)
+		syna_spi_request_gpio(syna_spi_hw_if.bdata_pwr.avdd_gpio, false, 0, 0, NULL);
+	if (syna_spi_hw_if.bdata_pwr.vdd_gpio >= 0)
+		syna_spi_request_gpio(syna_spi_hw_if.bdata_pwr.vdd_gpio, false, 0, 0, NULL);
+	if (syna_spi_hw_if.bdata_rst.reset_gpio >= 0)
+		syna_spi_request_gpio(syna_spi_hw_if.bdata_rst.reset_gpio, false, 0, 0, NULL);
+	if (attn->irq_gpio >= 0)
+		syna_spi_request_gpio(attn->irq_gpio, false, 0, 0, NULL);
+put_regulators:
+	syna_spi_get_regulator(&syna_spi_hw_if, false);
+free_mutexes:
+	syna_pal_mutex_free(&bus->io_mutex);
+	syna_pal_mutex_free(&attn->irq_en_mutex);
+put_platform_device:
+	syna_spi_device->dev.platform_data = NULL;
+	platform_device_put(syna_spi_device);
+	syna_spi_device = NULL;
+	syna_spi_hw_if.pdev = NULL;
+	return retval;
 }
 
 /**
