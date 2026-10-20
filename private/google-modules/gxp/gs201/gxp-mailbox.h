@@ -173,6 +173,8 @@ struct gxp_mailbox {
 
 	void __private (*handle_irq)(struct gxp_mailbox *mailbox);
 	rwlock_t handle_irq_lock;
+	/* Serializes handler publication/withdrawal with IRQ work enqueue. */
+	spinlock_t interrupt_handlers_lock;
 	struct work_struct *interrupt_handlers[GXP_MAILBOX_INT_BIT_COUNT];
 	unsigned int interrupt_virq;
 	spinlock_t cmd_tail_resp_head_lock;
@@ -260,8 +262,12 @@ int gxp_mailbox_register_interrupt_handler(struct gxp_mailbox *mailbox,
 					   u32 int_bit,
 					   struct work_struct *handler);
 
+/* Withdrawal prevents new enqueue; the work owner must join existing work separately. */
 int gxp_mailbox_unregister_interrupt_handler(struct gxp_mailbox *mailbox,
 					     u32 int_bit);
+
+/* Atomically look up and enqueue a handler from IRQ context. */
+bool gxp_mailbox_schedule_interrupt_handler(struct gxp_mailbox *mailbox, u32 int_bit);
 
 /*
  * Initialises the mailbox CSRs.
