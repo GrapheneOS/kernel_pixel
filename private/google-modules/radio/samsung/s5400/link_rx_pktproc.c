@@ -2237,16 +2237,19 @@ create_error:
 		if (!ppa->q[i])
 			continue;
 
+		if (ppa->q[i]->netdev && ppa->q[i]->napi_ptr == &ppa->q[i]->napi) {
+			napi_disable(&ppa->q[i]->napi);
+			netif_napi_del(&ppa->q[i]->napi);
+		}
+
 		if (ppa->q[i]->manager)
 			cpif_exit_netrx_mng(ppa->q[i]->manager);
 
-		if (ppa->q[i]->netdev) {
-			napi_disable(&ppa->q[i]->napi);
-			netif_napi_del(&ppa->q[i]->napi);
-			free_netdev(ppa->q[i]->netdev);
-		}
 		kfree(ppa->q[i]->dma_addr);
+		if (ppa->q[i]->netdev)
+			free_netdev(ppa->q[i]->netdev);
 		kfree(ppa->q[i]);
+		ppa->q[i] = NULL;
 	}
 
 	if (!ppa->info_rgn_cached && ppa->info_vbase)
