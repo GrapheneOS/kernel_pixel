@@ -713,6 +713,17 @@ inline void __reset_task_affinity(struct task_struct *p, const struct cpumask *i
 	set_cpus_allowed_ptr(p, &out_mask);
 }
 
+static struct task_struct *find_vendor_task_by_vpid(pid_t pid)
+{
+	struct task_struct *p = find_task_by_vpid(pid);
+
+	if (!p)
+		return ERR_PTR(-ESRCH);
+	if (!vendor_task_ready(p))
+		return ERR_PTR(-EAGAIN);
+	return p;
+}
+
 /*
  * Reset cpumask to task's cpuset for all tasks in the system.
  */
@@ -741,7 +752,7 @@ static inline bool reset_group_sched_setaffinity(enum vendor_group group)
 	for_each_process_thread(p, t) {
 		const struct cpumask *in_mask = NULL;
 
-		if (get_vendor_group(t) == group) {
+		if (vendor_task_ready(t) && get_vendor_group(t) == group) {
 			if (vg[group].disable_sched_setaffinity_mask)
 				in_mask = t->cpus_ptr;
 			__reset_task_affinity(t, in_mask);
@@ -787,7 +798,7 @@ static inline bool reset_group_batch_policy(enum vendor_group group)
 
 	rcu_read_lock();
 	for_each_process_thread(p, t) {
-		if (get_vendor_group(t) == group)
+		if (vendor_task_ready(t) && get_vendor_group(t) == group)
 			__set_batch_policy(t, group);
 	}
 	rcu_read_unlock();
@@ -874,10 +885,10 @@ static int update_prefer_idle(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -914,10 +925,10 @@ static int update_boost_prio(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -965,10 +976,10 @@ static int update_prefer_fit(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1005,10 +1016,10 @@ static int update_adpf(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1048,10 +1059,10 @@ static int update_preempt_wakeup(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1085,10 +1096,10 @@ static int update_auto_uclamp_max(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1122,10 +1133,10 @@ static int update_prefer_high_cap(const char *buf, bool val)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1180,9 +1191,9 @@ static int update_rampup_multiplier_set(const char *buf, int count)
 	}
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
-		ret = -ESRCH;
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
+		ret = PTR_ERR(p);
 		goto error_unlock;
 	}
 
@@ -1220,10 +1231,10 @@ static int update_rampup_multiplier_clear(const char *buf, int count)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1281,10 +1292,10 @@ static int update_sched_qos_profiles(const char *buf, enum vendor_sched_qos prof
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1426,15 +1437,16 @@ static int update_vendor_group(const char *buf, enum vendor_group_attribute vta,
 {
 	struct task_struct *p, *t;
 	pid_t pid;
+	int ret = 0;
 
 	if (kstrtoint(buf, 0, &pid) || pid <= 0)
 		return -EINVAL;
 
 	rcu_read_lock();
-	p = find_task_by_vpid(pid);
-	if (!p) {
+	p = find_vendor_task_by_vpid(pid);
+	if (IS_ERR(p)) {
 		rcu_read_unlock();
-		return -ESRCH;
+		return PTR_ERR(p);
 	}
 
 	get_task_struct(p);
@@ -1453,6 +1465,10 @@ static int update_vendor_group(const char *buf, enum vendor_group_attribute vta,
 	case VTA_PROC_GROUP:
 		rcu_read_lock();
 		for_each_thread(p, t) {
+			if (!vendor_task_ready(t)) {
+				ret = -EAGAIN;
+				continue;
+			}
 			get_task_struct(t);
 			update_vendor_group_attribute(t, new);
 			put_task_struct(t);
@@ -1465,7 +1481,7 @@ static int update_vendor_group(const char *buf, enum vendor_group_attribute vta,
 
 	put_task_struct(p);
 
-	return 0;
+	return ret;
 }
 
 static void apply_adpf_adj_change(struct task_struct *p, int adj)
@@ -1536,11 +1552,11 @@ static int update_sched_adpf_adjustment(const char *buf, int count)
 			goto fail;
 
 		rcu_read_lock();
-		p = find_task_by_vpid(pid);
-		if (!p) {
+		p = find_vendor_task_by_vpid(pid);
+		if (IS_ERR(p)) {
 			kfree(str1);
 			rcu_read_unlock();
-			return -ESRCH;
+			return PTR_ERR(p);
 		}
 
 		get_task_struct(p);
@@ -1610,6 +1626,8 @@ static int dump_task_show(struct seq_file *m, void *v)
 	rcu_read_lock();
 
 	for_each_process_thread(p, t) {
+		if (!vendor_task_ready(t))
+			continue;
 		get_task_struct(t);
 		vp = get_vendor_task_struct(t);
 		adpf_adj = vp->adpf_adj;

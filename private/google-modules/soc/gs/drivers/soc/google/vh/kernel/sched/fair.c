@@ -2565,7 +2565,7 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 {
 	struct vendor_task_struct *v_tsk, *v_orig;
 
-	if (wait_for_init)
+	if (READ_ONCE(wait_for_init))
 		return;
 
 	v_tsk = get_vendor_task_struct(tsk);
@@ -2580,6 +2580,18 @@ void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk, struct ta
 		v_tsk->orig_prio = orig->static_prio;
 		v_tsk->orig_policy = orig->policy;
 	}
+	publish_vendor_task_struct(v_tsk);
+}
+
+/* A child can pass dup before the initial task walk sees its tasklist entry. */
+void rvh_wake_up_new_task_pixel_mod(void *data, struct task_struct *tsk)
+{
+	if (READ_ONCE(wait_for_init) || vendor_task_ready(tsk))
+		return;
+
+	/* This child is visible to PID lookups and native scheduler setters. */
+	guard(raw_spinlock_irqsave)(&tsk->pi_lock);
+	vh_dup_task_struct_pixel_mod(data, tsk, current);
 }
 
 void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu, int sd_flag,
