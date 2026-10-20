@@ -164,7 +164,7 @@ static void lim_process_sae_msg_ap(struct mac_context *mac,
 		 * request and make it invalid in preauth context. It'll be
 		 * freed later in the legacy path.
 		 */
-		bool assoc_req_copied;
+		bool assoc_req_copied = assoc_req->assoc_req_copied;
 
 		assoc_req->present = false;
 		pe_debug("Assoc req cached; handle it");
@@ -172,7 +172,7 @@ static void lim_process_sae_msg_ap(struct mac_context *mac,
 			lim_send_assoc_ind_to_sme(mac, session,
 						  assoc_req->sub_type,
 						  assoc_req->sa,
-						  assoc_req->assoc_req,
+						  &assoc_req->assoc_req,
 						  ANI_AKM_TYPE_SAE,
 						  assoc_req->pmf_connection,
 						  &assoc_req_copied,
