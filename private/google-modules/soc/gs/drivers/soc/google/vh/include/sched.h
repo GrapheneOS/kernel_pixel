@@ -137,6 +137,8 @@ struct vendor_task_struct {
 
 	/* For boost at fork */
 	u64 boost_at_fork_start_ns;
+	/* Published after the fork or initial task walk has filled in all fields. */
+	bool initialized;
 };
 
 ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[64], struct vendor_task_struct t);

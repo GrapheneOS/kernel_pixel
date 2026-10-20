@@ -225,12 +225,13 @@ static int init_vendor_task_data(void *data)
 		v_tsk->orig_prio = t->static_prio;
 		v_tsk->orig_policy = t->policy;
 		v_tsk->prev_sum_exec_runtime = t->se.prev_sum_exec_runtime;
+		publish_vendor_task_struct(v_tsk);
 		put_task_struct(t);
 	}
 	rcu_read_unlock();
 
 	/* our module can start handling the initialization now */
-	wait_for_init = false;
+	WRITE_ONCE(wait_for_init, false);
 
 	return 0;
 }
@@ -382,6 +383,10 @@ static int vh_sched_init(void)
 	 * work as soon as we have initialized the task data.
 	 */
 	ret = register_trace_android_vh_dup_task_struct(vh_dup_task_struct_pixel_mod, NULL);
+	if (ret)
+		return ret;
+
+	ret = register_trace_android_rvh_wake_up_new_task(rvh_wake_up_new_task_pixel_mod, NULL);
 	if (ret)
 		return ret;
 
