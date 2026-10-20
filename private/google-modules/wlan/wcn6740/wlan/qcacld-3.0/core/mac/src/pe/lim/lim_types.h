@@ -1478,7 +1478,7 @@ void lim_process_assoc_cleanup(struct mac_context *mac_ctx,
  * @sub_type: Indicates whether it is Association Request(=0) or Reassociation
  *            Request(=1) frame
  * @sa: Mac address of requesting peer
- * @assoc_req: pointer to ASSOC/REASSOC Request frame
+ * @assoc_req_ptr: request ownership pointer, cleared if rejection frees it
  * @akm_type: AKM type
  * @pmf_connection: flag indicating pmf connection
  * @assoc_req_copied: boolean to indicate if assoc req was copied to tmp above
@@ -1486,13 +1486,13 @@ void lim_process_assoc_cleanup(struct mac_context *mac_ctx,
  * @force_1x1: flag to indicate if the STA nss needs to be downgraded to 1x1
  * @partner_peer_idx: peer_idx which is already allocated by partner link
  *
- * Return: void
+ * Return: true on success, false on failure; caller cleans up a remaining request
  */
 bool lim_send_assoc_ind_to_sme(struct mac_context *mac_ctx,
 			       struct pe_session *session,
 			       uint8_t sub_type,
 			       tSirMacAddr sa,
-			       tpSirAssocReq assoc_req,
+			       tpSirAssocReq *assoc_req_ptr,
 			       enum ani_akm_type akm_type,
 			       bool pmf_connection,
 			       bool *assoc_req_copied,
