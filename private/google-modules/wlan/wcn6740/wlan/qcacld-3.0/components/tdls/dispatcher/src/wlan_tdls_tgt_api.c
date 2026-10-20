@@ -329,7 +329,8 @@ QDF_STATUS tgt_tdls_mgmt_frame_rx_cb(
 		return QDF_STATUS_E_INVAL;
 	}
 
-	if (!mgmt_rx_params || !psoc) {
+	if (!mgmt_rx_params || !psoc ||
+	    mgmt_rx_params->buf_len > qdf_nbuf_len(buf)) {
 		tdls_err("input is NULL mgmt_rx_params:%pK psoc:%pK, peer:%pK",
 			  mgmt_rx_params, psoc, peer);
 		status = QDF_STATUS_E_INVAL;
