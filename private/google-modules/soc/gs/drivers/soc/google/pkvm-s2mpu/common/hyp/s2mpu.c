@@ -277,8 +277,8 @@ static void __invalidation_barrier_slow(void *dev_va)
 	 *
 	 * The algorithm will try initiating the SYNC if the SYNC_COMP_COMPLETE
 	 * bit has not been set after a given number of attempts, increasing the
-	 * timeout exponentially each time. If this cycle fails a given number
-	 * of times, the algorithm will give up completely to avoid deadlock.
+	 * timeout exponentially each time. Never permit an ownership transfer
+	 * to complete when the hardware has not confirmed the drain.
 	 */
 	timeout = SYNC_TIMEOUT;
 	for (i = 0; i < SYNC_MAX_RETRIES; i++) {
@@ -286,6 +286,12 @@ static void __invalidation_barrier_slow(void *dev_va)
 		if (__wait_until(dev_va + REG_NS_SYNC_COMP, SYNC_COMP_COMPLETE, timeout))
 			break;
 		timeout *= SYNC_TIMEOUT_MULTIPLIER;
+	}
+	if (i == SYNC_MAX_RETRIES) {
+		if (mod_ops->puts)
+			mod_ops->puts("S2MPU: DMA invalidation SYNC timed out\n");
+		/* Core cannot safely complete an ownership transfer after this. */
+		BUG();
 	}
 }
 
