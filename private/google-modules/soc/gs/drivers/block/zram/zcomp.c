@@ -4,6 +4,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -448,13 +449,15 @@ out:
 
 void zcomp_destroy(struct zcomp *comp)
 {
-	struct zcomp_input __percpu *input = comp->input;
+	struct module *owner = comp->op->owner;
 
 	if (zcomp_async(comp))
 		destroy_zcomp_cookie_pool(comp);
-	/* destroy() drops the backend module reference and may release comp. */
+
 	comp->op->destroy(comp);
-	free_percpu(input);
+	free_percpu(comp->input);
+	kfree(comp);
+	module_put(owner);
 }
 
 /*
@@ -467,28 +470,53 @@ void zcomp_destroy(struct zcomp *comp)
  */
 struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 {
-	struct zcomp *comp;
+	struct zcomp *backend, *comp;
 	struct zcomp_input __percpu *input;
 	int error, cpu;
 
 	down_read(&zcomp_rwsem);
-	comp = find_zcomp(algo_name);
-	if (!comp) {
+	backend = find_zcomp(algo_name);
+	if (!backend) {
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(-EINVAL);
 	}
 
+	/* A published descriptor must not expose a still-fallible module init. */
+	if (backend->op->owner && module_is_coming(backend->op->owner)) {
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-EAGAIN);
+	}
+	if (!try_module_get(backend->op->owner)) {
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-ENODEV);
+	}
+
+	comp = kzalloc(sizeof(*comp), GFP_KERNEL);
+	if (!comp) {
+		module_put(backend->op->owner);
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-ENOMEM);
+	}
+	strscpy(comp->algo_name, backend->algo_name, sizeof(comp->algo_name));
+	comp->op = backend->op;
+	comp->zram = zram;
+
 	input = alloc_percpu(struct zcomp_input);
 	if (!input) {
+		module_put(comp->op->owner);
+		kfree(comp);
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(-ENOMEM);
 	}
 	for_each_possible_cpu(cpu)
 		local_lock_init(&per_cpu_ptr(input, cpu)->lock);
+	comp->input = input;
 
 	error = comp->op->create(comp, algo_name);
 	if (error) {
 		free_percpu(input);
+		module_put(comp->op->owner);
+		kfree(comp);
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(error);
 	}
@@ -499,8 +527,6 @@ struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 		spin_lock_init(&comp->request_lock);
 		comp->pend_request = 0;
 	}
-	comp->input = input;
-	comp->zram = zram;
 	up_read(&zcomp_rwsem);
 
 	if (!huge_class_size)
@@ -555,9 +581,9 @@ int zcomp_copy_buffer(int err, void *buffer, int comp_len,
 	zram_slot_update(zram, index, handle, comp_len);
 out:
 	if (zcomp_async(zram->comp)) {
-		zram_bio_endio(zram, bio, true, err);
-
+		/* Completion may let reset destroy this compressor instance. */
 		free_zcomp_cookie(zram->comp, cookie);
+		zram_bio_endio(zram, bio, true, err);
 	}
 
 	return err;

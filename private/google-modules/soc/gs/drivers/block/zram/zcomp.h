@@ -12,6 +12,7 @@
 struct zcomp;
 struct zcomp_input;
 struct bio;
+struct module;
 
 #define ZCOMP_ALGO_NAME_MAX 64
 #define BATCH_ZCOMP_REQUEST (128)
@@ -37,6 +38,7 @@ struct zcomp_cookie_pool {
 };
 
 struct zcomp_operation {
+	struct module *owner;
 	int (*compress)(struct zcomp *comp, struct page *page, struct zcomp_cookie *cookie);
 	int (*compress_async)(struct zcomp *comp, struct page *page, struct zcomp_cookie *cookie);
 	int (*decompress)(struct zcomp *comp, void *src, unsigned int src_len, struct page *page);

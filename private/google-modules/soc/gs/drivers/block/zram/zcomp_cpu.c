@@ -152,7 +152,6 @@ static int zcomp_cpu_create(struct zcomp *comp, const char *name)
 	if (ret < 0)
 		goto cleanup;
 
-	__module_get(THIS_MODULE);
 	return ret;
 cleanup:
 	free_percpu(comp->private);
@@ -163,10 +162,10 @@ static void zcomp_cpu_destroy(struct zcomp *comp)
 {
 	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
 	free_percpu(comp->private);
-	module_put(THIS_MODULE);
 }
 
 const struct zcomp_operation zcomp_cpu_op = {
+	.owner = THIS_MODULE,
 	.create = zcomp_cpu_create,
 	.destroy = zcomp_cpu_destroy,
 	.compress = zcomp_cpu_compress,
