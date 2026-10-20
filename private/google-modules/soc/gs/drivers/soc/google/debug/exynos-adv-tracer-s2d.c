@@ -490,7 +490,7 @@ static int adv_tracer_s2d_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct adv_tracer_plugin *s2d = NULL;
-	int ret;
+	int ret, release_ret;
 
 	s2d = devm_kzalloc(&pdev->dev, sizeof(struct adv_tracer_plugin),
 			GFP_KERNEL);
@@ -512,17 +512,17 @@ static int adv_tracer_s2d_probe(struct platform_device *pdev)
 
 	ret = adv_tracer_s2d_get_enable();
 	if (ret < 0)
-		goto err_sysfs_probe;
+		goto err_release_channel;
 	dev_info(&pdev->dev, "S2D %sabled\n", plugin_s2d.enable ? "en" : "dis");
 	ret = adv_tracer_s2d_dt_init(pdev);
 	if (ret < 0)
-		goto err_sysfs_probe;
+		goto err_release_channel;
 
 	platform_set_drvdata(pdev, s2d);
 	ret = sysfs_create_groups(&pdev->dev.kobj, adv_tracer_s2d_sysfs_groups);
 	if (ret) {
 		dev_err(&pdev->dev, "fail to register sysfs.\n");
-		return ret;
+		goto err_release_channel;
 	}
 
 	dbg_snapshot_register_debug_ops(NULL,
@@ -534,7 +534,14 @@ static int adv_tracer_s2d_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "%s successful.\n", __func__);
 	return 0;
 
+err_release_channel:
+	release_ret = adv_tracer_ipc_release_channel(s2d->id);
+	if (release_ret)
+		dev_err(&pdev->dev, "failed to release s2d channel: %d\n", release_ret);
 err_sysfs_probe:
+	platform_set_drvdata(pdev, NULL);
+	plugin_s2d.s2d_dev = NULL;
+	plugin_s2d.dev = NULL;
 	devm_kfree(&pdev->dev, s2d);
 err_s2d_info:
 	return ret;
