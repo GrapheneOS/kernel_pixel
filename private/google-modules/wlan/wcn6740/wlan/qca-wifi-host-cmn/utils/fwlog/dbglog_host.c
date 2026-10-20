@@ -4294,16 +4294,24 @@ static int cnss_diag_msg_callback(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh;
 	uint8_t *msg;
+	struct dbglog_slot *slot;
 
-	nlh = (struct nlmsghdr *)skb->data;
-	if (!nlh) {
+	nlh = nlmsg_hdr(skb);
+	if (!nlmsg_ok(nlh, skb->len)) {
 		AR_DEBUG_PRINTF(ATH_DEBUG_ERR,
 				("%s: Netlink header null\n", __func__));
 		return A_ERROR;
 	}
 
 	msg = NLMSG_DATA(nlh);
-	cnss_diag_handle_crash_inject((struct dbglog_slot *)msg);
+	if (nlmsg_len(nlh) < sizeof(*slot))
+		return A_ERROR;
+
+	slot = (struct dbglog_slot *)msg;
+	if ((uint64_t)slot->length > nlmsg_len(nlh) - sizeof(*slot))
+		return A_ERROR;
+
+	cnss_diag_handle_crash_inject(slot);
 
 	return 0;
 }
