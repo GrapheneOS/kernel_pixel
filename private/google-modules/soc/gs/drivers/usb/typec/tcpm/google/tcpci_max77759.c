@@ -221,7 +221,6 @@ void *orientation_payload;
 static void max77759_get_cc(struct max77759_plat *chip, enum typec_cc_status *cc1,
 			    enum typec_cc_status *cc2);
 
-static bool hooks_installed;
 
 struct dp_notification_event {
 	struct max77759_plat *chip;
@@ -3211,48 +3210,57 @@ static void max77759_modify_src_caps(void *unused, unsigned int *nr_src_pdo,
 	spin_unlock(&g_caps_lock);
 }
 
-static int max77759_register_vendor_hooks(struct i2c_client *client)
+static int __init max77759_register_vendor_hooks(void)
 {
 	int ret;
-
-	if (hooks_installed)
-		return 0;
 
 	ret = register_trace_android_vh_typec_store_partner_src_caps(
 			max77759_store_partner_src_caps, NULL);
 	if (ret) {
-		dev_err(&client->dev,
-			"register_trace_android_vh_typec_store_partner_src_caps failed ret:%d\n",
-			ret);
+		pr_err("register_trace_android_vh_typec_store_partner_src_caps failed ret:%d\n",
+		       ret);
 		return ret;
 	}
 
 	ret = register_trace_android_vh_typec_tcpm_get_timer(max77759_get_timer_value, NULL);
-	if (ret) {
-		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpm_get_timer failed ret:%d\n", ret);
-		return ret;
-	}
+	if (ret)
+		goto unregister_partner_caps;
 
 	ret = register_trace_android_vh_typec_tcpm_log(max77759_tcpm_log, NULL);
 	if (ret) {
-		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpm_log failed ret:%d\n", ret);
-		return ret;
+		pr_err("register_trace_android_vh_typec_tcpm_log failed ret:%d\n", ret);
+		goto unregister_timer;
 	}
 
 	port_src_pdo_updated = true;
 	ret = register_trace_android_vh_typec_tcpm_modify_src_caps(max77759_modify_src_caps, NULL);
 	if (ret) {
-		dev_err(&client->dev,
-			"register_trace_android_vh_typec_tcpm_modify_src_caps failed ret:%d\n",
-			ret);
-		return ret;
+		pr_err("register_trace_android_vh_typec_tcpm_modify_src_caps failed ret:%d\n",
+		       ret);
+		goto unregister_log;
 	}
 
-	hooks_installed = true;
+	return 0;
 
+unregister_log:
+	unregister_trace_android_vh_typec_tcpm_log(max77759_tcpm_log, NULL);
+unregister_timer:
+	unregister_trace_android_vh_typec_tcpm_get_timer(max77759_get_timer_value, NULL);
+unregister_partner_caps:
+	unregister_trace_android_vh_typec_store_partner_src_caps(
+			max77759_store_partner_src_caps, NULL);
+	tracepoint_synchronize_unregister();
 	return ret;
+}
+
+static void max77759_unregister_vendor_hooks(void)
+{
+	unregister_trace_android_vh_typec_tcpm_get_timer(max77759_get_timer_value, NULL);
+	unregister_trace_android_vh_typec_tcpm_modify_src_caps(max77759_modify_src_caps, NULL);
+	unregister_trace_android_vh_typec_tcpm_log(max77759_tcpm_log, NULL);
+	unregister_trace_android_vh_typec_store_partner_src_caps(
+			max77759_store_partner_src_caps, NULL);
+	tracepoint_synchronize_unregister();
 }
 
 static void reenable_auto_ultra_low_power_mode_work_item(struct kthread_work *work)
@@ -3593,10 +3601,6 @@ static int max77759_probe(struct i2c_client *client,
 	const char *ws_name_prefix = "cc_toggle-";
 	ssize_t ws_name_len;
 	char *ws_name;
-
-	ret = max77759_register_vendor_hooks(client);
-	if (ret)
-		return ret;
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
@@ -4131,17 +4135,36 @@ static struct i2c_driver max77759_i2c_driver = {
 
 static int __init max77759_i2c_driver_init(void)
 {
+	int ret;
+
 	tcpm_log = logbuffer_register("tcpm");
 	if (IS_ERR_OR_NULL(tcpm_log))
 		return -EAGAIN;
 
-	return i2c_add_driver(&max77759_i2c_driver);
+	ret = max77759_register_vendor_hooks();
+	if (ret)
+		goto unregister_log;
+
+	ret = i2c_add_driver(&max77759_i2c_driver);
+	if (ret)
+		goto unregister_hooks;
+
+	return 0;
+
+unregister_hooks:
+	max77759_unregister_vendor_hooks();
+unregister_log:
+	logbuffer_unregister(tcpm_log);
+	return ret;
 }
 module_init(max77759_i2c_driver_init);
 
 static void __exit max77759_i2c_driver_exit(void)
 {
+	/* Drain callbacks before driver teardown releases their associated state. */
+	max77759_unregister_vendor_hooks();
 	i2c_del_driver(&max77759_i2c_driver);
+	logbuffer_unregister(tcpm_log);
 }
 module_exit(max77759_i2c_driver_exit);
 
