@@ -16,7 +16,6 @@
 #include <linux/workqueue.h>
 #include <linux/usb/hcd.h>
 
-
 #include "aoc_usb.h"
 #include "xhci-exynos.h"
 #include "xhci_offload_impl.h"
@@ -138,23 +137,25 @@ static void setup_transfer_ring(struct usb_device *udev, struct usb_host_endpoin
 static void offload_connect_work(struct work_struct *work)
 {
 	struct xhci_hcd *xhci = offload_data->xhci;
+	bool connected = READ_ONCE(offload_data->offload_state);
 
 	xhci_info(xhci, "Set offloading state %s\n",
-		  offload_data->offload_state ? "true" : "false");
-	notify_offload_state(offload_data->offload_state);
+		  connected ? "true" : "false");
+	notify_offload_state(connected);
 }
 
-static int usb_audio_offload_notify(struct notifier_block *nb, unsigned long connected,
-				    void *data)
+static void usb_audio_vendor_connection(bool connected)
 {
-	offload_data->offload_state = connected;
+	WRITE_ONCE(offload_data->offload_state, connected);
 	schedule_work(&offload_data->offload_connect_ws);
-	return NOTIFY_OK;
 }
 
-static struct notifier_block usb_audio_offload_nb = {
-	.notifier_call = usb_audio_offload_notify,
+static const struct aoc_alsa_usb_ops aoc_usb_ops = {
+	.setup_transfer_ring = setup_transfer_ring,
+	.connection = usb_audio_vendor_connection,
 };
+
+static void usb_audio_offload_cleanup(struct xhci_hcd *xhci);
 
 static int xhci_udev_notify(struct notifier_block *self, unsigned long action,
 			    void *dev)
@@ -197,6 +198,9 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 	struct device_node	*np;
 	int i, count;
 #endif
+
+	if (offload_data)
+		return -EBUSY;
 
 	offload_data = kzalloc(sizeof(struct xhci_offload_data), GFP_KERNEL);
 	if (!offload_data)
@@ -254,6 +258,7 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 	if (ret) {
 		dev_err(dev, "Could not get reserved memory\n");
 		kfree(offload_data);
+		offload_data = NULL;
 		return ret;
 	}
 
@@ -270,10 +275,12 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 
 	/* Notification for xhci driver probing */
 	usb_host_mode_state_notify(USB_CONNECTED);
-
-	aoc_alsa_usb_callback_register(setup_transfer_ring);
 	usb_register_notify(&xhci_udev_nb);
-	aoc_alsa_usb_register_notifier(&usb_audio_offload_nb);
+	ret = aoc_alsa_usb_callback_register(&aoc_usb_ops);
+	if (ret) {
+		usb_audio_offload_cleanup(xhci);
+		return ret;
+	}
 
 	return 0;
 #if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
@@ -317,17 +324,17 @@ static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 	int i, count, ret;
 #endif
 
-	aoc_alsa_usb_unregister_notifier(&usb_audio_offload_nb);
-	cancel_work_sync(&offload_data->offload_connect_ws);
-	offload_data->usb_audio_offload = false;
-	offload_data->offload_state = false;
-	offload_data->xhci = NULL;
-
-	aoc_alsa_usb_callback_unregister();
+	/* Drain endpoint/connection callbacks before changing their state. */
+	aoc_alsa_usb_callback_unregister(&aoc_usb_ops);
 	usb_unregister_notify(&xhci_udev_nb);
+	cancel_work_sync(&offload_data->offload_connect_ws);
 
 	/* Notification for xhci driver removing */
 	usb_host_mode_state_notify(USB_DISCONNECTED);
+
+	offload_data->usb_audio_offload = false;
+	offload_data->offload_state = false;
+	offload_data->xhci = NULL;
 
 #if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 	xhci_goog_release_dma_pool(dev);
