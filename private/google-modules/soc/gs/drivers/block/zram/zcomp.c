@@ -4,6 +4,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/string.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -429,9 +430,14 @@ out:
 
 void zcomp_destroy(struct zcomp *comp)
 {
-	comp->op->destroy(comp);
+	struct module *owner = comp->op->owner;
+
 	if (zcomp_async(comp))
 		destroy_zcomp_cookie_pool(comp);
+
+	comp->op->destroy(comp);
+	kfree(comp);
+	module_put(owner);
 }
 
 /*
@@ -444,18 +450,40 @@ void zcomp_destroy(struct zcomp *comp)
  */
 struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 {
-	struct zcomp *comp;
+	struct zcomp *backend, *comp;
 	int error;
 
 	down_read(&zcomp_rwsem);
-	comp = find_zcomp(algo_name);
-	if (!comp) {
+	backend = find_zcomp(algo_name);
+	if (!backend) {
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(-EINVAL);
 	}
 
+	/* A published descriptor must not expose a still-fallible module init. */
+	if (backend->op->owner && READ_ONCE(backend->op->owner->state) == MODULE_STATE_COMING) {
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-EAGAIN);
+	}
+	if (!try_module_get(backend->op->owner)) {
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-ENODEV);
+	}
+
+	comp = kzalloc(sizeof(*comp), GFP_KERNEL);
+	if (!comp) {
+		module_put(backend->op->owner);
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-ENOMEM);
+	}
+	strscpy(comp->algo_name, backend->algo_name, sizeof(comp->algo_name));
+	comp->op = backend->op;
+	comp->zram = zram;
+
 	error = comp->op->create(comp, algo_name);
 	if (error) {
+		module_put(comp->op->owner);
+		kfree(comp);
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(error);
 	}
@@ -466,7 +494,6 @@ struct zcomp *zcomp_create(const char *algo_name, struct zram *zram)
 		spin_lock_init(&comp->request_lock);
 		comp->pend_request = 0;
 	}
-	comp->zram = zram;
 	up_read(&zcomp_rwsem);
 
 	if (!huge_class_size)
@@ -524,13 +551,12 @@ int zcomp_copy_buffer(int err, void *buffer, int comp_len,
 	zram_slot_update(zram, index, handle, comp_len);
 out:
 	if (zcomp_async(zram->comp)) {
-		if (!bio) { /* rw_page case */
-			zram_page_write_endio(zram, page, err);
-		} else {
-			zram_bio_endio(zram, bio, true, err);
-		}
-
+		/* Completion may let reset destroy this compressor instance. */
 		free_zcomp_cookie(zram->comp, cookie);
+		if (!bio)
+			zram_page_write_endio(zram, page, err);
+		else
+			zram_bio_endio(zram, bio, true, err);
 	}
 
 	return err;
