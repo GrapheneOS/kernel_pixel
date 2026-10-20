@@ -818,10 +818,22 @@ static inline bool check_cred(struct task_struct *p)
 	return ret;
 }
 
+static inline bool vendor_task_ready(struct task_struct *p)
+{
+	/* Pair with publication after fork inheritance or the initial task walk. */
+	return smp_load_acquire(&get_vendor_task_struct(p)->initialized);
+}
+
+static inline void publish_vendor_task_struct(struct vendor_task_struct *v_tsk)
+{
+	/* PID-based controls may now use the lock, lists and inherited settings. */
+	smp_store_release(&v_tsk->initialized, true);
+}
+
 static inline void init_vendor_task_struct(struct vendor_task_struct *v_tsk)
 {
-	/* Guarantee everything is not random first, just in case */
-	memset(v_tsk, 0, sizeof(struct vendor_task_struct));
+	/* PID lookups can already be sampling the readiness flag. */
+	memset(v_tsk, 0, offsetof(struct vendor_task_struct, initialized));
 
 	/* Then explicitly set what we expect init value to be */
 	raw_spin_lock_init(&v_tsk->lock);
@@ -1322,3 +1334,5 @@ static inline void send_trace_sched_group_tracker(struct task_struct *p, bool is
 	vp->group_tracked_ctx_count = 0;
 	trace_sched_group_tracker(p, GRP_NAME[vp->group], vp->group);
 }
+
+void rvh_wake_up_new_task_pixel_mod(void *data, struct task_struct *tsk);
