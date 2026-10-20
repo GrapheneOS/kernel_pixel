@@ -900,7 +900,6 @@ static unsigned int gcip_iommu_get_gup_flags(u64 host_addr, struct device *dev)
 
 	mmap_read_lock(current->mm);
 	vma = vma_lookup(current->mm, host_addr & PAGE_MASK);
-	mmap_read_unlock(current->mm);
 
 	if (!vma) {
 		dev_dbg(dev, "unable to find address in VMA, assuming buffer writable");
@@ -910,6 +909,8 @@ static unsigned int gcip_iommu_get_gup_flags(u64 host_addr, struct device *dev)
 	} else {
 		gup_flags = FOLL_LONGTERM;
 	}
+
+	mmap_read_unlock(current->mm);
 
 	return gup_flags;
 }
