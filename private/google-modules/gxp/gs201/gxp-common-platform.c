@@ -2073,6 +2073,9 @@ static int gxp_common_platform_probe(struct platform_device *pdev, struct gxp_de
 	return 0;
 
 err_before_remove:
+	/* Retain dump storage until queued reports and the debugfs VD stop. */
+	gxp_debug_dump_quiesce(gxp);
+	gxp_fw_quiesce_debugfs_client(gxp);
 	gxp_debug_dump_exit(gxp);
 	if (gxp->before_remove)
 		gxp->before_remove(gxp);
@@ -2117,6 +2120,9 @@ static void gxp_common_platform_remove(struct platform_device *pdev)
 	 */
 	gcip_pm_flush_put_work(gxp->power_mgr->pm);
 	gxp_device_remove(gxp);
+	/* Retain dump storage until queued reports and the debugfs VD stop. */
+	gxp_debug_dump_quiesce(gxp);
+	gxp_fw_quiesce_debugfs_client(gxp);
 	gxp_debug_dump_exit(gxp);
 	if (gxp->before_remove)
 		gxp->before_remove(gxp);
