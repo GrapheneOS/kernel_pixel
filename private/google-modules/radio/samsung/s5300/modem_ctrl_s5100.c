@@ -803,6 +803,19 @@ static int request_pcie_int(struct link_device *ld, struct platform_device *pdev
 	return base_irq;
 }
 
+/* Serialize a deferred message with new sends and PCI power transitions. */
+static int flush_reserved_doorbell(struct modem_ctl *mc, struct mem_link_device *mld)
+{
+	guard(spinlock_irqsave)(&mc->pcie_tx_lock);
+
+	if (!mc->reserve_doorbell_int || !mc->pcie_powered_on || !mc->s51xx_pdev ||
+	    mutex_is_locked(&mc->pcie_onoff_lock))
+		return 0;
+
+	mc->reserve_doorbell_int = false;
+	return s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mld->intval_ap2cp_msg);
+}
+
 static int register_pcie(struct link_device *ld)
 {
 	struct modem_ctl *mc = ld->mc;
@@ -810,10 +823,10 @@ static int register_pcie(struct link_device *ld)
 	static int is_registered;
 	struct mem_link_device *mld = to_mem_link_device(ld);
 	u32 cp_num = ld->mdm_data->cp_num;
+	int ret;
 
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	u32 shmem_idx;
-	int ret;
 	struct device_node *s2mpu_dn;
 #endif
 	mif_info("CP EP driver initialization start.\n");
@@ -874,11 +887,9 @@ static int register_pcie(struct link_device *ld)
 	if (is_registered == 0) {
 		/* initialize the pci_dev for modem_ctl */
 		mif_info("s51xx_pcie_init start\n");
-		s51xx_pcie_init(mc);
-		if (!mc->s51xx_pdev) {
-			mif_err("s51xx_pdev is NULL. Check if CP wake up is done.\n");
-			return -EINVAL;
-		}
+		ret = s51xx_pcie_init(mc);
+		if (ret)
+			return ret;
 
 		/* debug: check MSI 32bit or 64bit - should be set as 32bit before this point*/
 		// debug: pci_read_config_dword(s51xx_pcie.s51xx_pdev, 0x50, &msi_val);
@@ -900,7 +911,7 @@ static int register_pcie(struct link_device *ld)
 
 	mif_info("CP EP driver initialization end.\n");
 
-	return 0;
+	return flush_reserved_doorbell(mc, mld);
 }
 
 static void gpio_power_off_cp(struct modem_ctl *mc)
@@ -1299,9 +1310,7 @@ static int set_cp_rom_boot_img(struct mem_link_device *mld)
 
 	mif_info("boot_img addr:0x%lX size:0x%X\n", boot_img_addr, mld->boot_img_size);
 
-	s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mld->intval_ap2cp_msg);
-
-	return 0;
+	return s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mld->intval_ap2cp_msg);
 }
 
 static void debug_cp_rom_boot_img(struct mem_link_device *mld)
@@ -1373,9 +1382,12 @@ static int start_normal_boot(struct modem_ctl *mc)
 	}
 
 	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
-		register_pcie(ld);
-		if (mc->s51xx_pdev && mc->pcie_registered)
-			set_cp_rom_boot_img(mld);
+		ret = register_pcie(ld);
+		if (ret)
+			goto status_error;
+		ret = set_cp_rom_boot_img(mld);
+		if (ret)
+			goto status_error;
 
 		ret = check_cp_status(mc, 200, true);
 		if (ret < 0)
@@ -1393,13 +1405,13 @@ static int start_normal_boot(struct modem_ctl *mc)
 		if (ret < 0)
 			goto status_error;
 
-		register_pcie(ld);
+		ret = register_pcie(ld);
 	}
 
 status_error:
 	if (ret < 0) {
-		mif_err("ERR! check_cp_status fail (err %d)\n", ret);
-		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
+		mif_err("PCIe boot failed (err %d)\n", ret);
+		if ((mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) && mld->msi_reg_base)
 			debug_cp_rom_boot_img(mld);
 		if (cpif_wake_lock_active(mc->ws))
 			cpif_wake_unlock(mc->ws);
@@ -1616,9 +1628,12 @@ static int start_dump_boot(struct modem_ctl *mc)
 	mif_disable_irq(&mc->cp_gpio_irq[CP_GPIO_IRQ_CP2AP_WAKEUP]);
 
 	if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) {
-		register_pcie(ld);
-		if (mc->s51xx_pdev && mc->pcie_registered)
-			set_cp_rom_boot_img(mld);
+		err = register_pcie(ld);
+		if (err)
+			goto status_error;
+		err = set_cp_rom_boot_img(mld);
+		if (err)
+			goto status_error;
 
 		err = check_cp_status(mc, 200, true);
 		if (err < 0)
@@ -1636,13 +1651,13 @@ static int start_dump_boot(struct modem_ctl *mc)
 		if (err < 0)
 			goto status_error;
 
-		register_pcie(ld);
+		err = register_pcie(ld);
 	}
 
 status_error:
 	if (err < 0) {
-		mif_err("ERR! check_cp_status fail (err %d)\n", err);
-		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
+		mif_err("PCIe boot failed (err %d)\n", err);
+		if ((mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE) && mld->msi_reg_base)
 			debug_cp_rom_boot_img(mld);
 		return err;
 	}
@@ -1864,15 +1879,8 @@ exit:
 	mutex_unlock(&mc->pcie_check_lock);
 	mutex_unlock(&mc->pcie_onoff_lock);
 
-	spin_lock_irqsave(&mc->pcie_tx_lock, flags);
-	if ((mc->s51xx_pdev != NULL) && mc->pcie_powered_on && mc->reserve_doorbell_int) {
-		logbuffer_log(mc->log, "DBG: doorbell: doorbell_reserved = %d", \
-				mc->reserve_doorbell_int);
-		mc->reserve_doorbell_int = false;
-		if (s51xx_pcie_send_doorbell_int(mc->s51xx_pdev, mld->intval_ap2cp_msg) != 0)
-			force_crash = true;
-	}
-	spin_unlock_irqrestore(&mc->pcie_tx_lock, flags);
+	if (flush_reserved_doorbell(mc, mld))
+		force_crash = true;
 
 	if (unlikely(force_crash))
 		s5100_force_crash_exit_ext(CRASH_REASON_PCIE_DOORBELL_FAILURE_POWERON);
