@@ -299,6 +299,28 @@ static void dsim_set_te_pinctrl(struct dsim_device *dsim, bool en)
 		dsim_err(dsim, "failed to control decon TE(%d)\n", en);
 }
 
+static void dsim_update_handover_resolution(struct dsim_device *dsim)
+{
+	u32 width = dsim->config.p_timing.hactive;
+	u32 height = dsim->config.p_timing.vactive;
+	u32 resol;
+
+	if (dsim->config.mode != DSIM_COMMAND_MODE)
+		return;
+
+	if (dsim->config.dsc.enabled)
+		width = get_comp_dsc_width(&dsim->config.dsc) * dsim->config.dsc.slice_count;
+	resol = readl(dsim->res.regs + DSIM_RESOL);
+	if (DSIM_RESOL_HOZVAL_GET(resol) == width && DSIM_RESOL_LINEVAL_GET(resol) == height)
+		return;
+
+	dsim_info(dsim, "update handover link resolution %ux%u -> %ux%u\n",
+		  DSIM_RESOL_HOZVAL_GET(resol), DSIM_RESOL_LINEVAL_GET(resol), width, height);
+	/* Keep the live PHY/PLL, but match the link geometry to the pending panel mode. */
+	dsim_reg_set_mres(dsim->id, &dsim->config);
+	dsim_reg_set_rr_config(dsim->id, &dsim->config, &dsim->clk_param);
+}
+
 static void _dsim_enable(struct dsim_device *dsim)
 {
 	const struct decon_device *decon = dsim_get_decon(dsim);
@@ -331,6 +353,8 @@ static void _dsim_enable(struct dsim_device *dsim)
 
 	if (!skip_init)
 		dsim_reg_init(dsim->id, &dsim->config, &dsim->clk_param, true);
+	else
+		dsim_update_handover_resolution(dsim);
 
 	dsim_reg_start(dsim->id);
 	mutex_unlock(&g_dsim_lock);
