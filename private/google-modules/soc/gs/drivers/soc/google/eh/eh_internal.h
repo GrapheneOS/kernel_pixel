@@ -105,7 +105,7 @@ struct eh_device {
 	wait_queue_head_t comp_wq;
 	atomic_t nr_request;
 
-	eh_cb_fn comp_callback;
+	eh_cb_fn __rcu comp_callback;
 
 	/* how many compression request were processed */
 	unsigned long nr_compressed;
