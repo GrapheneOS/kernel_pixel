@@ -2730,11 +2730,12 @@ static void pcie_send_ap2cp_irq(struct mem_link_device *mld, u16 mask)
 		goto exit;
 	}
 
-	if (!mc->pcie_powered_on) {
-		mif_info_limited("Reserve doorbell interrupt: PCI not powered on\n");
+	if (!mc->pcie_powered_on || !mc->s51xx_pdev) {
+		mif_info_limited("Reserve doorbell interrupt: PCI endpoint not ready\n");
 		set_ctrl_msg(&mld->ap2cp_msg, mask);
 		mc->reserve_doorbell_int = true;
-		s5100_try_gpio_cp_wakeup(mc);
+		if (!mc->pcie_powered_on)
+			s5100_try_gpio_cp_wakeup(mc);
 		goto exit;
 	}
 

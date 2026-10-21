@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/overflow.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/pm_runtime.h>
@@ -370,66 +371,98 @@ static void s51xx_pcie_event_cb(pcie_notify_t *noti)
 	}
 }
 
+static int s51xx_pcie_doorbell_resource(struct pci_dev *pdev, resource_size_t db_addr,
+					struct resource *res)
+{
+	struct pci_host_bridge *bridge = pci_find_host_bridge(pdev->bus);
+	struct pci_bus_region region = { .start = db_addr };
+	struct resource_entry *window;
+
+	if (!bridge)
+		return -ENODEV;
+	if (!IS_ALIGNED(db_addr, SZ_4) ||
+	    check_add_overflow(db_addr, (resource_size_t)SZ_4 - 1, &region.end))
+		return -EINVAL;
+
+	if (!pdev->resource[0].parent ||
+	    resource_type(&pdev->resource[0]) != IORESOURCE_MEM ||
+	    pdev->resource[0].flags & (IORESOURCE_UNSET | IORESOURCE_DISABLED))
+		return -ERANGE;
+
+	res->flags = IORESOURCE_MEM;
+	/* Translate only through an enabled host memory window containing the doorbell. */
+	resource_list_for_each_entry(window, &bridge->windows) {
+		struct pci_bus_region bus_region;
+
+		if (resource_type(window->res) != IORESOURCE_MEM ||
+		    window->res->flags & IORESOURCE_DISABLED)
+			continue;
+		bus_region.start = window->res->start - window->offset;
+		bus_region.end = window->res->end - window->offset;
+		if (bus_region.end < bus_region.start ||
+		    region.start < bus_region.start || region.end > bus_region.end)
+			continue;
+		if (check_add_overflow(window->res->start, region.start - bus_region.start,
+				       &res->start) ||
+		    check_add_overflow(res->start, (resource_size_t)SZ_4 - 1, &res->end))
+			continue;
+		if (resource_contains(window->res, res) &&
+		    resource_contains(&pdev->resource[0], res))
+			return 0;
+	}
+
+	return -ERANGE;
+}
+
 static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int ret;
-	int __maybe_unused i;
 	struct s51xx_pcie *s51xx_pcie;
 	struct device *dev = &pdev->dev;
 	struct pci_driver *driver = pdev->driver;
 	struct modem_ctl *mc = container_of(driver, struct modem_ctl, pci_driver);
 	struct device *mc_dev = mc->dev;
-	struct pci_bus *bus = pdev->bus;
-	struct pci_dev *bus_self = bus->self;
-	struct resource *tmp_rsc;
-	int resno = PCI_BRIDGE_MEM_WINDOW;
+	struct resource doorbell;
 	u32 val, db_addr = 0;
 
 	dev_info(dev, "%s EP driver Probe(%s), chNum: %d\n",
 			driver->name, __func__, mc->pcie_ch_num);
 
 	s51xx_pcie = devm_kzalloc(dev, sizeof(*s51xx_pcie), GFP_KERNEL);
+	if (!s51xx_pcie)
+		return -ENOMEM;
 	s51xx_pcie->s51xx_pdev = pdev;
 	s51xx_pcie->irq_num_base = pdev->irq;
 	s51xx_pcie->link_status = 1;
 	s51xx_pcie->pcie_channel_num = mc->pcie_ch_num;
 
-	mc->s51xx_pdev = pdev;
-
 	if (of_property_read_u32(mc_dev->of_node, "pci_db_addr", &db_addr))
 		dev_info(dev, "EP DB base address is not defined!\n");
 
 	if (db_addr != 0x0) {
-		pci_write_config_dword(pdev, PCI_BASE_ADDRESS_0, db_addr);
-		pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &val);
+		ret = s51xx_pcie_doorbell_resource(pdev, db_addr, &doorbell);
+		if (ret)
+			return dev_err_probe(dev, ret, "Invalid EP doorbell address %#x\n",
+					     db_addr);
+
+		ret = pci_read_config_dword(pdev, PCI_BASE_ADDRESS_0, &val);
+		if (ret != PCIBIOS_SUCCESSFUL)
+			return dev_err_probe(dev, -EIO, "Can't read EP BAR0\n");
 		val &= PCI_BASE_ADDRESS_MEM_MASK;
+		if (val > db_addr || doorbell.start < db_addr - val)
+			return dev_err_probe(dev, -ERANGE, "Invalid EP doorbell BAR offset\n");
 		s51xx_pcie->dbaddr_offset = db_addr - val;
 		s51xx_pcie->dbaddr_changed_base = val;
 		dev_info(dev, "db_addr : 0x%x , val : 0x%x, offset : 0x%x\n",
 				db_addr, val, (unsigned int)s51xx_pcie->dbaddr_offset);
 
-		mif_info("Disable BAR resources.\n");
-		for (i = 0; i < 6; i++) {
-			pdev->resource[i].start = 0x0;
-			pdev->resource[i].end = 0x0;
-			if (pci_assign_resource(pdev, i))
-				pr_warn("%s: failed to assign pci resource (i=%d)\n", __func__, i);
-		}
-
-		/* EP BAR setup: BAR0 (4kB) */
-		pdev->resource[0].start = val;
-		pdev->resource[0].end = val + SZ_4K;
-		if (pci_assign_resource(pdev, 0))
-			pr_warn("%s: failed to assign EP BAR0 pci resource\n", __func__);
-
-		/* get Doorbell base address from root bus range */
-		tmp_rsc = bus_self->resource + resno;
-		dev_info(&bus_self->dev, "[%s] BAR %d: tmp rsc : %pR\n", __func__, resno, tmp_rsc);
-		s51xx_pcie->dbaddr_base = tmp_rsc->start;
+		/* Preserve the BAR resources assigned by the PCI core. */
+		/* Keep the CPU BAR base separate from the endpoint's PCI bus address. */
+		s51xx_pcie->dbaddr_base = doorbell.start - s51xx_pcie->dbaddr_offset;
 
 		mif_info("Set Doorbell register address.\n");
-		s51xx_pcie->doorbell_addr = devm_ioremap(&pdev->dev,
-				s51xx_pcie->dbaddr_base + s51xx_pcie->dbaddr_offset, SZ_4);
+		s51xx_pcie->doorbell_addr = devm_ioremap(dev, doorbell.start,
+							 resource_size(&doorbell));
 
 		/*
 		 * ret = abox_pci_doorbell_paddr_set(s51xx_pcie->dbaddr_base +
@@ -464,25 +497,26 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	}
 
 	if (s51xx_pcie->doorbell_addr == NULL)
-		mif_err("Can't ioremap doorbell address!!!\n");
-
-	mif_info("Register PCIE notification LINKDOWN, CPL_TIMEOUT and LINKDOWN_RECOVERY_FAIL events...\n");
-	s51xx_pcie->pcie_event.events =
-		EXYNOS_PCIE_EVENT_LINKDOWN | EXYNOS_PCIE_EVENT_CPL_TIMEOUT | EXYNOS_PCIE_EVENT_LINKDOWN_RECOVERY_FAIL;
-	s51xx_pcie->pcie_event.user = pdev;
-	s51xx_pcie->pcie_event.mode = EXYNOS_PCIE_TRIGGER_CALLBACK;
-	s51xx_pcie->pcie_event.callback = s51xx_pcie_event_cb;
-	pcie_register_event(&s51xx_pcie->pcie_event);
+		return dev_err_probe(dev, -ENOMEM, "Can't ioremap doorbell address\n");
 
 	mif_info("Enable PCI device...\n");
 	ret = pci_enable_device(pdev);
-	if (ret < 0) {
-		mif_err("pci_enable_device() failed, rc:%d\n", ret);
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Can't enable PCI device\n");
 
 	pci_set_master(pdev);
 
 	pci_set_drvdata(pdev, s51xx_pcie);
+	mc->s51xx_pdev = pdev;
+
+	mif_info("Register PCIe link-down, timeout and recovery notifications\n");
+	s51xx_pcie->pcie_event.events =
+		EXYNOS_PCIE_EVENT_LINKDOWN | EXYNOS_PCIE_EVENT_CPL_TIMEOUT |
+		EXYNOS_PCIE_EVENT_LINKDOWN_RECOVERY_FAIL;
+	s51xx_pcie->pcie_event.user = pdev;
+	s51xx_pcie->pcie_event.mode = EXYNOS_PCIE_TRIGGER_CALLBACK;
+	s51xx_pcie->pcie_event.callback = s51xx_pcie_event_cb;
+	pcie_register_event(&s51xx_pcie->pcie_event);
 
 	return 0;
 }
