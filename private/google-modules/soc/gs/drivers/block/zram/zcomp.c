@@ -581,9 +581,9 @@ int zcomp_copy_buffer(int err, void *buffer, int comp_len,
 	zram_slot_update(zram, index, handle, comp_len);
 out:
 	if (zcomp_async(zram->comp)) {
-		zram_bio_endio(zram, bio, true, err);
-
+		/* Completion may let reset destroy this compressor instance. */
 		free_zcomp_cookie(zram->comp, cookie);
+		zram_bio_endio(zram, bio, true, err);
 	}
 
 	return err;
