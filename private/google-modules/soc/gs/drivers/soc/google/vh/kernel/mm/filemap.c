@@ -130,10 +130,21 @@ static inline void vh_async_mmap_readahead_adj(bool *skip)
 	vh_mmap_readahead_adj(async_readahead_adj_enabled, skip);
 }
 
+static inline void vh_sync_mmap_readahead_adj(bool *skip)
+{
+	vh_mmap_readahead_adj(sync_readahead_adj_enabled, skip);
+}
+
 void vh_do_async_mmap_readahead(void *data, struct vm_fault *vmf,
 				    struct folio *folio, bool *skip)
 {
 	vh_async_mmap_readahead_adj(skip);
+}
+
+void vh_do_sync_mmap_readahead(void *data, struct vm_fault *vmf,
+				    bool *skip)
+{
+	vh_sync_mmap_readahead_adj(skip);
 }
 
 void vh_page_cache_readahead_start(void *data, struct file *file, pgoff_t pgoff,
