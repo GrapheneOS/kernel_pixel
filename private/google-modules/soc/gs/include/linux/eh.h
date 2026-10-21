@@ -53,7 +53,12 @@ int eh_decompress_page(struct eh_device *eh_dev, void *src,
 /* create eh_device for user */
 struct eh_device *eh_create(eh_cb_fn comp);
 
-/* destroty eh_device */
+/*
+ * Release a client after it has stopped submissions and completed its I/O.
+ * Joins admitted completion batches, including callback return and provider
+ * bookkeeping. Retain callback code/data until then. May sleep; never call from
+ * the callback or while holding a lock required by it.
+ */
 void eh_destroy(struct eh_device *eh_dev);
 
 #endif /* _EH_H_ */
