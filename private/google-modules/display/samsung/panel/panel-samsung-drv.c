@@ -818,6 +818,9 @@ static void exynos_panel_handoff(struct exynos_panel *ctx)
 	_exynos_panel_set_vddd_voltage(ctx, false);
 	if (ctx->enabled) {
 		dev_info(ctx->dev, "panel enabled at boot\n");
+		/* Preserve the bootloader's state in the DRM panel lifecycle. */
+		ctx->panel.prepared = true;
+		ctx->panel.enabled = true;
 		ctx->panel_state = PANEL_STATE_HANDOFF;
 		ctx->is_brightness_initialized = true;
 		exynos_panel_set_power(ctx, true);
@@ -4190,12 +4193,18 @@ static void exynos_panel_bridge_enable(struct drm_bridge *bridge,
 	mutex_lock(&ctx->mode_lock);
 	if (ctx->panel_state == PANEL_STATE_HANDOFF) {
 		is_active = !exynos_panel_init(ctx);
+		/* Retry enable if the bootloader handoff could not be initialized. */
+		if (!is_active)
+			ctx->panel.enabled = false;
 	} else if (ctx->panel_state == PANEL_STATE_HANDOFF_MODESET) {
 		if (!exynos_panel_init(ctx)) {
 			ctx->panel_state = PANEL_STATE_MODESET;
 			mutex_unlock(&ctx->mode_lock);
 			drm_panel_disable(&ctx->panel);
 			mutex_lock(&ctx->mode_lock);
+		} else {
+			/* Keep the normal enable fallback for an unaccepted handoff. */
+			ctx->panel.enabled = false;
 		}
 		is_active = false;
 	} else {
