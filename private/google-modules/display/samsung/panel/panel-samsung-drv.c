@@ -4500,10 +4500,12 @@ static u64 exynos_panel_vsync_start_time_us(u32 te_us, u32 te_period_us)
 
 int exynos_panel_wait_for_vblank(struct exynos_panel *ctx)
 {
-	struct drm_crtc *crtc = NULL;
-
-	if (ctx->exynos_connector.base.state)
-		crtc = ctx->exynos_connector.base.state->crtc;
+	/*
+	 * Atomic state is swapped before panel disable, so the connector may
+	 * already be detached. Keep using the CRTC recorded at bridge enable
+	 * until the panel disable callback has completed.
+	 */
+	struct drm_crtc *crtc = get_exynos_panel_connector_crtc(ctx);
 
 	if (crtc && !drm_crtc_vblank_get(crtc)) {
 		drm_crtc_wait_one_vblank(crtc);
