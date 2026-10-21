@@ -219,7 +219,7 @@ int dbg_snapshot_emergency_reboot_timeout(const char *str, int tick)
 
 	dbg_snapshot_set_wdt_caller((unsigned long)addr);
 	if (str)
-		scnprintf(reboot_msg, DSS_PANIC_STRING_SZ, str);
+		scnprintf(reboot_msg, DSS_PANIC_STRING_SZ, "%s", str);
 
 	dev_emerg(dss_desc.dev, "WDT Caller: %pS %s\n", addr, str ? str : "");
 
