@@ -1752,6 +1752,7 @@ iounmap:
 	exynos_ufs_iounmap(ufs);
 
 free_exynos_ufs:
+	pixel_ufs_remove_sysfs(&ufs->pixel_ufs);
 	devm_kfree(dev, ufs);
 	return ret;
 }
