@@ -624,6 +624,10 @@ static int vh_mm_init(void)
 	if (ret)
 		goto out_err;
 
+	ret = register_trace_android_vh_do_sync_mmap_readahead(vh_do_sync_mmap_readahead, NULL);
+	if (ret)
+		goto out_err;
+
 	ret = register_trace_android_rvh_gup_longterm_locked(rvh_gup_longterm_locked, NULL);
 	if (ret)
 		goto out_err;
