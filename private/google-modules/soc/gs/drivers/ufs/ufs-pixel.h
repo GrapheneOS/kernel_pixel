@@ -328,6 +328,8 @@ struct pixel_ufs {
 
 	/* sysfs */
 	struct work_struct update_sysfs_work;
+	bool sysfs_groups_added;
+	bool sysfs_hook_registered;
 
 	/* manual_gc */
 	struct ufs_manual_gc manual_gc;
@@ -371,6 +373,7 @@ struct pixel_ufs {
 };
 
 struct pixel_ufs *to_pixel_ufs(struct ufs_hba *hba);
+void pixel_ufs_remove_sysfs(struct pixel_ufs *ufs);
 
 void pixel_update_power_event(struct ufs_hba *hba,
 			      enum pixel_power_event_type event);

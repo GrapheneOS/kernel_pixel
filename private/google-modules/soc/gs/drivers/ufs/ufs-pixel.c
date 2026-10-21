@@ -9,6 +9,7 @@
 
 #include "ufs_trace_types.h"
 #include <core/ufshcd-priv.h>
+#include <linux/tracepoint.h>
 #include <linux/workqueue.h>
 #include <misc/sbbm.h>
 #include "ufs-pixel.h"
@@ -1924,17 +1925,26 @@ static void pixel_ufs_update_sysfs_work(struct work_struct *work)
 	struct ufs_hba *hba = ufs->hba;
 	int err;
 
+	if (ufs->sysfs_groups_added)
+		return;
+
 	err = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
-	if (err)
+	if (err) {
 		dev_err(hba->dev,
 			"%s: sysfs groups creation failed (err = %d)\n",
 			__func__, err);
+		return;
+	}
 
-	/* The core creates power_info before invoking the update-sysfs hook. */
+	/* The UFS core owns power_info; retain the additional Pixel ABI files. */
 	err = sysfs_merge_group(&hba->dev->kobj, &pixel_sysfs_power_info_group);
-	if (err)
-		dev_err(hba->dev, "%s: Failed to add Pixel power attributes (err = %d)\n",
+	if (err) {
+		dev_err(hba->dev, "%s: power_info merge failed (err = %d)\n",
 			__func__, err);
+		sysfs_remove_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
+		return;
+	}
+	ufs->sysfs_groups_added = true;
 
 	err = sysfs_update_group(&hba->dev->kobj,
 				&pixel_sysfs_health_descriptor_group);
@@ -1951,9 +1961,32 @@ static void pixel_ufs_update_sysfs_work(struct work_struct *work)
 
 static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 {
-	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+	struct pixel_ufs *ufs = data;
 
-	queue_work(system_highpri_wq, &ufs->update_sysfs_work);
+	if (hba == ufs->hba)
+		queue_work(system_highpri_wq, &ufs->update_sysfs_work);
+}
+
+void pixel_ufs_remove_sysfs(struct pixel_ufs *ufs)
+{
+	struct attribute **attr;
+	struct kobject *kobj;
+
+	if (!ufs->sysfs_hook_registered)
+		return;
+
+	ufs->sysfs_hook_registered = false;
+	unregister_trace_android_vh_ufs_update_sysfs(pixel_ufs_update_sysfs, ufs);
+	tracepoint_synchronize_unregister();
+	cancel_work_sync(&ufs->update_sysfs_work);
+	if (ufs->sysfs_groups_added) {
+		kobj = &ufs->dev->kobj;
+		for (attr = pixel_sysfs_power_info_group.attrs; *attr; attr++)
+			sysfs_remove_file_from_group(kobj, *attr,
+						    pixel_sysfs_power_info_group.name);
+		sysfs_remove_groups(kobj, pixel_ufs_sysfs_groups);
+		ufs->sysfs_groups_added = false;
+	}
 }
 
 static void pixel_ufs_update_sdev(void *data, struct scsi_device *sdev)
@@ -1991,6 +2024,8 @@ static void pixel_ufs_init(struct pixel_ufs *ufs)
 	memset(&ufs->power_stats, 0, sizeof(struct pixel_power_stats));
 	ufs->ufs_stats.hibern8_flag = false;
 	ufs->set_gid = WB_GID_SEL;
+	ufs->sysfs_groups_added = false;
+	ufs->sysfs_hook_registered = false;
 
 	/* init power event monitoring */
 	spin_lock_init(&ufs->power_event_lock);
@@ -2014,11 +2049,6 @@ int pixel_init(struct ufs_hba *hba, struct device *pdev,
 
 	ret = register_trace_android_vh_ufs_prepare_command(
 				pixel_ufs_prepare_command, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_vh_ufs_update_sysfs(
-				pixel_ufs_update_sysfs, NULL);
 	if (ret)
 		return ret;
 
@@ -2062,6 +2092,11 @@ int pixel_init(struct ufs_hba *hba, struct device *pdev,
 
 	pixel_init_io_stats(hba);
 
+	ret = register_trace_android_vh_ufs_update_sysfs(pixel_ufs_update_sysfs, ufs);
+	if (ret)
+		return ret;
+
+	ufs->sysfs_hook_registered = true;
 	return 0;
 }
 
@@ -2069,5 +2104,6 @@ void pixel_exit(struct ufs_hba *hba)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 
+	pixel_ufs_remove_sysfs(ufs);
 	devm_kfree(ufs->dev, ufs->cmd_log.entry);
 }
