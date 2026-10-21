@@ -54,6 +54,7 @@
 #include <linux/sched.h>
 #include <linux/kthread.h>
 #include <linux/spinlock.h>
+#include <linux/srcu.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/freezer.h>
@@ -112,6 +113,7 @@ enum eh_cdesc_status {
 /* list of all unclaimed EH devices */
 static LIST_HEAD(eh_dev_list);
 static DEFINE_SPINLOCK(eh_dev_list_lock);
+DEFINE_STATIC_SRCU(eh_batch_srcu);
 
 static DECLARE_WAIT_QUEUE_HEAD(eh_compress_wait);
 static unsigned int eh_default_fifo_size = 512;
@@ -559,7 +561,7 @@ static irqreturn_t eh_error_irq(int irq, void *data)
  * longer.
  */
 static int eh_process_completed_descriptor(struct eh_device *eh_dev,
-					   unsigned short fifo_index)
+					   unsigned short fifo_index, eh_cb_fn callback)
 {
 	struct eh_compress_desc *desc;
 	unsigned int compr_status;
@@ -639,8 +641,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	};
 
 	/* do the callback */
-	(*eh_dev->comp_callback)(compr_result, compr_data, compr_size,
-				 compl->priv);
+	callback(compr_result, compr_data, compr_size, compl->priv);
 
 	/* set the descriptor back to IDLE */
 	desc->status = EH_CDESC_IDLE;
@@ -650,7 +651,7 @@ static int eh_process_completed_descriptor(struct eh_device *eh_dev,
 	return ret;
 }
 
-static int eh_process_compress(struct eh_device *eh_dev)
+static int eh_process_compress(struct eh_device *eh_dev, eh_cb_fn callback)
 {
 	int ret = 0;
 	int nr_handled = 0;
@@ -660,7 +661,7 @@ static int eh_process_compress(struct eh_device *eh_dev)
 
 	for (i = start; i != end; i = (i + 1) & eh_dev->fifo_color_mask) {
 		index = i & eh_dev->fifo_index_mask;
-		ret = eh_process_completed_descriptor(eh_dev, index);
+		ret = eh_process_completed_descriptor(eh_dev, index, callback);
 		if (ret)
 			break;
 		nr_handled++;
@@ -675,7 +676,7 @@ static int eh_process_compress(struct eh_device *eh_dev)
 	return ret < 0 ? ret : nr_handled;
 }
 
-static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
+static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev, eh_cb_fn callback)
 {
 	unsigned short new_complete_index, masked_write_index;
 	int i;
@@ -688,8 +689,7 @@ static void eh_abort_incomplete_descriptors(struct eh_device *eh_dev)
 	     i = (i + 1) & eh_dev->fifo_index_mask) {
 		struct eh_completion *compl = &eh_dev->completions[i];
 
-		(*eh_dev->comp_callback)(EH_CDESC_ERROR_HALTED, NULL, 0,
-					  compl->priv);
+		callback(EH_CDESC_ERROR_HALTED, NULL, 0, compl->priv);
 		compl->priv = NULL;
 	}
 }
@@ -716,7 +716,8 @@ static int eh_comp_thread(void *data)
 	set_freezable();
 
 	while (!kthread_should_stop()) {
-		int ret;
+		eh_cb_fn callback;
+		int idx, ret;
 		bool slept = false;
 
 #ifdef CONFIG_SOC_ZUMA
@@ -738,12 +739,17 @@ static int eh_comp_thread(void *data)
 		 * couldn't schedule out the process but it should be
 		 * rare and the stat doesn't need to be precise.
 		 */
+		idx = srcu_read_lock(&eh_batch_srcu);
+		callback = srcu_dereference(eh_dev->comp_callback, &eh_batch_srcu);
 		if (slept)
 			eh_dev->nr_run++;
 #ifdef CONFIG_SOC_ZUMA
 		exynos_update_ip_idle_status(eh_dev->ip_index, 0);
 #endif
-		ret = eh_process_compress(eh_dev);
+		/* A batch without an admitted owner must not consume a future owner's I/O. */
+		if (!callback)
+			goto batch_done;
+		ret = eh_process_compress(eh_dev, callback);
 		if (unlikely(ret < 0)) {
 			unsigned long error;
 
@@ -752,8 +758,12 @@ static int eh_comp_thread(void *data)
 				pr_err("error condition interrupt non-zero 0x%lx\n",
 				       error);
 				eh_dump_regs(eh_dev);
-				eh_abort_incomplete_descriptors(eh_dev);
-				break;
+				eh_abort_incomplete_descriptors(eh_dev, callback);
+#ifdef CONFIG_SOC_ZUMA
+				exynos_update_ip_idle_status(eh_dev->ip_index, 1);
+#endif
+				srcu_read_unlock(&eh_batch_srcu, idx);
+				return 0;
 			}
 
 			/*
@@ -774,6 +784,8 @@ static int eh_comp_thread(void *data)
 
 		if (!fifo_full(eh_dev))
 			flush_sw_fifo(eh_dev);
+batch_done:
+		srcu_read_unlock(&eh_batch_srcu, idx);
 	}
 
 #ifdef CONFIG_SOC_ZUMA
@@ -1262,17 +1274,17 @@ struct eh_device *eh_create(eh_cb_fn comp)
 {
 	struct eh_device *ret = ERR_PTR(-ENODEV);
 
+	if (!comp)
+		return ERR_PTR(-EINVAL);
+
 	spin_lock(&eh_dev_list_lock);
 	if (!list_empty(&eh_dev_list)) {
 		ret = list_first_entry(&eh_dev_list, struct eh_device,
 				       eh_dev_list);
 		list_del(&ret->eh_dev_list);
+		rcu_assign_pointer(ret->comp_callback, comp);
 	}
 	spin_unlock(&eh_dev_list_lock);
-	if (IS_ERR(ret))
-		return ret;
-
-	ret->comp_callback = comp;
 
 	return ret;
 }
@@ -1280,7 +1292,14 @@ EXPORT_SYMBOL(eh_create);
 
 void eh_destroy(struct eh_device *eh_dev)
 {
-	eh_dev->comp_callback = NULL;
+	spin_lock(&eh_dev_list_lock);
+	rcu_assign_pointer(eh_dev->comp_callback, NULL);
+	spin_unlock(&eh_dev_list_lock);
+
+	/* Join the complete finite batch, including provider FIFO/accounting tails. */
+	synchronize_srcu(&eh_batch_srcu);
+
+	/* New clients cannot reuse the handle before the old batch has returned. */
 	spin_lock(&eh_dev_list_lock);
 	list_add(&eh_dev->eh_dev_list, &eh_dev_list);
 	spin_unlock(&eh_dev_list_lock);
