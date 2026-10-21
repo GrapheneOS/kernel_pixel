@@ -2000,7 +2000,7 @@ typedef struct dhd_pktid_log_item {
 typedef struct dhd_pktid_log {
 	uint32 items;		/* number of total items */
 	uint32 index;		/* index of pktid_log_item */
-	dhd_pktid_log_item_t map[0];	/* metadata storage */
+	dhd_pktid_log_item_t map[];	/* metadata storage */
 } dhd_pktid_log_t;
 
 typedef void * dhd_pktid_log_handle_t; /* opaque handle to pktid log */

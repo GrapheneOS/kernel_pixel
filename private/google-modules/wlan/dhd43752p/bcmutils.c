@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver O/S-independent utility routines
  *
@@ -1705,7 +1706,7 @@ typedef struct bcm_mwbmap {     /* Hierarchical multiword bitmap allocator    */
 	int8   wd_count[BCM_MWBMAP_WORDS_MAX];  /* free id running count, 1st lvl */
 #endif /*  ! BCM_MWBMAP_USE_CNTSETBITS */
 
-	uint32 id_bitmap[0];        /* Second level bitmap                        */
+	uint32 id_bitmap[];         /* Second level bitmap                        */
 } bcm_mwbmap_t;
 
 /* Incarnate a hierarchical multiword bitmap based small index allocator. */
@@ -2102,7 +2103,7 @@ typedef struct id16_map {
 	uint16  total;     /* total number of ids managed by allocator */
 	uint16  start;     /* start value of 16bit ids to be managed */
 	int     stack_idx; /* index into stack of available ids */
-	uint16  stack[0];  /* stack of 16 bit ids */
+	uint16  stack[];  /* stack of 16 bit ids */
 } id16_map_t;
 
 #define ID16_MAP_SZ(items)      (sizeof(id16_map_t) + \
@@ -2115,7 +2116,7 @@ typedef struct id16_map {
 
 typedef struct id16_map_dbg {
 	uint16  total;
-	bool    avail[0];
+	bool    avail[];
 } id16_map_dbg_t;
 #define ID16_MAP_DBG_SZ(items)  (sizeof(id16_map_dbg_t) + \
 				     (sizeof(bool) * (items)))
