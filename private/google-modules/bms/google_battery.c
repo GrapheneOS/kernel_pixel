@@ -8866,29 +8866,6 @@ static ssize_t charge_type_show(struct device *dev, struct device_attribute *att
 
 static DEVICE_ATTR_RO(charge_type);
 
-static ssize_t constant_charge_current_show(struct device *dev,
-					    struct device_attribute *attr, char *buf)
-{
-	struct power_supply *psy = container_of(dev, struct power_supply, dev);
-	struct batt_drv *batt_drv = power_supply_get_drvdata(psy);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n", batt_drv->cc_max);
-}
-
-static DEVICE_ATTR_RO(constant_charge_current);
-
-
-static ssize_t constant_charge_voltage_show(struct device *dev,
-					    struct device_attribute *attr, char *buf)
-{
-	struct power_supply *psy = container_of(dev, struct power_supply, dev);
-	struct batt_drv *batt_drv = power_supply_get_drvdata(psy);
-
-	return scnprintf(buf, PAGE_SIZE, "%d\n", batt_drv->fv_uv);
-}
-
-static DEVICE_ATTR_RO(constant_charge_voltage);
-
 static ssize_t health_safety_margin_show(struct device *dev,
 					 struct device_attribute *attr, char *buf)
 {
@@ -11734,8 +11711,6 @@ static struct attribute *batt_attrs[] = {
 	&dev_attr_resistance.attr,
 	&dev_attr_charger_state.attr,
 	&dev_attr_charge_type.attr,
-	&dev_attr_constant_charge_current.attr,
-	&dev_attr_constant_charge_voltage.attr,
 	&dev_attr_health_safety_margin.attr,
 	&dev_attr_aacr_state.attr,
 	&dev_attr_aacr_config.attr,
