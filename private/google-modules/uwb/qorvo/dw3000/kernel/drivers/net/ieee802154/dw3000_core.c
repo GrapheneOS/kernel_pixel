@@ -1874,14 +1874,13 @@ static int dw3000_reset_assert(struct dw3000 *dw, bool reset)
 
 	if (reset) {
 		/* Assert RESET GPIO */
-		gpiod_set_value(dw->reset_gpio, 1);
+		return gpiod_set_value_cansleep(dw->reset_gpio, 1);
 	} else {
 		/* Release RESET GPIO.
 		 * Reset should be open drain, or switched to input whenever not driven
 		 * low. It should not be driven high. */
-		gpiod_set_value(dw->reset_gpio, 0);
+		return gpiod_set_value_cansleep(dw->reset_gpio, 0);
 	}
-	return 0;
 }
 
 /**
