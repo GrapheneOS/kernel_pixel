@@ -2866,9 +2866,24 @@ static int goog_offload_populate_mutual_channel(struct goog_touch_interface *gti
 		struct touch_offload_frame *frame, int channel, u8 *buffer, u32 size)
 {
 	struct TouchOffloadData2d *mutual;
+	size_t channel_size;
 
 	if (channel < 0 || channel >= MAX_CHANNELS) {
 		GOOG_LOGE(gti, "Invalid channel: %d\n", channel);
+		return -EINVAL;
+	}
+
+	if (IS_ERR_OR_NULL(buffer) ||
+	    size != TOUCH_OFFLOAD_DATA_SIZE_2D(gti->offload.caps.heatmap_height,
+					     gti->offload.caps.heatmap_width)) {
+		GOOG_LOGW(gti, "invalid buffer %p or size %u!\n", buffer, size);
+		return -EINVAL;
+	}
+	channel_size = TOUCH_OFFLOAD_FRAME_SIZE_2D(gti->offload.caps.heatmap_height,
+						   gti->offload.caps.heatmap_width);
+	if (!frame->channel_data[channel] || frame->channel_data_size[channel] < channel_size) {
+		GOOG_LOGW(gti, "invalid channel %d buffer or size %u (need %zu)!\n",
+			  channel, frame->channel_data_size[channel], channel_size);
 		return -EINVAL;
 	}
 
@@ -2876,13 +2891,7 @@ static int goog_offload_populate_mutual_channel(struct goog_touch_interface *gti
 	mutual->heatmap_width = gti->offload.caps.heatmap_width;
 	mutual->heatmap_height = gti->offload.caps.heatmap_height;
 	mutual->header.channel_type = frame->channel_type[channel];
-	mutual->header.channel_size =
-		TOUCH_OFFLOAD_FRAME_SIZE_2D(mutual->heatmap_height, mutual->heatmap_width);
-	if (IS_ERR_OR_NULL(buffer) ||
-		size != TOUCH_OFFLOAD_DATA_SIZE_2D(mutual->heatmap_height, mutual->heatmap_width)) {
-		GOOG_LOGW(gti, "invalid buffer %p or size %u!\n", buffer, size);
-		return -EINVAL;
-	}
+	mutual->header.channel_size = channel_size;
 	memcpy(mutual->data_flex, buffer, size);
 
 	return 0;
@@ -2892,9 +2901,24 @@ static int goog_offload_populate_self_channel(struct goog_touch_interface *gti,
 		struct touch_offload_frame *frame, int channel, u8 *buffer, u32 size)
 {
 	struct TouchOffloadData1d *self;
+	size_t channel_size;
 
 	if (channel < 0 || channel >= MAX_CHANNELS) {
 		GOOG_LOGE(gti, "Invalid channel: %d\n", channel);
+		return -EINVAL;
+	}
+
+	if (IS_ERR_OR_NULL(buffer) ||
+	    size != TOUCH_OFFLOAD_DATA_SIZE_1D(gti->offload.caps.heatmap_height,
+						gti->offload.caps.heatmap_width)) {
+		GOOG_LOGW(gti, "invalid buffer %p or size %u!\n", buffer, size);
+		return -EINVAL;
+	}
+	channel_size = TOUCH_OFFLOAD_FRAME_SIZE_1D(gti->offload.caps.heatmap_height,
+						   gti->offload.caps.heatmap_width);
+	if (!frame->channel_data[channel] || frame->channel_data_size[channel] < channel_size) {
+		GOOG_LOGW(gti, "invalid channel %d buffer or size %u (need %zu)!\n",
+			  channel, frame->channel_data_size[channel], channel_size);
 		return -EINVAL;
 	}
 
@@ -2902,13 +2926,7 @@ static int goog_offload_populate_self_channel(struct goog_touch_interface *gti,
 	self->heatmap_width = gti->offload.caps.heatmap_width;
 	self->heatmap_height = gti->offload.caps.heatmap_height;
 	self->header.channel_type = frame->channel_type[channel];
-	self->header.channel_size =
-		TOUCH_OFFLOAD_FRAME_SIZE_1D(self->heatmap_height, self->heatmap_width);
-	if (IS_ERR_OR_NULL(buffer) ||
-		size != TOUCH_OFFLOAD_DATA_SIZE_1D(self->heatmap_height, self->heatmap_width)) {
-		GOOG_LOGW(gti, "invalid buffer %p or size %u!\n", buffer, size);
-		return -EINVAL;
-	}
+	self->header.channel_size = channel_size;
 	memcpy(self->data_flex, buffer, size);
 
 	return 0;
