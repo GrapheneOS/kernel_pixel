@@ -23,6 +23,7 @@
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/overflow.h>
 #include <net/netlink.h>
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -14073,10 +14074,11 @@ int wl_cfg80211_wbtext_table_config(struct net_device *ndev, char *data,
 	size_t slen = strlen(data);
 	char *start_addr = NULL;
 	u8 ioctl_buf[WLC_IOCTL_SMLEN];
+	u32 alloc_len;
 
 	data[slen] = '\0';
-	btcfg = (wnm_bss_select_factor_cfg_t *)MALLOCZ(cfg->osh,
-		(sizeof(*btcfg) + sizeof(*btcfg) * WL_FACTOR_TABLE_MAX_LIMIT));
+	alloc_len = struct_size(btcfg, params, WL_FACTOR_TABLE_MAX_LIMIT);
+	btcfg = (wnm_bss_select_factor_cfg_t *)MALLOCZ(cfg->osh, alloc_len);
 	if (unlikely(!btcfg)) {
 		WL_ERR(("%s: failed to allocate memory\n", __func__));
 		err = -ENOMEM;
@@ -14109,13 +14111,19 @@ int wl_cfg80211_wbtext_table_config(struct net_device *ndev, char *data,
 	if ((slen - 1) == (strlen(rssi) + strlen(band))) {
 		/* Getting factor table using iovar 'wnm_bss_select_table' from fw */
 		if ((err = wldev_iovar_getbuf(ndev, "wnm_bss_select_table", btcfg,
-				sizeof(*btcfg),
+				WNM_BSS_SELECT_FIXED_SIZE,
 				ioctl_buf, sizeof(ioctl_buf), NULL))) {
 			WL_ERR(("Getting wnm_bss_select_table failed with err=%d \n", err));
 			goto exit;
 		}
-		memcpy(btcfg, ioctl_buf, sizeof(*btcfg));
-		memcpy(btcfg, ioctl_buf, (btcfg->count+1) * sizeof(*btcfg));
+		memcpy(btcfg, ioctl_buf, WNM_BSS_SELECT_FIXED_SIZE);
+		if (btcfg->count > WL_FACTOR_TABLE_MAX_LIMIT) {
+			WL_ERR(("%s: Invalid factor count %u\n", __func__, btcfg->count));
+			err = -EINVAL;
+			goto exit;
+		}
+		btcfg_len = struct_size(btcfg, params, btcfg->count);
+		memcpy(btcfg, ioctl_buf, btcfg_len);
 
 		bytes_written += snprintf(command + bytes_written, total_len - bytes_written,
 					"No of entries in table: %d\n", btcfg->count);
@@ -14155,7 +14163,7 @@ int wl_cfg80211_wbtext_table_config(struct net_device *ndev, char *data,
 				goto exit;
 			}
 		}
-		btcfg_len = sizeof(*btcfg) + ((btcfg->count) * sizeof(*btcfg));
+		btcfg_len = struct_size(btcfg, params, btcfg->count);
 		if ((err = wldev_iovar_setbuf(ndev, "wnm_bss_select_table", btcfg, btcfg_len,
 				cfg->ioctl_buf, WLC_IOCTL_MEDLEN, &cfg->ioctl_buf_sync)) < 0) {
 			WL_ERR(("seting wnm_bss_select_table failed with err %d\n", err));
@@ -14164,8 +14172,7 @@ int wl_cfg80211_wbtext_table_config(struct net_device *ndev, char *data,
 	}
 exit:
 	if (btcfg) {
-		MFREE(cfg->osh, btcfg,
-			(sizeof(*btcfg) + sizeof(*btcfg) * WL_FACTOR_TABLE_MAX_LIMIT));
+		MFREE(cfg->osh, btcfg, alloc_len);
 	}
 	return err;
 }
