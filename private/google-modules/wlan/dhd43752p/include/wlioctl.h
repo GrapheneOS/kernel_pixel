@@ -18331,7 +18331,7 @@ typedef struct wnm_bss_select_factor_cfg {
 	uint16 type;
 	uint16 pad;
 	uint16 count;
-	wnm_bss_select_factor_params_t params[1];
+	wnm_bss_select_factor_params_t params[];
 } wnm_bss_select_factor_cfg_t;
 
 #define WNM_BSS_SELECT_WEIGHT_VERSION   1
