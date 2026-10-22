@@ -791,7 +791,7 @@ struct wl_scan_params {
 					 * parameter portion is assumed, otherwise ssid in
 					 * the fixed portion is ignored
 					 */
-	uint16 channel_list[1];		/**< list of chanspecs */
+	uint16 channel_list[];		/**< list of chanspecs */
 };
 
 /* changes in wl_scan_params_v2 as comapred to wl_scan_params (v1)
@@ -837,13 +837,15 @@ typedef struct wl_scan_params_v2 {
 					 * parameter portion is assumed, otherwise ssid in
 					 * the fixed portion is ignored
 					 */
-	uint16 channel_list[1];		/**< list of chanspecs */
+	uint16 channel_list[];		/**< list of chanspecs */
 } wl_scan_params_v2_t;
 
 #define WL_SCAN_PARAMS_VERSION_V2		2
 
 /** size of wl_scan_params not including variable length array */
 #define WL_SCAN_PARAMS_V2_FIXED_SIZE	(OFFSETOF(wl_scan_params_v2_t, channel_list))
+/* Retain the length historically sent with the one-channel version 2 header. */
+#define WL_SCAN_PARAMS_V2_LEGACY_LENGTH	76
 #define WL_MAX_ROAMSCAN_DATSZ	\
 	(WL_SCAN_PARAMS_FIXED_SIZE + (WL_NUMCHANNELS * sizeof(uint16)))
 #define WL_MAX_ROAMSCAN_V2_DATSZ \
@@ -9673,7 +9675,7 @@ typedef struct pcie_hmap {
 /** Input structure for pwrstats IOVAR */
 typedef struct wl_pwrstats_query {
 	uint16 length;		/**< Number of entries in type array. */
-	uint16 type[1];		/**< Types (tags) to retrieve.
+	uint16 type[];		/**< Types (tags) to retrieve.
 				 * Length 0 (no types) means get all.
 				 */
 } wl_pwrstats_query_t;
@@ -16752,7 +16754,7 @@ typedef struct wl_el_set_all_type_s_v1 {
 	uint16	version;
 	uint16	len;
 	uint32	max_sets;
-	wl_el_set_type_v1_t set_type[1]; /* set-Type Values Array */
+	wl_el_set_type_v1_t set_type[]; /* set-Type Values Array */
 } wl_el_set_all_type_v1_t;
 
 typedef struct wl_staprio_cfg {
