@@ -36,7 +36,7 @@ extern "C" {
 typedef struct bcm_tlv {
 	uint8	id;
 	uint8	len;
-	uint8	data[BCM_FLEX_ARRAY];
+	uint8	data[];
 } bcm_tlv_t;
 
 /* size of tlv including data */

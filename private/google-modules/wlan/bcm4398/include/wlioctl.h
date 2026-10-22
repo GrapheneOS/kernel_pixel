@@ -915,7 +915,7 @@ typedef struct wl_scan_params_v1 {
 					 * parameter portion is assumed, otherwise ssid in
 					 * the fixed portion is ignored
 					 */
-	uint16 channel_list[BCM_FLEX_ARRAY];
+	uint16 channel_list[];
 } wl_scan_params_v1_t;
 
 /** size of wl_scan_params_v1 not including variable length array */
@@ -9983,7 +9983,7 @@ typedef struct pcie_hmap {
 /** Input structure for pwrstats IOVAR */
 typedef struct wl_pwrstats_query {
 	uint16 length;			/**< Number of entries in type array. */
-	uint16 type[BCM_FLEX_ARRAY];	/**< Types (tags) to retrieve.
+	uint16 type[];			/**< Types (tags) to retrieve.
 					* Length 0 (no types) means get all.
 					*/
 } wl_pwrstats_query_t;
@@ -19078,7 +19078,7 @@ typedef struct wl_el_set_all_type_s_v1 {
 	uint16	version;
 	uint16	len;
 	uint32	max_sets;
-	wl_el_set_type_v1_t set_type[BCM_FLEX_ARRAY]; /* set-Type Values Array */
+	wl_el_set_type_v1_t set_type[]; /* set-Type Values Array */
 } wl_el_set_all_type_v1_t;
 
 typedef struct wl_staprio_cfg {
