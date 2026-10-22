@@ -7143,7 +7143,10 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 	wl_if_stats_t *if_stats = NULL;
 	wl_if_infra_enh_stats_v2_t *if_infra_enh_stats = NULL;
 	dhd_pub_t *dhdp = (dhd_pub_t *)(cfg->pub);
-	static wl_pwrstats_query_t scan_query;
+	static struct {
+		uint16 length;
+		uint16 type[1];
+	} scan_query;
 	wl_pwrstats_t *pwrstats;
 	static wl_pwr_scan_stats_t scan_stats;
 	int scan_time_len;

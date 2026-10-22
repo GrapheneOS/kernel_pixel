@@ -1052,7 +1052,7 @@ wl_cfgp2p_escan(struct bcm_cfg80211 *cfg, struct net_device *dev, u16 active_sca
 		eparams_v2->version = htod16(ESCAN_REQ_VERSION_V2);
 		eparams_v2->action =  htod16(action);
 		eparams_v2->params.version = htod16(WL_SCAN_PARAMS_VERSION_V2);
-		eparams_v2->params.length = htod16(sizeof(wl_scan_params_v2_t));
+		eparams_v2->params.length = htod16(WL_SCAN_PARAMS_V2_LEGACY_LENGTH);
 		eparams_v2->params.bss_type = DOT11_BSSTYPE_ANY;
 		eparams_v2->params.scan_type = htod32(scan_type);
 		(void)memcpy_s(&eparams_v2->params.bssid, ETHER_ADDR_LEN, mac_addr, ETHER_ADDR_LEN);

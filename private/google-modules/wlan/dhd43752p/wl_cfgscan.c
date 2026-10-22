@@ -1628,7 +1628,7 @@ wl_scan_prep(struct bcm_cfg80211 *cfg, void *scan_params, u32 len,
 
 		(void)memcpy_s(&params_v2->bssid, ETHER_ADDR_LEN, &ether_bcast, ETHER_ADDR_LEN);
 		params_v2->version = htod16(WL_SCAN_PARAMS_VERSION_V2);
-		params_v2->length = htod16(sizeof(wl_scan_params_v2_t));
+		params_v2->length = htod16(WL_SCAN_PARAMS_V2_LEGACY_LENGTH);
 		params_v2->bss_type = DOT11_BSSTYPE_ANY;
 		params_v2->scan_type = htod32(scan_type);
 		params_v2->nprobes = htod32(-1);
@@ -2695,7 +2695,7 @@ static void wl_cfgscan_scan_abort(struct bcm_cfg80211 *cfg)
 		wl_scan_params_v2_t *params_v2 = (wl_scan_params_v2_t *)params;
 		params_v2->channel_list[0] = channel;
 		params_v2->channel_num = channel_num;
-		params_v2->length = htod16(sizeof(wl_scan_params_v2_t));
+		params_v2->length = htod16(WL_SCAN_PARAMS_V2_LEGACY_LENGTH);
 	} else {
 		wl_scan_params_t *params_v1 = (wl_scan_params_t *)params;
 		params_v1->channel_list[0] = channel;
@@ -4904,7 +4904,7 @@ wl_init_scan_params(struct bcm_cfg80211 *cfg, u8 *params, u16 params_size,
 		scanparams_v2 = (wl_scan_params_v2_t *)&eparams_v2->params;
 		(void)memcpy_s(&scanparams_v2->bssid, ETHER_ADDR_LEN, &ether_bcast, ETHER_ADDR_LEN);
 		scanparams_v2->version = htod16(WL_SCAN_PARAMS_VERSION_V2);
-		scanparams_v2->length = htod16(sizeof(wl_scan_params_v2_t));
+		scanparams_v2->length = htod16(WL_SCAN_PARAMS_V2_LEGACY_LENGTH);
 		scanparams_v2->bss_type = DOT11_BSSTYPE_ANY;
 		scanparams_v2->scan_type = htod32(scan_type);
 		scanparams_v2->nprobes = htod32(-1);
