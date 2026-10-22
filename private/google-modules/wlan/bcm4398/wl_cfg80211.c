@@ -20047,9 +20047,8 @@ static int wl_construct_reginfo(struct bcm_cfg80211 *cfg, s32 bw_cap_2g,
 	bool ht40_allowed;
 	bool dfs_radar_disabled = FALSE;
 	bool legacy_chan_info = FALSE;
-	u16 list_count;
+	u32 list_count, list_capacity;
 	u32 chaninfo = 0;
-	u32 tot_size;
 
 	/* buffer will be allocated during attach time */
 	if (cfg->chan_info_list == NULL) {
@@ -20080,26 +20079,32 @@ static int wl_construct_reginfo(struct bcm_cfg80211 *cfg, s32 bw_cap_2g,
 		goto exit;
 	}
 
+	if (legacy_chan_info) {
+		list_count = dtoh32(((wl_uint32_list_t *)list)->count);
+		list_capacity = (CHAN_LIST_BUF_LEN - OFFSETOF(wl_uint32_list_t, element)) /
+			sizeof(uint32);
+	} else {
+		if (dtoh16(((wl_chanspec_list_v1_t *)list)->version) != CHAN_INFO_LIST_ALL_V1) {
+			WL_ERR(("Unsupported chan_info_list version\n"));
+			err = BCME_VERSION;
+			goto exit;
+		}
+		list_count = dtoh16(((wl_chanspec_list_v1_t *)list)->count);
+		list_capacity = (CHAN_LIST_BUF_LEN - OFFSETOF(wl_chanspec_list_v1_t, chspecs)) /
+			sizeof(wl_chanspec_attr_v1_t);
+	}
+	if (list_count > list_capacity) {
+		WL_ERR(("Invalid channel list count %u (capacity %u)\n",
+			list_count, list_capacity));
+		err = BCME_BADLEN;
+		goto exit;
+	}
+
 	WL_CHANNEL_ARRAY_INIT(__wl_2ghz_channels);
 	WL_CHANNEL_ARRAY_INIT(__wl_5ghz_a_channels);
 #ifdef CFG80211_6G_SUPPORT
 	WL_CHANNEL_ARRAY_INIT(__wl_6ghz_channels);
 #endif /* CFG80211_6G_SUPPORT */
-
-	if (legacy_chan_info) {
-		list_count = ((wl_uint32_list_t *)list)->count;
-		/* count + num of elements * size of element */
-		tot_size = sizeof(u32) + (sizeof(u32) * list_count);
-	} else {
-		list_count = ((wl_chanspec_list_v1_t *)list)->count;
-		/* (num of elements * size of element) + ver + count */
-		tot_size = (sizeof(wl_chanspec_attr_v1_t) * list_count) + (sizeof(u16) * 2);
-	}
-
-	if (tot_size > CHAN_LIST_BUF_LEN) {
-		WL_ERR(("invalid chan_info_list size (%d)\n", tot_size));
-		goto exit;
-	}
 
 	WL_DBG(("chan_info_list cnt:%d\n", list_count));
 
@@ -20112,7 +20117,7 @@ static int wl_construct_reginfo(struct bcm_cfg80211 *cfg, s32 bw_cap_2g,
 		(void)memcpy_s(cfg->chan_info_list, CHAN_LIST_BUF_LEN, list, CHAN_LIST_BUF_LEN);
 	}
 
-	for (i = 0; i < dtoh32(list_count); i++) {
+	for (i = 0; i < list_count; i++) {
 		index = 0;
 		ht40_allowed = false;
 		if (legacy_chan_info) {

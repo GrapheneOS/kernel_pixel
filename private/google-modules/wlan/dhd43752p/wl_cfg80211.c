@@ -17648,7 +17648,7 @@ static int wl_construct_reginfo(struct bcm_cfg80211 *cfg, s32 bw_cap_2g, s32 bw_
 	bool ht80_allowed;
 	bool dfs_radar_disabled = FALSE;
 	bool legacy_chan_info = FALSE;
-	u16 list_count;
+	u32 list_count, list_capacity;
 	u32 channels_array[ARRAYSIZE(__wl_5ghz_a_channels)];
 	u32 channel_index = 0;
 	u32 channel_counts = 0;
@@ -17683,15 +17683,34 @@ static int wl_construct_reginfo(struct bcm_cfg80211 *cfg, s32 bw_cap_2g, s32 bw_
 	channel_counts =  ARRAYSIZE(channels_array);
 	memset(channels_array, 0, channel_counts);
 
+	if (legacy_chan_info) {
+		list_count = dtoh32(((wl_uint32_list_t *)list)->count);
+		list_capacity = (LOCAL_BUF_LEN - OFFSETOF(wl_uint32_list_t, element)) /
+			sizeof(uint32);
+	} else {
+		if (dtoh16(((wl_chanspec_list_v1_t *)list)->version) != CHAN_INFO_LIST_ALL_V1) {
+			WL_ERR(("Unsupported chan_info_list version\n"));
+			err = BCME_VERSION;
+			goto exit;
+		}
+		list_count = dtoh16(((wl_chanspec_list_v1_t *)list)->count);
+		list_capacity = (LOCAL_BUF_LEN - OFFSETOF(wl_chanspec_list_v1_t, chspecs)) /
+			sizeof(wl_chanspec_attr_v1_t);
+	}
+	if (list_count > list_capacity) {
+		WL_ERR(("Invalid channel list count %u (capacity %u)\n",
+			list_count, list_capacity));
+		err = BCME_BADLEN;
+		goto exit;
+	}
+
 	WL_CHANNEL_ARRAY_INIT(__wl_2ghz_channels);
 	WL_CHANNEL_ARRAY_INIT(__wl_5ghz_a_channels);
 #ifdef CFG80211_6G_SUPPORT
 	WL_CHANNEL_ARRAY_INIT(__wl_6ghz_channels);
 #endif /* CFG80211_6G_SUPPORT */
 
-	list_count = legacy_chan_info ? ((wl_uint32_list_t *)list)->count :
-		((wl_chanspec_list_v1_t *)list)->count;
-	for (i = 0; i < dtoh32(list_count); i++) {
+	for (i = 0; i < list_count; i++) {
 		index = 0;
 		ht40_allowed = false;
 		ht80_allowed = false;
@@ -17951,6 +17970,7 @@ static int wl_construct_reginfo(struct bcm_cfg80211 *cfg, s32 bw_cap_2g, s32 bw_
 #endif /* CFG80211_6G_SUPPORT */
 	/* TODO */
 
+exit:
 	MFREE(cfg->osh, list, LOCAL_BUF_LEN);
 #undef LOCAL_BUF_LEN
 	return err;
