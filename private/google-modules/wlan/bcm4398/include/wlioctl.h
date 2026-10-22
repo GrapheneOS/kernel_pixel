@@ -1400,7 +1400,7 @@ typedef struct wl_uint32_list {
 	/** in - # of elements, out - # of entries */
 	uint32 count;
 	/** variable length uint32 list */
-	uint32 element[BCM_FLEX_ARRAY];
+	uint32 element[];
 } wl_uint32_list_t;
 /* Size in bytes for wl_uint32_list_t with 'count' elements */
 #define WL_UINT32_LIST_SIZE(count) (((count) + 1) * sizeof(uint32))
@@ -1418,7 +1418,7 @@ typedef struct wl_chanspec_list_s_v1 {
 	/** in - # of chanspecs, out - # of entries */
 	uint16 count;
 	/** variable length chanspecs list */
-	wl_chanspec_attr_v1_t chspecs[BCM_FLEX_ARRAY];
+	wl_chanspec_attr_v1_t chspecs[];
 } wl_chanspec_list_v1_t;
 
 /* ML assoc and scan params */
