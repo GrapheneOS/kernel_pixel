@@ -977,18 +977,19 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 
 static void samsung_sysmmu_release_device(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct sysmmu_clientdata *client;
+	struct sysmmu_clientdata *client = dev_iommu_priv_get(dev);
+	unsigned int i;
 
-	if (!fwspec)
+	if (!client)
 		return;
 
-	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
 	if (client->domain)
 		samsung_sysmmu_detach_dev(client->domain, dev);
-	/* Device removal purges links before the IOMMU release callback. */
+	/* Device removal may have purged these links before IOMMU release. */
+	for (i = 0; client->dev_link && i < client->sysmmu_count; i++)
+		device_link_remove(dev, client->sysmmus[i]->dev);
 	kfree(client->dev_link);
-
+	client->dev_link = NULL;
 }
 
 static void samsung_sysmmu_group_data_release(void *iommu_data)
