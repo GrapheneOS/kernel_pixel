@@ -44,7 +44,7 @@ BWL_PRE_PACKED_STRUCT struct wifi_p2p_ie {
 	uint8	len;				/* IE length */
 	uint8	OUI[3];				/* WiFi P2P specific OUI: P2P_OUI */
 	uint8	oui_type;			/* Identifies P2P version: P2P_VER */
-	uint8	subelts[BCM_FLEX_ARRAY];	/* variable length subelements */
+	uint8	subelts[];	/* variable length subelements */
 } BWL_POST_PACKED_STRUCT;
 typedef struct wifi_p2p_ie wifi_p2p_ie_t;
 
