@@ -1084,13 +1084,13 @@ err_lpm_init:
 	return rc;
 }
 
-static int nitrous_remove(struct platform_device *pdev)
+static void nitrous_remove(struct platform_device *pdev)
 {
 	struct nitrous_bt_lpm *lpm = platform_get_drvdata(pdev);
 	int i;
 
 	if (!lpm) {
-		return -EINVAL;
+		return;
 	}
 
 	logbuffer_log(lpm->log, "removing");
@@ -1107,7 +1107,6 @@ static int nitrous_remove(struct platform_device *pdev)
 
 	devm_kfree(&pdev->dev, lpm);
 
-	return 0;
 }
 
 static int nitrous_suspend_device(struct device *dev)

@@ -2268,7 +2268,7 @@ osl_timer_del(osl_t *osh, osl_timer_t *t)
 	}
 	if (t->set) {
 		t->set = FALSE;
-		if (!del_timer(&t->timer)) {
+		if (!timer_delete(&t->timer)) {
 #ifdef BCMDBG
 			OSL_PRINT(("osl_timer_del: Deleted inactive timer %s.\n", t->name));
 #endif
