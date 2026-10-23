@@ -310,5 +310,5 @@ static struct kunit_suite google_role_sw_update_data_role_test_suite = {
 };
 kunit_test_suite(google_role_sw_update_data_role_test_suite);
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_LICENSE("GPL");
