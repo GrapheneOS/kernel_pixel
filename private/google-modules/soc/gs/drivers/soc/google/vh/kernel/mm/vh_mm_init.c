@@ -9,8 +9,11 @@
 #include "linux/cpumask.h"
 #include "linux/delay.h"
 #include "linux/spinlock.h"
+#include <linux/cpu.h>
+#include <linux/cpuhotplug.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/sched.h>
 #include <linux/string.h>
 #include <linux/swap.h>
@@ -32,28 +35,12 @@
 static struct task_struct *tsk_kswapd, *tsk_kcompactd;
 static atomic_t gup_longterm_pinning_count = ATOMIC_INIT(0);
 static atomic_t gup_longterm_lock_fail_count = ATOMIC_INIT(0);
-
-/*
- * Last requested kcompactd CPU affinity.
- * Don't access directly, use kcompactd_requested_cpu_affinity_get()/set().
- */
-static cpumask_t kcompactd_requested_cpu_affinity_value = CPU_MASK_NONE;
-static DEFINE_SPINLOCK(kcompactd_requested_cpu_affinity_lock);
+static cpumask_t kswapd_requested_cpu_affinity;
+static cpumask_t kcompactd_requested_cpu_affinity;
+static DEFINE_MUTEX(mm_cpu_affinity_lock);
 
 #define VENDOR_MM_RW(_name) \
 	static struct kobj_attribute _name##_attr = __ATTR_RW(_name)
-
-static void kcompactd_requested_cpu_affinity_set(const cpumask_t* affinity) {
-	spin_lock(&kcompactd_requested_cpu_affinity_lock);
-	cpumask_copy(&kcompactd_requested_cpu_affinity_value, affinity);
-	spin_unlock(&kcompactd_requested_cpu_affinity_lock);
-}
-
-static void kcompactd_requested_cpu_affinity_get(cpumask_t* out_affinity) {
-	spin_lock(&kcompactd_requested_cpu_affinity_lock);
-	cpumask_copy(out_affinity, &kcompactd_requested_cpu_affinity_value);
-	spin_unlock(&kcompactd_requested_cpu_affinity_lock);
-}
 
 static int task_set_uclamp_min(struct task_struct *tsk, const char *buf)
 {
@@ -104,7 +91,8 @@ static int parse_cpu_affinity(cpumask_t *out_mask, const char *buf)
 	return 0;
 }
 
-static int task_set_cpu_affinity(struct task_struct *tsk, const char *buf)
+static int task_set_cpu_affinity(struct task_struct *tsk, cpumask_t *requested,
+				 const char *buf)
 {
 	cpumask_t affinity;
 	int ret;
@@ -113,9 +101,27 @@ static int task_set_cpu_affinity(struct task_struct *tsk, const char *buf)
 	if (ret < 0)
 		return ret;
 
-	if (tsk) {
-		set_cpus_allowed_ptr(tsk, &affinity);
-	}
+	/* Serialize the live mask and saved request against writes and hotplug. */
+	cpus_read_lock();
+	mutex_lock(&mm_cpu_affinity_lock);
+	ret = set_cpus_allowed_ptr(tsk, &affinity);
+	if (!ret)
+		cpumask_copy(requested, &affinity);
+	mutex_unlock(&mm_cpu_affinity_lock);
+	cpus_read_unlock();
+
+	return ret;
+}
+
+static int mm_cpu_online(unsigned int cpu)
+{
+	/* Run after CPUHP_AP_KTHREADS_ONLINE resets the NUMA affinity. */
+	mutex_lock(&mm_cpu_affinity_lock);
+	if (cpumask_intersects(&kswapd_requested_cpu_affinity, cpu_online_mask))
+		WARN_ON(set_cpus_allowed_ptr(tsk_kswapd, &kswapd_requested_cpu_affinity));
+	if (cpumask_intersects(&kcompactd_requested_cpu_affinity, cpu_online_mask))
+		WARN_ON(set_cpus_allowed_ptr(tsk_kcompactd, &kcompactd_requested_cpu_affinity));
+	mutex_unlock(&mm_cpu_affinity_lock);
 
 	return 0;
 }
@@ -141,7 +147,7 @@ static ssize_t kswapd_cpu_affinity_store(struct kobject *kobj,
 	int ret;
 
 	if (tsk_kswapd) {
-		ret = task_set_cpu_affinity(tsk_kswapd, buf);
+		ret = task_set_cpu_affinity(tsk_kswapd, &kswapd_requested_cpu_affinity, buf);
 	} else {
 		WARN_ON_ONCE(1);
 		return -ESRCH;
@@ -272,33 +278,16 @@ static ssize_t kcompactd_cpu_affinity_store(struct kobject *kobj,
 					    const char *buf,
 					    size_t len)
 {
-	cpumask_t affinity;
 	int ret;
 
 	if (tsk_kcompactd) {
-		ret = parse_cpu_affinity(&affinity, buf);
-		if (ret == 0) {
-			kcompactd_requested_cpu_affinity_set(&affinity);
-			set_cpus_allowed_ptr(tsk_kcompactd, &affinity);
-		}
+		ret = task_set_cpu_affinity(tsk_kcompactd, &kcompactd_requested_cpu_affinity, buf);
 	} else {
 		WARN_ON_ONCE(1);
 		return -ESRCH;
 	}
 
 	return ret ? ret : len;
-}
-
-/* kcompactd_cpu_online() resets cpumask, so we need to restore it. */
-static void vh_kcompactd_cpu_online(void *data, int cpu) {
-	cpumask_t affinity;
-
-	if (tsk_kcompactd) {
-		kcompactd_requested_cpu_affinity_get(&affinity);
-		if (!cpumask_empty(&affinity)) {
-			set_cpus_allowed_ptr(tsk_kcompactd, &affinity);
-		}
-	}
 }
 
 static void vh_swap_writepage(void *data,
@@ -568,15 +557,22 @@ EXPORT_SYMBOL_GPL(vendor_mm_kobj);
 
 static int vh_mm_init(void)
 {
-	int ret;
+	int ret, hp_state = -1;
 
 	ret = init_get_kswapd_kcompactd_tasks();
 	if (ret)
 		goto out_err;
 
+	hp_state = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "pixel/mm:online",
+					    mm_cpu_online, NULL);
+	if (hp_state < 0)
+		return hp_state;
+
 	vendor_mm_kobj = kobject_create_and_add("vendor_mm", kernel_kobj);
-	if (!vendor_mm_kobj)
-		return -ENOMEM;
+	if (!vendor_mm_kobj) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
 
 	ret = sysfs_create_groups(vendor_mm_kobj, vendor_mm_groups);
 	if (ret)
@@ -587,11 +583,6 @@ static int vh_mm_init(void)
 		goto out_err;
 
 	ret = pixel_mm_filemap_sysfs(vendor_mm_kobj);
-	if (ret)
-		goto out_err;
-
-	ret = register_trace_android_vh_mm_kcompactd_cpu_online(
-		vh_kcompactd_cpu_online, NULL);
 	if (ret)
 		goto out_err;
 
@@ -665,6 +656,8 @@ static int vh_mm_init(void)
 	return ret;
 
 out_err:
+	if (hp_state >= 0)
+		cpuhp_remove_state_nocalls(hp_state);
 	kobject_put(vendor_mm_kobj);
 	return ret;
 }
