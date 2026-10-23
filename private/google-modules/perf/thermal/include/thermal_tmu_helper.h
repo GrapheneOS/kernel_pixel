@@ -109,9 +109,9 @@ int thermal_tmu_cleanup_sensor(struct google_sensor_data *sensor);
 
 /* thermal zone ops */
 int thermal_tmu_get_temp(struct thermal_zone_device *tzd, int *temp);
-int thermal_tmu_set_trip_temp(struct thermal_zone_device *tzd, int trip_id,
+int thermal_tmu_set_trip_temp(struct thermal_zone_device *tzd, const struct thermal_trip *trip,
 			      int temp);
-int thermal_tmu_set_trip_hyst(struct thermal_zone_device *tzd, int trip_id,
+int thermal_tmu_set_trip_hyst(struct thermal_zone_device *tzd, const struct thermal_trip *trip,
 			      int hyst);
 int thermal_tmu_set_polling_delay_ms(struct google_sensor_data *sensor, u32 val);
 int thermal_tmu_get_polling_delay_ms(struct google_sensor_data *sensor, u32 *val);

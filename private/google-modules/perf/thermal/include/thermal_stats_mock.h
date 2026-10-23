@@ -29,49 +29,49 @@ int mock_get_thermal_sm_stats_metrics(struct thermal_sm_stats_metrics *data);
 int mock_set_thermal_sm_stats_thresholds(struct thermal_sm_stats_thresholds *data);
 int mock_get_thermal_sm_stats_thresholds(struct thermal_sm_stats_thresholds *data);
 #else
-int mock_read_dt_property_string(const struct device_node *np, const char *propname,
+static inline int mock_read_dt_property_string(const struct device_node *np, const char *propname,
 				 const char **out_string)
 {
 	return -EOPNOTSUPP;
 }
-int mock_initialize_thermal_sm_section(struct device *dev, enum thermal_sm_section section)
+static inline int mock_initialize_thermal_sm_section(struct device *dev, enum thermal_sm_section section)
 {
 	return -EOPNOTSUPP;
 }
-tr_handle mock_register_tr_stats(const char *name, char *group_name)
+static inline tr_handle mock_register_tr_stats(const char *name, char *group_name)
 {
 	return -EOPNOTSUPP;
 }
-int mock_register_tr_stats_callbacks(tr_handle instance,
+static inline int mock_register_tr_stats_callbacks(tr_handle instance,
 				     struct temp_residency_stats_callbacks *ops)
 {
 	return -EOPNOTSUPP;
 }
-int mock_get_tr_stats(u8 tz_id)
+static inline int mock_get_tr_stats(u8 tz_id)
 {
 	return -EOPNOTSUPP;
 }
-int mock_set_tr_thresholds(u8 tz_id)
+static inline int mock_set_tr_thresholds(u8 tz_id)
 {
 	return -EOPNOTSUPP;
 }
-int mock_get_tr_thresholds(u8 tz_id)
+static inline int mock_get_tr_thresholds(u8 tz_id)
 {
 	return -EOPNOTSUPP;
 }
-int mock_reset_tr_stats(u8 tz_id)
+static inline int mock_reset_tr_stats(u8 tz_id)
 {
 	return -EOPNOTSUPP;
 }
-int mock_get_thermal_sm_stats_metrics(struct thermal_sm_stats_metrics *data)
+static inline int mock_get_thermal_sm_stats_metrics(struct thermal_sm_stats_metrics *data)
 {
 	return -EOPNOTSUPP;
 }
-int mock_set_thermal_sm_stats_thresholds(struct thermal_sm_stats_thresholds *data)
+static inline int mock_set_thermal_sm_stats_thresholds(struct thermal_sm_stats_thresholds *data)
 {
 	return -EOPNOTSUPP;
 }
-int mock_get_thermal_sm_stats_thresholds(struct thermal_sm_stats_thresholds *data)
+static inline int mock_get_thermal_sm_stats_thresholds(struct thermal_sm_stats_thresholds *data)
 {
 	return -EOPNOTSUPP;
 }
