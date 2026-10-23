@@ -15,6 +15,7 @@ config GOOGLE_DRM_BRIDGE_MODE_SET
 config GS_DRM_PANEL_UNIFIED
 	tristate "Support for GS Unified panel driver"
 	depends on OF && DRM
+	select DRM_DISPLAY_DSC_HELPER
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
 	help

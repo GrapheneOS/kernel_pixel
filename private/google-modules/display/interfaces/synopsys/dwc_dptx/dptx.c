@@ -565,7 +565,7 @@ void dptx_video_disable(struct dptx *dptx)
 	dptx->video_enabled = false;
 }
 
-static void dptx_bridge_atomic_disable(struct drm_bridge *br, struct drm_bridge_state *old_br_s)
+static void dptx_bridge_atomic_disable(struct drm_bridge *br, struct drm_atomic_state *old_s)
 {
 	struct dptx *dptx = container_of(br, struct dptx, bridge);
 
@@ -581,12 +581,11 @@ static void dptx_bridge_atomic_disable(struct drm_bridge *br, struct drm_bridge_
 	mutex_unlock(&dptx->mutex);
 }
 
-static void dptx_bridge_atomic_enable(struct drm_bridge *br, struct drm_bridge_state *old_br_s)
+static void dptx_bridge_atomic_enable(struct drm_bridge *br, struct drm_atomic_state *old_s)
 {
 	struct dptx *dptx = container_of(br, struct dptx, bridge);
 	struct video_params *vparams = &dptx->vparams;
 	struct audio_params *aparams = &dptx->aparams;
-	struct drm_atomic_state *old_s = old_br_s->base.state;
 	struct drm_crtc *crtc = drm_atomic_get_new_crtc_for_encoder(old_s, br->encoder);
 	struct drm_crtc_state *crtc_s = drm_atomic_get_new_crtc_state(old_s, crtc);
 	struct drm_display_mode *adj_m = &crtc_s->adjusted_mode;
@@ -663,7 +662,8 @@ static void dptx_bridge_atomic_enable(struct drm_bridge *br, struct drm_bridge_s
 	mutex_unlock(&dptx->mutex);
 }
 
-static int dptx_bridge_attach(struct drm_bridge *br, enum drm_bridge_attach_flags flags)
+static int dptx_bridge_attach(struct drm_bridge *br, struct drm_encoder *encoder,
+			      enum drm_bridge_attach_flags flags)
 {
 	struct dptx *dptx = container_of(br, struct dptx, bridge);
 
@@ -684,7 +684,7 @@ static void dptx_bridge_detach(struct drm_bridge *br)
 	dptx_dbg_bridge(dptx, "%s\n", __func__);
 }
 
-static enum drm_connector_status dptx_bridge_detect(struct drm_bridge *br)
+static enum drm_connector_status dptx_bridge_detect(struct drm_bridge *br, struct drm_connector *connector)
 {
 	struct dptx *dptx = container_of(br, struct dptx, bridge);
 
@@ -710,21 +710,6 @@ static const struct drm_edid *dptx_bridge_edid_read(struct drm_bridge *br, struc
 
 	return (dptx_get_hpd_state(dptx) == HPD_PLUG && dptx->link.trained) ?
 		drm_edid_alloc(dptx->edid, dptx->edid_size) : NULL;
-}
-
-static struct edid *dptx_bridge_get_edid(struct drm_bridge *br, struct drm_connector *co)
-{
-	struct dptx *dptx = container_of(br, struct dptx, bridge);
-
-	dptx_dbg_bridge(dptx, "%s\n", __func__);
-
-	co->ycbcr_420_allowed = dptx->ycbcr_420_en;
-
-	if (dptx->hpd_unplug_running || dptx->hpd_irq_unplug_running)
-		return NULL;
-
-	return (dptx_get_hpd_state(dptx) == HPD_PLUG && dptx->link.trained) ?
-		kmemdup(dptx->edid, dptx->edid_size, GFP_KERNEL) : NULL;
 }
 
 struct dptx_allowed_mode {
@@ -874,7 +859,6 @@ static const struct drm_bridge_funcs dptx_bridge_funcs = {
 	.detach = dptx_bridge_detach,
 	.detect = dptx_bridge_detect,
 	.edid_read = dptx_bridge_edid_read,
-	.get_edid = dptx_bridge_get_edid,
 	.mode_valid = dptx_bridge_mode_valid,
 	.atomic_get_input_bus_fmts = drm_atomic_helper_bridge_propagate_bus_fmt,
 	.atomic_get_output_bus_fmts = dptx_bridge_get_output_bus_formats,
@@ -889,9 +873,9 @@ static int dptx_probe(struct platform_device *pdev)
 
 	dev = &pdev->dev;
 
-	dptx = devm_kzalloc(dev, sizeof(*dptx), GFP_KERNEL);
-	if (!dptx)
-		return -ENOMEM;
+	dptx = devm_drm_bridge_alloc(dev, struct dptx, bridge, &dptx_bridge_funcs);
+	if (IS_ERR(dptx))
+		return PTR_ERR(dptx);
 
 	dptx->edid = kzalloc(DPTX_DEFAULT_EDID_BUFLEN, GFP_KERNEL);
 	if (!dptx->edid)
@@ -971,7 +955,6 @@ static int dptx_probe(struct platform_device *pdev)
 	INIT_WORK(&dptx->hpd_irq_work, dptx_work_hpd_irq);
 
 	dptx->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID | DRM_BRIDGE_OP_HPD;
-	dptx->bridge.funcs = &dptx_bridge_funcs;
 	dptx->bridge.of_node = dev->of_node;
 	dptx->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
 	retval = devm_drm_bridge_add(dptx->dev, &dptx->bridge);
@@ -1064,7 +1047,7 @@ fail_dt:
 	return retval;
 }
 
-static int dptx_remove(struct platform_device *pdev)
+static void dptx_remove(struct platform_device *pdev)
 {
 	struct dptx *dptx = platform_get_drvdata(pdev);
 
@@ -1089,7 +1072,6 @@ static int dptx_remove(struct platform_device *pdev)
 	dev_pm_domain_detach(dptx->pd_dev[SSWRP_DPU_PD], false);
 	dev_pm_domain_detach(dptx->pd_dev[DPU_DP_PD], false);
 	dev_pm_domain_detach(dptx->pd_dev[HSION_DP_PD], false);
-	return 0;
 }
 
 static const struct of_device_id dptx_driver_dt_match[] = {

@@ -925,14 +925,6 @@ static int gs_drm_connector_probe(struct platform_device *pdev)
 	return 0;
 };
 
-static int gs_drm_connector_remove(struct platform_device *pdev)
-{
-	struct gs_drm_connector *gs_connector = platform_get_drvdata(pdev);
-	(void)gs_connector; /*TODO(tknelms): use*/
-
-	return 0;
-};
-
 static const struct of_device_id gs_connector_of_match[] = {
 	{
 		.compatible = "google,drm_connector",
@@ -945,7 +937,6 @@ MODULE_DEVICE_TABLE(of, gs_connector_of_match);
 
 static struct platform_driver gs_drm_connector_driver = {
 	.probe = gs_drm_connector_probe,
-	.remove = gs_drm_connector_remove,
 	.driver = {
 		.name = "gs-drm-connector",
 		.owner = THIS_MODULE,

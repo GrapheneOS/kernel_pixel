@@ -905,7 +905,7 @@ static int vs_crtc_enable_vblank(struct drm_crtc *crtc)
 
 	WARN(vs_crtc->vblank_en, "crtc_enable_vblank: vblank already enabled\n");
 
-	if (pm_runtime_get_if_active(vs_crtc->dc_dev, true) > 0) {
+	if (pm_runtime_get_if_active(vs_crtc->dc_dev) > 0) {
 		spin_lock_irqsave(&vs_crtc->vblank_enable_lock, irqflags);
 		vs_crtc->vblank_en = true;
 		vs_crtc->funcs->enable_vblank(vs_crtc, true);

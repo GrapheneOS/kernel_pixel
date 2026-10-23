@@ -55,7 +55,6 @@ static struct drm_driver g2d_drm_driver = {
 	.fops = &fops,
 	.name = DRV_NAME,
 	.desc = DRV_DESC,
-	.date = DRV_DATE,
 	.major = DRV_MAJOR,
 	.minor = DRV_MINOR,
 };
@@ -270,7 +269,7 @@ static const struct dev_pm_ops g2d_pm_ops = {
 
 static struct platform_driver g2d_drm_platform_driver = {
 	.probe = g2d_drm_platform_probe,
-	.remove_new = g2d_drm_platform_remove,
+	.remove = g2d_drm_platform_remove,
 
 	.driver = {
 		.name = DRV_NAME,

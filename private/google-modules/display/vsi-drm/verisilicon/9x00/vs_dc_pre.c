@@ -2029,7 +2029,7 @@ static int dc_fe0_probe(struct platform_device *pdev)
 	return component_add(dev, &fe0_component_ops);
 }
 
-static int dc_fe0_remove(struct platform_device *pdev)
+static void dc_fe0_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -2037,7 +2037,6 @@ static int dc_fe0_remove(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, NULL);
 
-	return 0;
 }
 
 struct platform_driver dc_fe0_platform_driver = {
@@ -2208,7 +2207,7 @@ static int dc_fe1_probe(struct platform_device *pdev)
 	return component_add(dev, &fe1_component_ops);
 }
 
-static int dc_fe1_remove(struct platform_device *pdev)
+static void dc_fe1_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -2216,7 +2215,6 @@ static int dc_fe1_remove(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, NULL);
 
-	return 0;
 }
 
 struct platform_driver dc_fe1_platform_driver = {

@@ -36,7 +36,7 @@ const char *gs_panel_get_sysfs_name(struct gs_panel *ctx)
 	}
 }
 
-int gs_panel_get_te_freq(struct gs_panel *ctx)
+static int gs_panel_get_te_freq(struct gs_panel *ctx)
 {
 	int freq;
 
@@ -60,7 +60,7 @@ int gs_panel_get_te_freq(struct gs_panel *ctx)
 	return freq;
 }
 
-int gs_panel_set_te2_freq(struct gs_panel *ctx, u32 freq_hz)
+static int gs_panel_set_te2_freq(struct gs_panel *ctx, u32 freq_hz)
 {
 	if (!gs_panel_has_func(ctx, set_te2_freq))
 		return -EOPNOTSUPP;
@@ -93,7 +93,7 @@ int gs_panel_set_te2_freq(struct gs_panel *ctx, u32 freq_hz)
 	return 0;
 }
 
-int gs_panel_get_te2_freq(struct gs_panel *ctx)
+static int gs_panel_get_te2_freq(struct gs_panel *ctx)
 {
 	int freq;
 

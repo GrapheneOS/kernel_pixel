@@ -7,6 +7,7 @@
  * https://opensource.org/licenses/MIT.
  */
 
+#include <linux/platform_device.h>
 #include "gs_panel/gs_panel.h"
 
 #include <linux/delay.h>
@@ -2138,7 +2139,7 @@ void gs_panel_refresh_ctrl_work(struct kthread_work *work)
 	mutex_unlock(&ctx->mode_lock);
 }
 
-u32 gs_panel_get_refresh_ctrl_delay(struct gs_panel *ctx, ktime_t frame_start_ts)
+static u32 gs_panel_get_refresh_ctrl_delay(struct gs_panel *ctx, ktime_t frame_start_ts)
 {
 	/* TODO(b/325151831): Adjust transfer time based on scan out speed */
 	u32 delay_us = FRAME_TX_US - ((ktime_get() - frame_start_ts) / 1000);
@@ -2463,8 +2464,6 @@ int gs_dsi_panel_common_init(struct mipi_dsi_device *dsi, struct gs_panel *ctx)
 		goto err_panel;
 	}
 
-	/* Attach bridge funcs */
-	ctx->bridge.funcs = get_panel_drm_bridge_funcs();
 	ctx->sw_status.te.option = TEX_OPT_CHANGEABLE;
 	ctx->sw_status.te.freq_hz = 60;
 	set_bit(FEAT_EARLY_EXIT, ctx->sw_status.feat);
@@ -2511,9 +2510,10 @@ int gs_dsi_panel_common_probe(struct mipi_dsi_device *dsi)
 {
 	struct gs_panel *ctx;
 
-	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_bridge_alloc(&dsi->dev, struct gs_panel, bridge,
+				    get_panel_drm_bridge_funcs());
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	return gs_dsi_panel_common_init(dsi, ctx);
 }
@@ -2545,7 +2545,7 @@ EXPORT_SYMBOL_GPL(gs_dsi_panel_common_remove);
 
 /* DRM panel funcs */
 
-void _gs_panel_reset_helper(struct gs_panel *ctx)
+static void _gs_panel_reset_helper(struct gs_panel *ctx)
 {
 	int delay;
 	struct device *dev = ctx->dev;

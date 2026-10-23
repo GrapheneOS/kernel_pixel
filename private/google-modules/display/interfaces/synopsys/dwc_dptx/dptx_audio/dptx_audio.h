@@ -9,6 +9,6 @@
 #define __DPTX_AUDIO_H__
 
 int dptx_audio_register(void);
-int dptx_audio_unregister(void);
+void dptx_audio_unregister(void);
 
 #endif
