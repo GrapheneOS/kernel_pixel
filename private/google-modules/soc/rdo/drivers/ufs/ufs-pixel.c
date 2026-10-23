@@ -9,6 +9,7 @@
 
 #ifndef HAVE_UFSHCD_RPM_GET_SYNC
 #include <core/ufshcd-priv.h>
+#include <core/ufs_trace_types.h>
 #endif
 #include <linux/workqueue.h>
 #include <misc/sbbm.h>
@@ -340,7 +341,7 @@ static inline void record_ufs_stats(struct ufs_hba *hba)
 	}
 }
 
-void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 	struct pixel_req_stats *rst;
@@ -938,7 +939,7 @@ static ssize_t manual_gc_store(struct device *dev,
 	}
 
 	if (!ufs->manual_gc.hagc_support) {
-		err = ufshcd_bkops_ctrl(hba, (value == MANUAL_GC_ON) ?
+		err = ufshcd_bkops_ctrl_threshold(hba, (value == MANUAL_GC_ON) ?
 					BKOPS_STATUS_NON_CRITICAL:
 					BKOPS_STATUS_CRITICAL);
 		if (!hba->auto_bkops_enabled)
@@ -1007,8 +1008,7 @@ void pixel_init_manual_gc(struct ufs_hba *hba)
 	mgc->hagc_support = true;
 	mgc->delay_ms = UFSHCD_MANUAL_GC_HOLD_HIBERN8;
 
-	hrtimer_init(&mgc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	mgc->hrtimer.function = pixel_mgc_hrtimer_handler;
+	hrtimer_setup(&mgc->hrtimer, pixel_mgc_hrtimer_handler, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	INIT_WORK(&mgc->hibern8_work, pixel_mgc_hibern8_work);
 	snprintf(wq_name, ARRAY_SIZE(wq_name), "ufs_mgc_hibern8_work_%d",
@@ -1629,7 +1629,7 @@ static ssize_t reset_io_status_store(struct device *dev,
 	return count;
 }
 
-void pixel_init_writebooster(struct ufs_hba *hba)
+static void pixel_init_writebooster(struct ufs_hba *hba)
 {
 	/* Enable capability for writebooster */
 	hba->caps |= UFSHCD_CAP_WB_EN;
@@ -1847,8 +1847,8 @@ static DEVICE_ATTR_RO(_name)
 
 PIXEL_HC_REG_ATTR(cap, _CONTROLLER_CAPABILITIES);
 PIXEL_HC_REG_ATTR(ver, _UFS_VERSION);
-PIXEL_HC_REG_ATTR(hcpid, _CONTROLLER_DEV_ID);
-PIXEL_HC_REG_ATTR(hcmid, _CONTROLLER_PROD_ID);
+PIXEL_HC_REG_ATTR(hcpid, _CONTROLLER_PID);
+PIXEL_HC_REG_ATTR(hcmid, _CONTROLLER_MID);
 PIXEL_HC_REG_ATTR(ahit, _AUTO_HIBERNATE_IDLE_TIMER);
 PIXEL_HC_REG_ATTR(is, _INTERRUPT_STATUS);
 PIXEL_HC_REG_ATTR(ie, _INTERRUPT_ENABLE);
@@ -2008,6 +2008,7 @@ static ssize_t change_pwr_mode_store(struct device *dev,
 	struct Scsi_Host *shost = hba->host;
 	struct scsi_device *sdev;
 	u32 value;
+	unsigned int memflags;
 	int ret;
 
 	if (!ufs->pixel_ops->set_pwr_mode || !ufs->pixel_ops->get_pwr_mode)
@@ -2016,15 +2017,17 @@ static ssize_t change_pwr_mode_store(struct device *dev,
 	if (kstrtouint(buf, 0, &value) || value != 1)
 		return -EINVAL;
 
+	memflags = memalloc_noio_save();
 	shost_for_each_device(sdev, shost)
-		blk_mq_freeze_queue(sdev->request_queue);
+		blk_mq_freeze_queue_nomemsave(sdev->request_queue);
 
 	ufs->pixel_ops->get_pwr_mode(hba, &pwr_mode);
-	ret = ufshcd_config_pwr_mode(hba, &pwr_mode);
+	ret = ufshcd_config_pwr_mode(hba, &pwr_mode, UFSHCD_PMC_POLICY_DONT_FORCE);
 
 	shost_for_each_device(sdev, shost)
-		blk_mq_unfreeze_queue(sdev->request_queue);
+		blk_mq_unfreeze_queue_nomemrestore(sdev->request_queue);
 
+	memalloc_noio_restore(memflags);
 	return ret ?: count;
 }
 

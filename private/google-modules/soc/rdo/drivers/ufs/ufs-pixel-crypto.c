@@ -100,7 +100,7 @@ static int pixel_ufs_keyslot_program(struct blk_crypto_profile *profile,
 	 */
 	ufshcd_block_io(hba);
 
-	err = gsa_kdn_program_key(ufs->gsa_dev, slot, key->raw, key->size);
+	err = gsa_kdn_program_key(ufs->gsa_dev, slot, key->bytes, key->size);
 	if (err)
 		dev_err(ufs->dev, "kdn: failed to program key; err=%d\n", err);
 
@@ -251,14 +251,14 @@ int pixel_ufs_crypto_init(struct ufs_hba *hba)
 	 * program/evict wrapped keys via the KDN, and secondly in order to
 	 * declare wrapped key support rather than standard key support.
 	 */
-	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE;
+	hba->quirks |= UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE;
 
 	/*
 	 * This host controller doesn't support the standard
 	 * CRYPTO_GENERAL_ENABLE bit in REG_CONTROLLER_ENABLE.  Instead it just
 	 * always has crypto support enabled.
 	 */
-	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_BROKEN_CRYPTO_ENABLE;
+	hba->quirks |= UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE;
 
 	/* Advertise crypto capabilities to the block layer. */
 	err = devm_blk_crypto_profile_init(hba->dev, &hba->crypto_profile,
