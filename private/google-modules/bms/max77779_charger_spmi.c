@@ -87,4 +87,4 @@ module_spmi_driver(max77779_charger_spmi_driver);
 MODULE_DESCRIPTION("Maxim 77779 Charger SPMI Driver");
 MODULE_AUTHOR("Daniel Okazaki <dtokazaki@google.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(CHARGER_MAX77779);
+MODULE_IMPORT_NS("CHARGER_MAX77779");

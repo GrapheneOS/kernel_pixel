@@ -66,7 +66,7 @@
 /* This header must always be included last */
 #include "kernel_compatibility.h"
 
-MODULE_IMPORT_NS(COMPAT_DMA_BUF);
+MODULE_IMPORT_NS("COMPAT_DMA_BUF");
 
 static struct drm_driver pvr_drm_platform_driver;
 

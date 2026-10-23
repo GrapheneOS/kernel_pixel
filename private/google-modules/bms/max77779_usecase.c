@@ -133,4 +133,4 @@ module_platform_driver(max77779_usecase_driver);
 MODULE_DESCRIPTION("MAX77779 Usecase Driver");
 MODULE_AUTHOR("Daniel Okazaki <dtokazaki@google.com>");
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(MAX77779_USECASE);
+MODULE_IMPORT_NS("MAX77779_USECASE");
