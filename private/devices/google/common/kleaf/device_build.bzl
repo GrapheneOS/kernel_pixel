@@ -9,6 +9,7 @@ load("@bazel_skylib//rules:select_file.bzl", "select_file")
 load(
     "@kleaf//build/kernel/kleaf:kernel.bzl",
     "dtb_image",
+    "dtbo_image",
     "kernel_abi",
     "kernel_build",
     "kernel_build_config",
@@ -22,8 +23,9 @@ load(
 )
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files")
 load("@rules_pkg//pkg:pkg.bzl", "pkg_zip")
+load("//build/kernel/kleaf:constants.bzl", "COMMON_KCFLAGS")
 load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
-load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_LIST")
+load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_PATHS")
 load("//private/devices/google/common/kleaf:create_file.bzl", "create_file")
 load("//private/devices/google/common/kleaf:image_props.bzl", "image_props")
 load("//private/devices/google/common/kleaf:merged_uapi_headers.bzl", "merged_uapi_headers")
@@ -132,8 +134,8 @@ def device_build(
             "//private/devices/google/common/kleaf/files:build.config.common",
         ]
         base_kconfigs = []
-        base_kconfig_exts = ["//common:kernel_package_kconfig"]
-        base_defconfig_fragments = ["//common:kernel_package_defconfig_fragment"]
+        base_kconfig_exts = []
+        base_defconfig_fragments = []
         base_ext_modules = []
         base_kunit_modules = []
         base_ddk_uapi_headers = []
@@ -234,7 +236,7 @@ def device_build(
     select_file(
         name = target_kmi_symbol_list,
         srcs = "//common:aarch64_additional_kmi_symbol_lists",
-        subpath = "android/abi_gki_aarch64_pixel",
+        subpath = "gki/aarch64/symbols/pixel",
     )
 
     kernel_build(
@@ -245,11 +247,14 @@ def device_build(
         implicit_outs = dtbo_outs,
         base_kernel = "//common:kernel_aarch64",
         build_config = target_build_config,
+        defconfig = "//common:arch/arm64/configs/gki_defconfig",
         dtstree = target_dtstree if need_dtstree else None,
         collect_unstripped_modules = True,
-        defconfig_fragments = [target_defconfig_fragments],
+        post_defconfig_fragments = [target_defconfig_fragments],
         kconfig_ext = target_kconfig_ext,
         make_goals = ["modules", "dtbs"],
+        makefile = "//common:Makefile",
+        kcflags = COMMON_KCFLAGS,
         kmi_symbol_list = target_kmi_symbol_list,
         module_outs = module_outs,
         strip_modules = True,
@@ -363,7 +368,7 @@ def device_build(
         name = target_system_dlkm_modules_list,
         out = "{}/system_dlkm.modules".format(name),
         # The list is used to filter modules with `grep -w`.
-        contents = ["^kernel/" + m for m in PIXEL_GKI_MODULES_LIST],
+        contents = PIXEL_GKI_MODULES_PATHS,
         visibility = ["//visibility:private"],
     )
 
@@ -453,7 +458,7 @@ def device_build(
         build_vendor_kernel_boot = build_vendor_kernel_boot,
         build_system_dlkm = build_system_dlkm,
         build_vendor_dlkm = build_vendor_dlkm,
-        build_dtbo = build_dtbo,
+        build_dtbo = False,
         boot_image_outs = ["vendor_kernel_boot.img"] if build_vendor_kernel_boot else [],
         ramdisk_compression = "lz4",
         modules_list = target_vendor_ramdisk_modules_list,
@@ -465,7 +470,6 @@ def device_build(
         vendor_dlkm_modules_list = target_vendor_dlkm_modules_list if build_system_dlkm else target_merged_dlkm_modules_list,
         vendor_dlkm_modules_blocklist = target_vendor_dlkm_modules_blocklist if build_system_dlkm else target_merged_dlkm_modules_blocklist,
         vendor_dlkm_props = target_vendor_dlkm_props,
-        dtbo_srcs = [target_dtbos] if build_dtbo else None,
         deps = [
             target_system_dlkm_file_contexts,
             target_vendor_dlkm_file_contexts,
@@ -507,6 +511,15 @@ def device_build(
         "//common:kernel_aarch64_headers",
         "//private/devices/google/common:kernel_gki_modules",
     ] + extra_dist_targets
+
+    if build_dtbo:
+        dtbo_image(
+            name = "{}/dtbo_image".format(name),
+            srcs = [target_dtbos],
+            opts = ["--page_size=4096", "--id=/:board_id", "--rev=/:board_rev"],
+            visibility = ["//visibility:private"],
+        )
+        dist_targets.append("{}/dtbo_image".format(name))
 
     if build_system_dlkm:
         dist_targets += [
