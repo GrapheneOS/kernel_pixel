@@ -17,6 +17,7 @@
 #include "tcpci_max77759.h"
 #include "tcpci_max77779_vendor_reg.h"
 #include "google_tcpci_shim.h"
+#include "max77779_contaminant.h"
 
 #define SARADC_1uA_LSB_UV		4900
 /* TODO: High range CC */

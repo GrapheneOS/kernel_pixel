@@ -158,7 +158,7 @@ static ssize_t google_eusb2_dump_all_registers(struct file *file, char __user *u
 static const struct file_operations dump_all_registers_on_fops = {
 	.read	= google_eusb2_dump_all_registers,
 	.open	= simple_open,
-	.llseek	= no_llseek,
+	.llseek	= NULL,
 };
 #endif
 

@@ -104,7 +104,7 @@ struct max77759_plat *max777x9_get_drvdata(struct device *dev)
 		goto done;
 	}
 
-	sdev = spmi_device_from_of(dev->of_node);
+	sdev = spmi_find_device_by_of_node(dev->of_node);
 	if (sdev) {
 		chip = spmi_device_get_drvdata(sdev);
 		put_device(&sdev->dev);
@@ -127,7 +127,7 @@ void max777x9_set_drvdata(struct device *dev, struct max77759_plat *chip)
 		return;
 	}
 
-	sdev = spmi_device_from_of(dev->of_node);
+	sdev = spmi_find_device_by_of_node(dev->of_node);
 	if (sdev) {
 		spmi_device_set_drvdata(sdev, chip);
 		put_device(&sdev->dev);
