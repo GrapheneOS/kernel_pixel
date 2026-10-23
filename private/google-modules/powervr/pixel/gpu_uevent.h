@@ -8,6 +8,7 @@
 #pragma once
 
 #include <linux/kfifo.h>
+#include <linux/workqueue.h>
 
 struct pixel_gpu_device;
 

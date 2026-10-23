@@ -108,9 +108,8 @@ static int governor_data_init(struct devfreq *df)
 
 	atomic_set(&data->timer_state, TIMER_OFF);
 	INIT_WORK(&data->work, work_func);
-	hrtimer_init(&data->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hrtimer_setup(&data->timer, timer_callback, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	mutex_init(&data->lock);
-	data->timer.function = timer_callback;
 	data->devfreq = df;
 
 	df->governor_data = data;

@@ -57,7 +57,7 @@ else
   MODE_DIR=production
 endif
 
-_pvrsrvkm_dir := $(srctree)/$(src)
+_pvrsrvkm_dir := $(src)
 
 ifneq ($(KBUILD_EXTMOD),)
   # $(src) is reliable across kernel versions when building out of tree, so

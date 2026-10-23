@@ -116,7 +116,7 @@ static void signal_gpu_local_mba(struct iif_fence *fence, void *data)
 		return;
 
 	/* If the sswrp is up, take a PM ref to prevent it from powering down*/
-	if (pm_runtime_get_if_active(pixel_dev->sswrp_gpu_pd, false)) {
+	if (pm_runtime_get_if_in_use(pixel_dev->sswrp_gpu_pd)) {
 		/* Only write to the MBA if the sswrp is up.
 		 * If the sswrp is down, then the iif-blocked workload has not yet been submitted
 		 * to the GPU, and the MBA message is not required.

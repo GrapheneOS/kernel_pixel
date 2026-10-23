@@ -1010,7 +1010,7 @@ static void _ProcessStatsDKPShow(PVRSRV_DEVICE_NODE *psDevNode,
 
 struct kobject *pixel_stat_gpu_kobj, pixel_gpu_stat;
 
-unsigned long long get_total_gpu_mem_byte(void)
+static unsigned long long get_total_gpu_mem_byte(void)
 {
 	unsigned long long total;
 	total = GET_GLOBAL_STAT_VALUE(PVRSRV_DRIVER_STAT_TYPE_ALLOC_PT_MEMORY_UMA_BYTES) +
