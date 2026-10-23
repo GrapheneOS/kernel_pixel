@@ -1035,6 +1035,10 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 
+	retval = devm_mutex_init(dev, &usb->lock);
+	if (retval < 0)
+		return ERR_PTR(retval);
+
 	usb->dev = dev;
 	usb->log = log;
 	usb->psy_ops = ops;
@@ -1160,7 +1164,6 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 	/* vote default value after icl_work is initialized */
 	gvotable_use_default(usb->dead_battery_el, true);
 
-	devm_mutex_init(dev, &usb->lock);
 	retval = device_add_groups(dev, usb_psy_sysfs_groups);
 	if (retval < 0) {
 		logbuffer_logk(usb->log, LOGLEVEL_INFO,
