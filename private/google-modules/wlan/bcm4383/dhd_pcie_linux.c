@@ -1328,9 +1328,11 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 			__FUNCTION__, ret));
 	}
 
-#ifdef DHD_PCIE_RESUME_DELAY_WAR
+	/* Keep a valid saved state for the PCI core on 6.18 and later. */
+#if defined(DHD_PCIE_RESUME_DELAY_WAR) && \
+	(LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0))
 	dev->state_saved = FALSE;
-#endif /* DHD_PCIE_RESUME_DELAY_WAR */
+#endif /* DHD_PCIE_RESUME_DELAY_WAR && LINUX_VERSION_CODE < 6.18 */
 
 	dhdpcie_suspend_dump_cfgregs(bus, "AFTER_EP_SUSPEND");
 	dhdpcie_suspend_dump_rc_cfgregs(bus, "AFTER_EP_SUSPEND");
@@ -1425,9 +1427,10 @@ static int dhdpcie_resume_dev(struct pci_dev *dev)
 		goto out;
 	}
 
-#ifdef DHD_PCIE_RESUME_DELAY_WAR
+#if defined(DHD_PCIE_RESUME_DELAY_WAR) && \
+	(LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0))
 	dev->state_saved = TRUE;
-#endif /* DHD_PCIE_RESUME_DELAY_WAR  */
+#endif /* DHD_PCIE_RESUME_DELAY_WAR && LINUX_VERSION_CODE < 6.18 */
 
 	pci_restore_state(dev);
 
