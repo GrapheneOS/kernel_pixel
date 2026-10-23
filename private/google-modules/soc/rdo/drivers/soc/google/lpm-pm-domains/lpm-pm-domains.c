@@ -275,14 +275,13 @@ cleanup:
 	return ret;
 }
 
-static int goog_lpm_pm_domains_remove(struct platform_device *pdev)
+static void goog_lpm_pm_domains_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rdo_lpm_pm_domains *lpm_pm_domains = platform_get_drvdata(pdev);
 
 	dev_dbg(dev, "Removing stub power controller\n");
 	unregister_power_domains(pdev, lpm_pm_domains->pd_count);
-	return 0;
 }
 
 static const struct of_device_id goog_lpm_pm_domains_of_match_table[] = {

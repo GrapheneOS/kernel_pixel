@@ -448,15 +448,10 @@ static int google_vdu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = devm_device_add_groups(dev, gvdu_groups);
-	if (ret != 0) {
-		gdmc_iface_put(base->gdmc_iface);
-		of_reserved_mem_device_release(dev);
-	}
-	return ret;
+	return 0;
 }
 
-static int google_vdu_remove(struct platform_device *pdev)
+static void google_vdu_remove(struct platform_device *pdev)
 {
 	struct gvdu_base *base = platform_get_drvdata(pdev);
 
@@ -465,7 +460,6 @@ static int google_vdu_remove(struct platform_device *pdev)
 
 	of_reserved_mem_device_release(&pdev->dev);
 	gdmc_iface_put(base->gdmc_iface);
-	return 0;
 }
 
 static const struct of_device_id google_vdu_of_match[] = {
@@ -479,6 +473,7 @@ static struct platform_driver google_vdu_driver = {
 	.remove = google_vdu_remove,
 	.driver = {
 		.name  = "google-vdu",
+		.dev_groups = gvdu_groups,
 		.of_match_table = of_match_ptr(google_vdu_of_match),
 	},
 };

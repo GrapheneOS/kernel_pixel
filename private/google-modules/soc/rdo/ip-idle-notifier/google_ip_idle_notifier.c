@@ -160,13 +160,12 @@ static inline void google_ip_idle_notifier_release_mailbox(
 		cpm_iface_free_client(ip_idle_notifier->cpm_client);
 }
 
-static int google_ip_idle_notifier_remove(struct platform_device *pdev)
+static void google_ip_idle_notifier_remove(struct platform_device *pdev)
 {
 	struct google_ip_idle_notifier *ip_idle_notifier = platform_get_drvdata(pdev);
 
 	google_ip_idle_notifier_release_mailbox(ip_idle_notifier);
 
-	return 0;
 }
 
 static int google_ip_idle_notifier_probe(struct platform_device *pdev)

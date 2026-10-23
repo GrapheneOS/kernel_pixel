@@ -113,7 +113,7 @@ struct fwtp_cpm_dev *ftrace_fwtp_cpm_dev;
  * Internal prototypes.
  ******************************************************************************/
 
-static int fwtp_cpm_remove(struct platform_device *pdev);
+static void fwtp_cpm_remove(struct platform_device *pdev);
 
 /*******************************************************************************
  * Internal functions.
@@ -821,7 +821,7 @@ out:
  *
  * @pdev: The platform device to remove.
  */
-static int fwtp_cpm_remove(struct platform_device *pdev)
+static void fwtp_cpm_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fwtp_cpm_dev *fwtp_cpm_dev;
@@ -833,7 +833,7 @@ static int fwtp_cpm_remove(struct platform_device *pdev)
 	 */
 	fwtp_cpm_dev = platform_get_drvdata(pdev);
 	if (!fwtp_cpm_dev)
-		return 0;
+		return;
 	platform_set_drvdata(pdev, NULL);
 	ftrace_fwtp_cpm_dev = NULL;
 
@@ -867,8 +867,6 @@ static int fwtp_cpm_remove(struct platform_device *pdev)
 
 	/* Log removal. */
 	dev_dbg(dev, "Removed CPM FWTP device.\n");
-
-	return 0;
 }
 
 /*******************************************************************************

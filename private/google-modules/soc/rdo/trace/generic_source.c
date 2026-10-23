@@ -13,7 +13,8 @@
 DEFINE_CORESIGHT_DEVLIST(soc_source_devs, "soc_source");
 
 static int soc_source_enable(struct coresight_device *csdev,
-			     struct perf_event *event, enum cs_mode mode)
+			     struct perf_event *event, enum cs_mode mode,
+			     struct coresight_path *path)
 {
 	int ret = 0;
 	u32 val;
@@ -104,13 +105,12 @@ static int trace_platdev_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int trace_platdev_remove(struct platform_device *pdev)
+static void trace_platdev_remove(struct platform_device *pdev)
 {
 	struct soc_source_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
 	dev_info(&pdev->dev, "Remove soc_source device");
 	coresight_unregister(drvdata->csdev);
-	return 0;
 }
 
 static const struct of_device_id trace_of_ids[] = {

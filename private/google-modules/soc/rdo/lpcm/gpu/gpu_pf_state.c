@@ -272,7 +272,7 @@ static int gpu_pf_state_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct device *dev = g_gpu_pf_state->dev;
 	int ret;
 
-	if (!pm_runtime_get_if_active(dev, true)) {
+	if (!pm_runtime_get_if_active(dev)) {
 		dev_dbg(dev,
 			"Calling set rate when power is OFF. Rate will be set once power is restored");
 		g_gpu_pf_state->saved_rate = rate;
@@ -307,7 +307,7 @@ static unsigned long gpu_pf_state_clk_recalc_rate(struct clk_hw *hw,
 	bool pm_runtime_enabled = true;
 	unsigned long long freq;
 
-	ret = pm_runtime_get_if_active(dev, true);
+	ret = pm_runtime_get_if_active(dev);
 	/*
 	 * when clients call clk_set_rate(), clk core invokes recalc_rate function
 	 * to update the cached rate. If power is currently OFF, return saved_rate
@@ -566,13 +566,11 @@ static void gpu_pf_state_debug_deinit(struct device *dev)
 	debugfs_remove_recursive(clk->debugfs_root);
 }
 
-static int gpu_pf_state_remove(struct platform_device *pdev)
+static void gpu_pf_state_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	gpu_pf_state_debug_deinit(dev);
-
-	return 0;
 }
 
 static const struct of_device_id gpu_pf_state_of_match_table[] = {

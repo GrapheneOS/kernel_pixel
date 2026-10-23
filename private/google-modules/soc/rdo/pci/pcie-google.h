@@ -29,6 +29,9 @@
 
 #define GPCIE_MAX_IRQ_NAME	64
 
+/* Preserve the 6.6 DWC link retry budget. */
+#define LINK_WAIT_MAX_RETRIES 10
+
 #define GPCIE_INIT_NUM_RSTS 2
 
 struct fw_patch_entry {

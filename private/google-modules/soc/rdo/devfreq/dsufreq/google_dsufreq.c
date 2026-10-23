@@ -103,7 +103,7 @@ static struct devfreq_dev_profile google_dsufreq_profile = {
 	.get_cur_freq = google_dsufreq_get_cur_freq,
 };
 
-static int google_dsufreq_remove(struct platform_device *pdev)
+static void google_dsufreq_remove(struct platform_device *pdev)
 {
 	struct google_dsufreq *dsufreq = platform_get_drvdata(pdev);
 
@@ -115,7 +115,6 @@ static int google_dsufreq_remove(struct platform_device *pdev)
 		devm_devfreq_remove_device(&pdev->dev, dsufreq->devfreq);
 	}
 
-	return 0;
 }
 
 static const struct regmap_config google_dsufreq_regmap_cfg = {

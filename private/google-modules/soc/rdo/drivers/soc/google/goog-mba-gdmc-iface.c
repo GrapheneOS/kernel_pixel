@@ -83,7 +83,7 @@ void gdmc_unregister_host_cb(struct gdmc_iface *gdmc_iface, int service_id)
 }
 EXPORT_SYMBOL_GPL(gdmc_unregister_host_cb);
 
-int goog_mba_gdmc_iface_send_message(struct gdmc_iface *gdmc_iface, bool crit, u32 *req_buf,
+static int goog_mba_gdmc_iface_send_message(struct gdmc_iface *gdmc_iface, bool crit, u32 *req_buf,
 				     u32 *resp_buf, gdmc_async_resp_cb_t async_resp_cb,
 				     unsigned long tout_ms, void *prv_data)
 {
@@ -606,7 +606,7 @@ static void goog_mba_gdmc_create_ftrace_instance(struct gdmc_iface *gdmc_iface)
 	int i;
 	int ret;
 
-	tr = trace_array_get_by_name_ext("goog_nq_mailbox",
+	tr = trace_array_get_by_name("goog_nq_mailbox",
 					 "goog_mba_ctrl,goog_mba_aggr,goog_mba_gdmc_iface");
 	if (!tr) {
 		dev_err(dev, "Failed to create trace array\n");

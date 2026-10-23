@@ -242,12 +242,11 @@ static int google_ra_driver_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int google_ra_driver_remove(struct platform_device *pdev)
+static void google_ra_driver_remove(struct platform_device *pdev)
 {
 	struct google_ra *ra = platform_get_drvdata(pdev);
 
 	google_ra_remove_debugfs(ra);
-	return 0;
 }
 
 static const struct of_device_id google_ra_of_match_table[] = {

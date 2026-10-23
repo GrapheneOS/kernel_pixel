@@ -117,12 +117,6 @@ static int manual_lpcm_probe(struct platform_device *pdev)
 
 }
 
-static int manual_lpcm_remove(struct platform_device *pdev)
-{
-	/* Nothing to do here. */
-	return 0;
-}
-
 static const struct of_device_id manual_lpcm_of_match_table[] = {
 	{ .compatible = "google,manual-lpcm" },
 	{},
@@ -131,7 +125,6 @@ MODULE_DEVICE_TABLE(of, manual_lpcm_of_match_table);
 
 static struct platform_driver manual_lpcm_driver = {
 	.probe = manual_lpcm_probe,
-	.remove = manual_lpcm_remove,
 	.driver = {
 		.name = "google-manual-lpcm",
 		.owner = THIS_MODULE,

@@ -1062,7 +1062,7 @@ static void cpm_iface_create_ftrace_instance(struct cpm_iface_data *ci_data)
 	int i;
 	int ret;
 
-	ta = trace_array_get_by_name_ext("goog_cpm_mailbox", "goog_mba_ctrl,goog_mba_cpm_iface");
+	ta = trace_array_get_by_name("goog_cpm_mailbox", "goog_mba_ctrl,goog_mba_cpm_iface");
 	if (!ta) {
 		dev_err(dev, "Failed to create trace array\n");
 		return;
@@ -1140,7 +1140,7 @@ static int cpm_iface_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int cpm_iface_remove(struct platform_device *pdev)
+static void cpm_iface_remove(struct platform_device *pdev)
 {
 	struct cpm_iface_mbox_chan_info *minfo;
 
@@ -1149,8 +1149,6 @@ static int cpm_iface_remove(struct platform_device *pdev)
 
 	for_each_mbox_chan_in_q(minfo, cpm_iface_data->resp_chans_q)
 		mbox_free_channel(minfo->chan);
-
-	return 0;
 }
 
 static const struct of_device_id cpm_iface_of_match_table[] = {

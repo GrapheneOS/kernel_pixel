@@ -315,18 +315,17 @@ free_mbox:
 	return ret;
 }
 
-static int da9188_rtc_remove(struct platform_device *pdev)
+static void da9188_rtc_remove(struct platform_device *pdev)
 {
 	struct da9188_rtc *priv = platform_get_drvdata(pdev);
 
 	if (IS_ERR_OR_NULL(priv))
-		return 0;
+		return;
 
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
 	da9188_mfd_mbox_release(&priv->mbox);
 
-	return 0;
 }
 
 static const struct platform_device_id da9188_rtc_id[] = {

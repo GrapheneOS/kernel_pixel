@@ -345,7 +345,7 @@ static int spmi_mba_read_cmd(struct spmi_controller *ctrl,
 #define SPMI_DEBUG_ATTRIBUTE(name, fn_read, fn_write) \
 static const struct file_operations name = {    \
 	.open   = simple_open,                  \
-	.llseek = no_llseek,                    \
+	.llseek = NULL,                    \
 	.read   = fn_read,                      \
 	.write  = fn_write,                     \
 }

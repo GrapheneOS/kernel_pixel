@@ -178,7 +178,7 @@ static int expand_buffer(struct pinctrl_debugfs_attr_file *attr_file)
 	if (attr_file->size >= PINCTRL_STRING_ATTRIBUTE_MAX_FILE_SIZE)
 		return -EFBIG;
 
-	new_buf = kvrealloc(attr_file->buf, attr_file->size, attr_file->size << 1, GFP_KERNEL);
+	new_buf = kvrealloc(attr_file->buf, attr_file->size << 1, GFP_KERNEL);
 	if (new_buf) {
 		attr_file->buf = new_buf;
 		attr_file->size <<= 1;
@@ -304,7 +304,7 @@ static int dump_regs_form(struct google_pinctrl *gctl, struct seq_file *file)
 
 		pin_excl = (pin_excl_regs != NULL) && (pin_excl_regs->pin_id == i);
 
-		if (gctl->chip.valid_mask && !test_bit(i, gctl->chip.valid_mask)) {
+		if (!gpiochip_line_is_valid(&gctl->chip, i)) {
 			tmp_buf_count += scnprintf(tmp_buf + tmp_buf_count,
 						   buf_size - tmp_buf_count,
 						   " INACCESSIBLE/INVALID FROM KERNEL");

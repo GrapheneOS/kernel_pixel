@@ -153,7 +153,7 @@ static int da9188_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		else
 			return -EINVAL;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		ret = gpio_mbox_send_req_helper(priv, MB_GPIO_CMD_GET_DIRECTION,
 						pin, 0, &response_data);
 		if (unlikely(ret))
@@ -264,7 +264,7 @@ static int da9188_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			command = MB_GPIO_CMD_SET_OUTPUT_DRIVE;
 			request_data = DA9188_GPIO_OUTPUT_DRIVE_PP;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			/* First set to output. */
 			ret = gpio_mbox_send_req_helper(priv,
 							MB_GPIO_CMD_SET_DIRECTION,
@@ -410,7 +410,7 @@ static int da9188_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return response_data;
 }
 
-static void da9188_gpio_set(struct gpio_chip *chip, unsigned int offset,
+static int da9188_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			    int value)
 {
 	struct da9188_gpio_ctrl *priv = gpiochip_get_data(chip);
@@ -421,6 +421,7 @@ static void da9188_gpio_set(struct gpio_chip *chip, unsigned int offset,
 					request_data, NULL);
 	if (unlikely(ret))
 		dev_dbg(priv->dev, "gpio%d set failed\n", offset);
+	return ret;
 }
 
 static int da9188_gpio_get_direction(struct gpio_chip *chip,
@@ -443,7 +444,7 @@ static int da9188_gpio_get_direction(struct gpio_chip *chip,
 static int da9188_gpio_direction_input(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	return pinctrl_gpio_direction_input(chip->base + offset);
+	return pinctrl_gpio_direction_input(chip, offset);
 }
 
 static int da9188_gpio_direction_output(struct gpio_chip *chip,
@@ -451,13 +452,11 @@ static int da9188_gpio_direction_output(struct gpio_chip *chip,
 {
 	int ret;
 
-	ret = pinctrl_gpio_direction_output(chip->base + offset);
+	ret = pinctrl_gpio_direction_output(chip, offset);
 	if (unlikely(ret))
 		return ret;
 
-	da9188_gpio_set(chip, offset, value);
-
-	return ret;
+	return da9188_gpio_set(chip, offset, value);
 }
 
 static const struct pinconf_ops da9188_pinconf_ops = {
@@ -571,16 +570,15 @@ free_mbox:
 	return ret;
 }
 
-static int da9188_gpio_remove(struct platform_device *pdev)
+static void da9188_gpio_remove(struct platform_device *pdev)
 {
 	struct da9188_gpio_ctrl *priv = platform_get_drvdata(pdev);
 
 	if (IS_ERR_OR_NULL(priv))
-		return 0;
+		return;
 
 	da9188_mfd_mbox_release(&priv->mbox);
 
-	return 0;
 }
 
 static const struct platform_device_id da9188_gpio_id[] = {

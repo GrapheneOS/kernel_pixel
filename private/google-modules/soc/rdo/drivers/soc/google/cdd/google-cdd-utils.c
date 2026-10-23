@@ -333,15 +333,11 @@ static void google_cdd_dump_one_task_info(struct task_struct *tsk, bool is_main)
 	sched_show_task(tsk);
 }
 
-static inline struct task_struct *get_next_thread(struct task_struct *tsk)
-{
-	return container_of(tsk->thread_group.next, struct task_struct, thread_group);
-}
+
 
 static void google_cdd_dump_task_info(void)
 {
-	struct task_struct *frst_tsk, *curr_tsk;
-	struct task_struct *frst_thr, *curr_thr;
+	struct task_struct *task, *thread;
 
 	pr_info("\n");
 	pr_info(" current proc : %d %s\n",
@@ -352,29 +348,16 @@ static void google_cdd_dump_task_info(void)
 			"user_pc", "task_struct", "comm");
 	pr_info("------------------------------------------------------------------------------\n");
 
-	/* processes */
-	frst_tsk = &init_task;
-	curr_tsk = frst_tsk;
-	while (curr_tsk) {
-		google_cdd_dump_one_task_info(curr_tsk,  true);
-		/* threads */
-		if (curr_tsk->thread_group.next != NULL) {
-			frst_thr = get_next_thread(curr_tsk);
-			curr_thr = frst_thr;
-			if (frst_thr != curr_tsk) {
-				while (curr_thr != NULL) {
-					google_cdd_dump_one_task_info(curr_thr, false);
-					curr_thr = get_next_thread(curr_thr);
-					if (curr_thr == curr_tsk)
-						break;
-				}
-			}
+	rcu_read_lock();
+	google_cdd_dump_one_task_info(&init_task, true);
+	for_each_process(task) {
+		google_cdd_dump_one_task_info(task, true);
+		for_each_thread(task, thread) {
+			if (thread != task)
+				google_cdd_dump_one_task_info(thread, false);
 		}
-		curr_tsk = container_of(curr_tsk->tasks.next,
-					struct task_struct, tasks);
-		if (curr_tsk == frst_tsk)
-			break;
 	}
+	rcu_read_unlock();
 	pr_info("------------------------------------------------------------------------------\n");
 }
 

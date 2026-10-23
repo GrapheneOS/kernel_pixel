@@ -65,7 +65,7 @@ static int google_ccf_devfreq_target(struct device *dev, unsigned long *freq, u3
 	return 0;
 }
 
-static int google_ccf_devfreq_remove(struct platform_device *pdev)
+static void google_ccf_devfreq_remove(struct platform_device *pdev)
 {
 	struct google_ccf_devfreq *df = platform_get_drvdata(pdev);
 
@@ -78,7 +78,6 @@ static int google_ccf_devfreq_remove(struct platform_device *pdev)
 		devm_devfreq_remove_device(df->dev, df->devfreq);
 	}
 
-	return 0;
 }
 
 static int google_ccf_devfreq_init_devfreq(struct google_ccf_devfreq *df)

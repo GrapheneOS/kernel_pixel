@@ -172,7 +172,7 @@ out:
 	return NOTIFY_OK;
 }
 
-int google_devfreq_update_max_freq_mba(struct notifier_block *nb, unsigned long event, void *data)
+static int google_devfreq_update_max_freq_mba(struct notifier_block *nb, unsigned long event, void *data)
 {
 	u32 pf_level;
 	u32 flags = 0;
@@ -348,14 +348,13 @@ static void google_devfreq_remove_devfreq(struct google_devfreq *df)
 	}
 }
 
-static int google_devfreq_remove(struct platform_device *pdev)
+static void google_devfreq_remove(struct platform_device *pdev)
 {
 	struct google_devfreq *df = platform_get_drvdata(pdev);
 
 	google_devfreq_remove_devfreq(df);
 	google_devfreq_mbox_free(df);
 
-	return 0;
 }
 
 static inline int google_devfreq_select_fabric_id(u32 lpcm_id, enum mipm_fabric_id *fabric_id)

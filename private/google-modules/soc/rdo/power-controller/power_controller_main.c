@@ -816,7 +816,7 @@ cleanup_pds:
 	return ret;
 };
 
-static int power_controller_remove(struct platform_device *pdev)
+static void power_controller_remove(struct platform_device *pdev)
 {
 	struct power_controller *power_controller = platform_get_drvdata(pdev);
 	struct device_node *child_np, *np = pdev->dev.of_node;
@@ -832,8 +832,6 @@ static int power_controller_remove(struct platform_device *pdev)
 	}
 	for (i = power_controller->pd_count - 1; i >= 0; i--)
 		pm_genpd_remove(&power_controller->pds[i].genpd);
-
-	return 0;
 }
 
 static const struct of_device_id power_controller_of_match_table[] = {

@@ -333,11 +333,9 @@ static int goog_chip_info_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int goog_chip_info_remove(struct platform_device *pdev)
+static void goog_chip_info_remove(struct platform_device *pdev)
 {
 	bus_unregister(&chip_info_subsys);
-
-	return 0;
 }
 
 static struct platform_driver goog_chip_info_driver = {

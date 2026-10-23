@@ -550,10 +550,10 @@ static int google_pcie_host_init(struct pcie_port *pp)
 }
 
 static const struct dw_pcie_host_ops google_pcie_host_ops = {
-	.host_init = google_pcie_host_init,
+	.init = google_pcie_host_init,
 };
 
-static int google_pcie_link_up(struct dw_pcie *pci)
+static bool google_pcie_link_up(struct dw_pcie *pci)
 {
 	struct google_pcie *gpcie = dev_get_drvdata(pci->dev);
 	unsigned long flags;
@@ -625,7 +625,7 @@ static void google_pcie_set_link_width_speed(struct google_pcie *gpcie)
 {
 	struct dw_pcie *pci = gpcie->pci;
 
-	pci->link_gen = gpcie->target_link_speed;
+	pci->max_link_speed = gpcie->target_link_speed;
 	pci->num_lanes = gpcie->target_link_width;
 
 	dev_dbg(gpcie->dev, "Setting the link speed: %d width: %d",
@@ -2249,8 +2249,8 @@ static void google_pcie_init_speed_width(struct google_pcie *gpcie, struct pci_d
 	 * set to minimum of max supported by HW and DT property.
 	 * If any invalid value is passed in DT, set it to max HW supported.
 	 */
-	gpcie->max_link_speed = (gpcie->pci->link_gen > 0) ?
-				 min((u8) gpcie->pci->link_gen, supported_max_speed) :
+	gpcie->max_link_speed = (gpcie->pci->max_link_speed > 0) ?
+				 min((u8) gpcie->pci->max_link_speed, supported_max_speed) :
 				 supported_max_speed;
 
 	/* Do the same for max width. DT property for max width is: "num-lanes" */
@@ -2869,7 +2869,7 @@ pm_disable:
 	return ret;
 }
 
-static int google_pcie_remove(struct platform_device *pdev)
+static void google_pcie_remove(struct platform_device *pdev)
 {
 	struct google_pcie *gpcie = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -2895,8 +2895,6 @@ static int google_pcie_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(dev);
 	device_set_wakeup_capable(dev, false);
 	dev_pm_genpd_remove_notifier(dev);
-
-	return 0;
 }
 
 static const struct of_device_id google_pcie_of_match[] = {

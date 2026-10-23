@@ -1062,7 +1062,7 @@ static void gia_log_pending_irqs(struct gia_device_data *gdd, bool suspend)
  * the register content. If the register restoration is tied up with SSWRP on/off, we can save
  * on some latency during runtime_resume
  */
-int gia_runtime_suspend(struct device *dev)
+static int gia_runtime_suspend(struct device *dev)
 {
 	struct gia_device_data *gdd = dev_get_drvdata(dev);
 
@@ -1090,7 +1090,7 @@ int gia_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-int gia_runtime_resume(struct device *dev)
+static int gia_runtime_resume(struct device *dev)
 {
 	struct gia_device_data *gdd = dev_get_drvdata(dev);
 
@@ -1337,7 +1337,7 @@ static struct trace_array *gia_trace_init(void)
 {
 	struct trace_array *trace_instance;
 
-	trace_instance = trace_array_get_by_name_ext("irq_gia_google", "irq_gia");
+	trace_instance = trace_array_get_by_name("irq_gia_google", "irq_gia");
 	if (!trace_instance) {
 		pr_err("Interrupts trace instance creation/retrieve did not succeed\n");
 		return NULL;
@@ -1349,7 +1349,7 @@ static struct trace_array *gia_trace_init(void)
 	return trace_instance;
 }
 
-int __init gia_lib_init(void)
+static int __init gia_lib_init(void)
 {
 	gia_trace_init();
 	gia_sysfs_init();

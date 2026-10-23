@@ -452,7 +452,7 @@ aging_clc_sysfs_create_error:
 	return err;
 }
 
-static int google_cap_sysfs_remove(struct platform_device *pdev)
+static void google_cap_sysfs_remove(struct platform_device *pdev)
 {
 	struct dvfs_attribute *dvfs_attr_list_elem, *tmp;
 	struct aging_clc_attribute *aging_clc_attr_list_elem, *tmp3;
@@ -498,8 +498,6 @@ static int google_cap_sysfs_remove(struct platform_device *pdev)
 		list_del(&region->list);
 		devm_kfree(&pdev->dev, region);
 	}
-
-	return 0;
 }
 
 static int alloc_stats_buffers(struct device *dev, void **buf1, void **buf2,

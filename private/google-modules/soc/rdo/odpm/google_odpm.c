@@ -1382,7 +1382,7 @@ static inline void google_odpm_mbox_free(struct google_odpm *odpm)
 		cpm_iface_free_client(odpm->client);
 }
 
-static int google_odpm_platform_remove(struct platform_device *pdev)
+static void google_odpm_platform_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
 	struct google_odpm *odpm = iio_priv(indio_dev);
@@ -1394,8 +1394,6 @@ static int google_odpm_platform_remove(struct platform_device *pdev)
 	}
 
 	google_odpm_mbox_free(odpm);
-
-	return 0;
 }
 
 static void wq_resp_handler(struct work_struct *work)

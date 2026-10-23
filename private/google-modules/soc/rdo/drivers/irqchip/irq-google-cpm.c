@@ -294,11 +294,9 @@ static int cpm_irq_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int cpm_irq_remove(struct platform_device *pdev)
+static void cpm_irq_remove(struct platform_device *pdev)
 {
 	cpm_irq_mailbox_exit(pdev);
-
-	return 0;
 }
 
 static const struct platform_device_id cpm_irq_id[] = {

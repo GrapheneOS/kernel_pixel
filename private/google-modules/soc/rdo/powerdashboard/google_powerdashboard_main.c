@@ -765,13 +765,11 @@ free_mba:
 	return ret;
 }
 
-static int google_powerdashboard_remove(struct platform_device *pdev)
+static void google_powerdashboard_remove(struct platform_device *pdev)
 {
 	struct google_powerdashboard *pd = platform_get_drvdata(pdev);
 
 	google_powerdashboard_mbox_free(pd);
-
-	return 0;
 }
 
 static const struct of_device_id google_powerdashboard_of_match_table[] = {

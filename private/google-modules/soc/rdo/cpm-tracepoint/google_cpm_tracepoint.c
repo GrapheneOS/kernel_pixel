@@ -349,7 +349,7 @@ static void google_cpm_tp_unpack(const struct google_cpm_tp_packed *packed,
  * Otherwise, it means that the address is unreachable from the AP,
  * then the function returns a pointer to the placeholder text.
  */
-const char *google_cpm_tp_resolve_payload_str(struct google_cpm_tp_dev *cpm_tp,
+static const char *google_cpm_tp_resolve_payload_str(struct google_cpm_tp_dev *cpm_tp,
 					      u32 payload_addr_in_cpm)
 {
 	struct google_cpm_tp_string *tp_string = &cpm_tp->tp_string;
@@ -463,7 +463,7 @@ static int __google_cpm_tp_store_and_reply(struct google_cpm_tp_dev *cpm_tp,
 		 */
 		reinit_completion(&cpm_tp->userspace_completion);
 
-		eventfd_signal(cpm_tp->event_ctx, 1);
+		eventfd_signal(cpm_tp->event_ctx);
 		dev_dbg(dev, "Sent a signal to user space.\n");
 
 		/* Wait for eventfd signal from user-space */
@@ -1365,7 +1365,7 @@ clean_cdev:
 	return ret;
 }
 
-static int google_cpm_tp_remove(struct platform_device *pdev)
+static void google_cpm_tp_remove(struct platform_device *pdev)
 {
 	struct google_cpm_tp_dev *cpm_tp = platform_get_drvdata(pdev);
 
@@ -1379,7 +1379,6 @@ static int google_cpm_tp_remove(struct platform_device *pdev)
 	of_reserved_mem_device_release(cpm_tp->dev);
 	google_cpm_tp_clean_cdev(cpm_tp);
 
-	return 0;
 }
 
 static const struct of_device_id google_cpm_tp_of_match_table[] = {

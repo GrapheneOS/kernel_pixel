@@ -207,7 +207,7 @@ static int google_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return 0;
 }
 
-static int google_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+static void google_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	/*
 	 * policy->driver_data free in google_cpufreq_data_exit
@@ -215,7 +215,6 @@ static int google_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 	 */
 	policy->fast_switch_possible = false;
 
-	return 0;
 }
 
 static unsigned int google_cpufreq_get(unsigned int cpu)
@@ -323,11 +322,6 @@ static void google_cpufreq_register_em(struct cpufreq_policy *policy)
 				    &em_cb, policy->cpus, true);
 }
 
-static struct freq_attr *google_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver google_cpufreq_driver = {
 	.name = "google-cpufreq",
 	.flags = CPUFREQ_NEED_INITIAL_FREQ_CHECK | CPUFREQ_IS_COOLING_DEV |
@@ -339,7 +333,6 @@ static struct cpufreq_driver google_cpufreq_driver = {
 	.verify = cpufreq_generic_frequency_table_verify,
 	.init = google_cpufreq_cpu_init,
 	.exit = google_cpufreq_cpu_exit,
-	.attr = google_cpufreq_attr,
 };
 
 /* TODO (b/229330089) support different type of core (Large/Mid/Small) */
@@ -486,7 +479,7 @@ put_em_data_node:
 }
 
 /* Modified from dev_pm_opp_init_cpufreq_table, but assign opp-level to driver data */
-int google_init_cpufreq_table(struct cpufreq_cpu_data *cpufreq_cpu_data)
+static int google_init_cpufreq_table(struct cpufreq_cpu_data *cpufreq_cpu_data)
 {
 	struct dev_pm_opp *opp;
 	struct device *dev = cpufreq_cpu_data->cpu_dev;
@@ -776,7 +769,7 @@ err:
 	return ret;
 }
 
-static int google_cpufreq_platform_remove(struct platform_device *pdev)
+static void google_cpufreq_platform_remove(struct platform_device *pdev)
 {
 	struct cpufreq_data *cpufreq_data = platform_get_drvdata(pdev);
 
@@ -787,7 +780,6 @@ static int google_cpufreq_platform_remove(struct platform_device *pdev)
 
 	google_cpufreq_data_exit_all(cpufreq_data);
 
-	return 0;
 }
 
 static const struct of_device_id google_cpufreq_of_match_table[] = {

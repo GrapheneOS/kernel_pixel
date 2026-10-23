@@ -23,6 +23,7 @@
 
 #define CREATE_TRACE_POINTS
 #include "google_irm_trace.h"
+#include <interconnect/google_irm_api.h>
 
 #define CPM_TASK_TIMEOUT_MS		1000
 
@@ -599,7 +600,7 @@ static inline void irm_mbox_free(struct irm_mbox *mbox)
 	cpm_iface_free_client(mbox->client);
 }
 
-static int google_irm_platform_remove(struct platform_device *pdev)
+static void google_irm_platform_remove(struct platform_device *pdev)
 {
 	struct irm_dev *irm_dev = platform_get_drvdata(pdev);
 
@@ -607,7 +608,6 @@ static int google_irm_platform_remove(struct platform_device *pdev)
 	irm_remove_debugfs(irm_dev);
 	irm_mbox_free(&irm_dev->mbox);
 
-	return 0;
 }
 
 static const struct of_device_id google_irm_of_match_table[] = {

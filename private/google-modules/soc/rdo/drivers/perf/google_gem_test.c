@@ -84,7 +84,7 @@ static void gem_test_split_args(struct kunit *test)
 		off_t actual = argv[i] - params->data;
 
 		KUNIT_EXPECT_EQ_MSG(test, expected, actual,
-				    "argv[%d] doesn't match: expected %d vs. actual %d",
+				    "argv[%d] doesn't match: expected %ld vs. actual %ld",
 				    i, expected, actual);
 	}
 }

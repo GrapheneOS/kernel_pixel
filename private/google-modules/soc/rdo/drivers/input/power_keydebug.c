@@ -166,7 +166,7 @@ static int power_keydebug_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int power_keydebug_remove(struct platform_device *pdev)
+static void power_keydebug_remove(struct platform_device *pdev)
 {
 	input_unregister_handler(&key_power_handler);
 	cancel_delayed_work_sync(&power_button_work.dwork);
@@ -174,7 +174,6 @@ static int power_keydebug_remove(struct platform_device *pdev)
 		kernel_top_destroy(power_button_work.ktop);
 		power_button_work.ktop = NULL;
 	}
-	return 0;
 }
 
 #ifdef CONFIG_OF
