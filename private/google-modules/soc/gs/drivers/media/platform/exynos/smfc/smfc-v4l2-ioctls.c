@@ -498,8 +498,7 @@ static int smfc_v4l2_querycap(struct file *filp, void *fh, struct v4l2_capabilit
 	cap->card[sizeof(cap->card) - 1] = '\0';
 	cap->bus_info[sizeof(cap->bus_info) - 1] = '\0';
 
-	cap->device_caps = smfc->devdata->device_caps;
-	cap->device_caps |= V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET;
+	cap->device_caps = smfc->videodev->device_caps;
 
 	return 0;
 }
