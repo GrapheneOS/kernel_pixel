@@ -21,117 +21,11 @@
 #include <perf/core/gs_domain_idle.h>
 
 #include "sched_priv.h"
+#include "topology.h"
 
-extern void init_uclamp_stats(void);
-extern int create_procfs_node(void);
-#if IS_ENABLED(CONFIG_VH_SCHED) && IS_ENABLED(CONFIG_PIXEL_EM)
-extern void vh_arch_set_freq_scale_pixel_mod(void *data,
-					     const struct cpumask *cpus,
-					     unsigned long freq,
-					     unsigned long max,
-					     unsigned long *scale);
-#endif
-extern void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *attr);
-extern void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, struct rq *rq,
-				     int *should_iowait_boost);
-extern void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
-					    int sd_flag, int wake_flags, int *new_cpu);
-extern void vh_scheduler_tick_pixel_mod_locked(struct rq *rq);
-extern void vh_scheduler_tick_pixel_mod_nolock(struct rq *rq);
-extern void vh_scheduler_tick_pixel_mod(void *data, struct rq *rq);
-extern void vh_sched_switch_pixel_mod(void *data, bool preempt, struct task_struct *prev,
-				      struct task_struct *next, unsigned int prev_state);
-extern void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
-extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p,
-					 enum uclamp_id clamp_id, struct uclamp_se *uclamp_max,
-					 struct uclamp_se *uclamp_eff, int *ret);
-extern void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct task_struct *p,
-					  bool task_sleep, int *ret);
-
-#if !IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-extern void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css);
-#endif
-extern void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_entity *se);
-extern void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
-			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
-			struct sched_entity *pse, int next_buddy_marked);
-extern void vh_sched_uclamp_validate_pixel_mod(void *data, struct task_struct *tsk,
-					       const struct sched_attr *attr,
-					       int *ret, bool *done);
-extern void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
-						   int clamp_id, unsigned int value);
-extern void init_uclamp_stats(void);
-extern void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
-					 struct task_struct *orig);
-extern void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
-					      int sd_flag, int wake_flags, int *target_cpu);
-extern void init_vendor_group_data(void);
-extern void init_pixel_em(void);
-extern void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *rq,
-						struct task_struct *p, int running);
-extern void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
-extern void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
-extern void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
-extern void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
-					    int flags);
-extern void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
-					    int flags);
-extern void rvh_after_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
-	int flags);
-extern void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
-	struct task_struct *task);
-extern void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
-	struct task_struct *task);
-extern void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
-		struct binder_transaction *t, struct task_struct *binder_th_task,
-		bool pending_async, bool sync);
-extern void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
-	struct task_struct *pi_task);
-extern void vh_dump_throttled_rt_tasks_mod(void *data, int cpu, u64 clock, ktime_t rt_period,
-					   u64 rt_runtime, s64 rt_period_timer_expires);
-
-#if IS_ENABLED(CONFIG_RVH_SCHED_LIB)
-extern void rvh_sched_setaffinity_mod(void *data, struct task_struct *task,
-					const struct cpumask *in_mask, int *res);
-extern void rvh_set_cpus_allowed_ptr_mod(void *data, struct task_struct *task,
-					struct affinity_context *ctx, bool *skip_user_ptr);
-#endif /* IS_ENABLED(CONFIG_RVH_SCHED_LIB) */
-
-extern void rvh_set_cpus_allowed_by_task(void *data, const struct cpumask *cpu_valid_mask,
-	const struct cpumask *new_mask, struct task_struct *p, unsigned int *dest_cpu);
-void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_flags *rf,
-		int *pulled_task, int *done);
-extern void rvh_can_migrate_task_pixel_mod(void *data, struct task_struct *p, int dst_cpu,
-						int *can_migrate);
-#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-extern void rvh_attach_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
-						 struct sched_entity *se);
-extern void rvh_detach_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
-						 struct sched_entity *se);
-extern void rvh_update_load_avg_pixel_mod(void *data, u64 now, struct cfs_rq *cfs_rq,
-					  struct sched_entity *se);
-extern void rvh_remove_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
-						 struct sched_entity *se);
-extern void rvh_update_blocked_fair_pixel_mod(void *data, struct rq *rq);
-#endif
-extern void android_vh_use_amu_fie_pixel_mod(void* data, bool *use_amu_fie);
-extern void rvh_set_user_nice_locked_pixel_mod(void *data, struct task_struct *p, long *nice);
-extern void rvh_setscheduler_prio_pixel_mod(void *data, struct task_struct *p);
-extern void rvh_find_lowest_rq_pixel_mod(void *data, struct task_struct *p,
-					 struct cpumask *lowest_mask,
-					 int ret, int *cpu);
-extern void rvh_util_fits_cpu_pixel_mod(void *data, unsigned long util, unsigned long uclamp_min,
-	unsigned long uclamp_max, int cpu, bool *fits, bool *done);
-extern void rvh_try_to_wake_up_success_pixel_mod(void *data, struct task_struct *task);
-
-extern int pmu_poll_init(void);
 #if IS_ENABLED(CONFIG_CAL_IF) || IS_ENABLED(CONFIG_GS_DOMAIN_IDLE)
-extern void set_cluster_enabled_cb(int cluster, int enabled);
 extern void register_set_cluster_enabled_cb(void (*func)(int, int));
 #endif
-extern void vh_sched_resume_end(void *data, void *unused);
-extern void vh_set_task_comm_pixel_mod(void *data, struct task_struct *p);
-extern void vh_exit_check_pixel_mod(void *data, struct task_struct *tsk);
 
 extern struct cpufreq_governor sched_pixel_gov;
 extern bool wait_for_init;
@@ -243,8 +137,7 @@ static void ptick_init(struct rq *rq)
 	if (WARN_ON(!vrq->ptick_timer))
 		return;
 
-	hrtimer_init(vrq->ptick_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
-	vrq->ptick_timer->function = ptick;
+	hrtimer_setup(vrq->ptick_timer, ptick, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
 }
 
 static void init_vendor_rq(void)
@@ -492,7 +385,7 @@ static int vh_sched_init(void)
 
 	REGISTER_TRACE_RVH(sched_newidle_balance, sched_newidle_balance_pixel_mod);
 	REGISTER_TRACE_RVH(post_init_entity_util_avg, rvh_post_init_entity_util_avg_pixel_mod);
-	REGISTER_TRACE_RVH(check_preempt_wakeup, rvh_check_preempt_wakeup_pixel_mod);
+	REGISTER_TRACE_RVH(check_preempt_wakeup_fair, rvh_check_preempt_wakeup_pixel_mod);
 	REGISTER_TRACE_RVH(select_task_rq_fair, rvh_select_task_rq_fair_pixel_mod);
 	REGISTER_TRACE_RVH(set_cpus_allowed_by_task, rvh_set_cpus_allowed_by_task);
 
@@ -523,8 +416,8 @@ static int vh_sched_init(void)
 	REGISTER_TRACE_RVH(find_lowest_rq, rvh_find_lowest_rq_pixel_mod);
 
 #if IS_ENABLED(CONFIG_VH_PRIO_INHERITANCE)
-	REGISTER_TRACE_VH(prio_inheritance, vh_prio_inheritance);
-	REGISTER_TRACE_VH(prio_restore, vh_prio_restore);
+	REGISTER_TRACE_VH(task_cmdline_prio_inherit, vh_prio_inheritance);
+	REGISTER_TRACE_VH(task_cmdline_prio_restore, vh_prio_restore);
 #endif
 
 	REGISTER_TRACE_RVH(util_fits_cpu, rvh_util_fits_cpu_pixel_mod);
@@ -538,7 +431,7 @@ static int vh_sched_init(void)
 	if (ret)
 		return ret;
 
-	ret = register_trace_android_vh_set_task_comm(vh_set_task_comm_pixel_mod, NULL);
+	ret = register_trace_android_rvh_set_task_comm(vh_set_task_comm_pixel_mod, NULL);
 	if (ret)
 		return ret;
 

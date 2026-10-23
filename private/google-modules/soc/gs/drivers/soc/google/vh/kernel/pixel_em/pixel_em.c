@@ -34,10 +34,6 @@ extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     unsigned long max,
 					     unsigned long *scale);
 
-extern bool update_thermal_freq_cap(unsigned int cpu);
-#if IS_ENABLED(CONFIG_PIXEL_EM_FREQUENCY_SCALING)
-extern void reset_scaling_freq(int cpu);
-#endif
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
@@ -1702,11 +1698,11 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int pixel_em_drv_remove(struct platform_device *dev)
+static void pixel_em_drv_remove(struct platform_device *dev)
 {
 	pixel_em_drv_undo_probe();
 
-	return 0;
+	return;
 }
 
 static const struct of_device_id pixel_em_of_match[] = {
