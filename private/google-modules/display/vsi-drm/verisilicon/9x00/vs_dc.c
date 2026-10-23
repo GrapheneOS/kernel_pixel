@@ -370,7 +370,7 @@ static int vs_dc_sscd_reg_payload_prepare(struct device *dev, struct sscd_payloa
 	};
 	int i, ret;
 
-	ret = pm_runtime_get_if_active(dev, true);
+	ret = pm_runtime_get_if_active(dev);
 	if (ret <= 0) {
 		if (ret < 0)
 			dev_err(dev, "Failed to power ON, ret %d\n", ret);
@@ -1633,7 +1633,7 @@ detach_pd:
 	return ret;
 }
 
-static int dc_remove(struct platform_device *pdev)
+static void dc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct vs_dc *dc = platform_get_drvdata(pdev);
@@ -1644,7 +1644,6 @@ static int dc_remove(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, NULL);
 
-	return 0;
 }
 
 struct platform_driver dc_platform_driver = {

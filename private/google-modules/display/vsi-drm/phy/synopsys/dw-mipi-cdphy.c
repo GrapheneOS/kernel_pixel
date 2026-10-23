@@ -37,7 +37,8 @@ static int dw_mipi_cdphy_of_parse_pdata(struct device *dev,
 	return 0;
 }
 
-static struct phy *dw_mipi_phy_of_xlate(struct device *dev, struct of_phandle_args *args)
+static struct phy *dw_mipi_phy_of_xlate(struct device *dev,
+					const struct of_phandle_args *args)
 {
 	struct dw_mipi_cdphy *dw_cdphy = dev_get_drvdata(dev);
 
@@ -117,7 +118,7 @@ static int dw_mipi_cdphy_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(phy_provider);
 }
 
-static int dw_mipi_cdphy_remove(struct platform_device *pdev)
+static void dw_mipi_cdphy_remove(struct platform_device *pdev)
 {
 	struct dw_mipi_cdphy *dw_cdphy = platform_get_drvdata(pdev);
 
@@ -125,7 +126,6 @@ static int dw_mipi_cdphy_remove(struct platform_device *pdev)
 
 	pr_info("Removed dw_mipi_cdphy\n");
 
-	return 0;
 }
 
 const struct dw_mipi_cdphy_data dw_mipi_cdphy_data_v0 = {

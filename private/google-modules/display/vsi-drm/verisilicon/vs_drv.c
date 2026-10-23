@@ -16,7 +16,8 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_fbdev_generic.h>
+#include <drm/clients/drm_client_setup.h>
+#include <drm/drm_fbdev_ttm.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_file.h>
 #include <drm/drm_fourcc.h>
@@ -87,6 +88,7 @@ static void vs_drm_postclose(struct drm_device *drm_dev, struct drm_file *file_p
 }
 
 static struct drm_driver vs_drm_driver = {
+	DRM_FBDEV_TTM_DRIVER_OPS,
 	.driver_features = DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.postclose = vs_drm_postclose,
 	.gem_prime_import = vs_gem_prime_import,
@@ -97,7 +99,6 @@ static struct drm_driver vs_drm_driver = {
 	.fops = &fops,
 	.name = DRV_NAME,
 	.desc = DRV_DESC,
-	.date = DRV_DATE,
 	.major = DRV_MAJOR,
 	.minor = DRV_MINOR,
 };
@@ -155,7 +156,6 @@ void vs_drm_update_alignment(struct drm_device *drm_dev, unsigned int pitch_alig
 static const struct drm_mode_config_funcs vs_mode_config_funcs = {
 	.fb_create = vs_fb_create,
 	.get_format_info = vs_get_format_info,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
 	.atomic_check = vs_drm_atomic_check,
 	.atomic_commit = vs_drm_atomic_commit,
 };
@@ -365,7 +365,7 @@ static int vs_drm_bind(struct device *dev)
 	drm_debugfs_add_custom_entries(drm_dev);
 #endif
 
-	drm_fbdev_generic_setup(drm_dev, 32);
+	drm_client_setup_with_color_mode(drm_dev, 32);
 
 	return 0;
 
@@ -532,10 +532,9 @@ static int vs_drm_platform_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &vs_drm_ops, match);
 }
 
-static int vs_drm_platform_remove(struct platform_device *pdev)
+static void vs_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &vs_drm_ops);
-	return 0;
 }
 
 static void vs_drm_platform_shutdown(struct platform_device *pdev)

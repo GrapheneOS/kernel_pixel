@@ -700,7 +700,7 @@ int gs_panel_set_pwm_mode(struct gs_panel *ctx, enum gs_pwm_mode mode)
 	return 0;
 }
 
-int gs_panel_set_panel_power_state(struct gs_panel *ctx, enum gs_panel_power_state new_state)
+static int gs_panel_set_panel_power_state(struct gs_panel *ctx, enum gs_panel_power_state new_state)
 {
 	bool mp_en = (new_state == GS_PANEL_POWER_STATE_MP);
 	if (!gs_is_panel_active(ctx))

@@ -6,6 +6,7 @@
  */
 #define DEBUG
 
+#include "dptx_audio.h"
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
@@ -326,7 +327,7 @@ error1:
 	return ret;
 }
 
-static int dptx_audio_remove(struct platform_device *pdev)
+static void dptx_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dptx_audio_data *pdata = dev_get_drvdata(dev);
@@ -334,7 +335,6 @@ static int dptx_audio_remove(struct platform_device *pdev)
 	blocking_notifier_chain_unregister(&pdata->handle->audio_notifier_head, &dptx_audio_nb);
 	devm_extcon_dev_unregister(dev, pdata->dptx_audio_extcon);
 	devm_extcon_dev_free(dev, pdata->dptx_audio_extcon);
-	return 0;
 }
 
 static const struct of_device_id dptx_audio_driver_dt_match[] = {

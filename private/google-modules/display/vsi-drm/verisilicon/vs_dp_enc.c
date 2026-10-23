@@ -233,14 +233,13 @@ static int vs_dp_probe(struct platform_device *pdev)
 	return component_add(dev, &vs_dp_component_ops);
 }
 
-static int vs_dp_remove(struct platform_device *pdev)
+static void vs_dp_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	component_del(dev, &vs_dp_component_ops);
 	dev_set_drvdata(dev, NULL);
 
-	return 0;
 }
 
 struct platform_driver vs_dp_driver = {

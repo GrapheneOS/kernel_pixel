@@ -2246,13 +2246,12 @@ static int dw_mipi_dsi2h_atomic_check(struct drm_bridge *bridge,
 }
 
 static void dw_mipi_dsi2h_bridge_atomic_enable(struct drm_bridge *bridge,
-					       struct drm_bridge_state *old_bridge_state)
+					       struct drm_atomic_state *state)
 {
 	int ret;
 	struct dw_mipi_dsi2h *dsi2h = bridge_to_dsi(bridge);
 	struct drm_bridge_state *bridge_state = drm_priv_to_bridge_state(bridge->base.state);
 	struct dsi2h_bridge_state *dsi2h_state = to_dsi2h_bridge_state(bridge_state);
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	struct drm_connector *connector;
@@ -2353,7 +2352,7 @@ static void dw_mipi_dsi2h_bridge_atomic_enable(struct drm_bridge *bridge,
 /**
  * dw_mipi_dsi2h_bridge_atomic_post_disable() - Disable the DSI bridge.
  * @bridge: The DRM bridge structure.
- * @old_bridge_state: The previous state of the bridge.
+ * @state: Atomic state for the bridge transition.
  *
  * This function is called after the display pipeline has been disabled. It
  * handles the transition to a low-power state. If the new state is Panel
@@ -2364,13 +2363,12 @@ static void dw_mipi_dsi2h_bridge_atomic_enable(struct drm_bridge *bridge,
  * This function is part of the DRM atomic modesetting API for bridges.
  */
 static void dw_mipi_dsi2h_bridge_atomic_post_disable(struct drm_bridge *bridge,
-						     struct drm_bridge_state *old_bridge_state)
+						     struct drm_atomic_state *state)
 {
 	int ret;
 	struct dw_mipi_dsi2h *dsi2h = bridge_to_dsi(bridge);
 	struct drm_bridge_state *bridge_state = drm_priv_to_bridge_state(bridge->base.state);
 	struct dsi2h_bridge_state *dsi2h_state = to_dsi2h_bridge_state(bridge_state);
-	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct drm_crtc *crtc;
 	bool is_psr = false;
 	bool should_rpm_put = true;
@@ -2449,11 +2447,12 @@ static void dw_mipi_dsi2h_bridge_atomic_post_disable(struct drm_bridge *bridge,
 }
 
 static int dw_mipi_dsi2h_bridge_attach(struct drm_bridge *bridge,
+				       struct drm_encoder *encoder,
 				       enum drm_bridge_attach_flags flags)
 {
 	struct dw_mipi_dsi2h *dsi2h = bridge_to_dsi(bridge);
 
-	if (!bridge->encoder) {
+	if (!encoder) {
 		pr_err("Parent encoder object not found\n");
 		return -ENODEV;
 	}
@@ -2470,7 +2469,7 @@ static int dw_mipi_dsi2h_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	/* Attach the panel-bridge to the dsi bridge */
-	return drm_bridge_attach(bridge->encoder, dsi2h->panel_bridge, bridge,
+	return drm_bridge_attach(encoder, dsi2h->panel_bridge, bridge,
 				 flags);
 }
 
@@ -3090,11 +3089,10 @@ static struct dw_mipi_dsi2h *__dw_mipi_dsi2h_probe(struct platform_device *pdev,
 		return ERR_CAST(phy);
 	}
 
-	dw_dsi2h = devm_kzalloc(dev, sizeof(*dw_dsi2h), GFP_KERNEL);
-	if (!dw_dsi2h) {
-		dev_err(dev, "Failed to allocate memory\n");
-		return ERR_PTR(-ENOMEM);
-	}
+	dw_dsi2h = devm_drm_bridge_alloc(dev, struct dw_mipi_dsi2h, bridge,
+				       &dw_mipi_dsi2h_bridge_funcs);
+	if (IS_ERR(dw_dsi2h))
+		return dw_dsi2h;
 
 	/* Get MEM resources */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -3218,7 +3216,6 @@ static struct dw_mipi_dsi2h *__dw_mipi_dsi2h_probe(struct platform_device *pdev,
 		pdata->get_resources(pdata->priv_data, &dw_dsi2h->bridge, &dw_dsi2h->dsi_host);
 
 	dw_dsi2h->bridge.driver_private = dw_dsi2h;
-	dw_dsi2h->bridge.funcs = &dw_mipi_dsi2h_bridge_funcs;
 
 	ret = dw_mipi_dsi2h_create_vdev(dw_dsi2h);
 	if (ret) {
