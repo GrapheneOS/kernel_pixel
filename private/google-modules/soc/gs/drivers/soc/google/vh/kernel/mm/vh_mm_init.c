@@ -114,7 +114,7 @@ static int task_set_cpu_affinity(struct task_struct *tsk, const char *buf)
 		return ret;
 
 	if (tsk) {
-		set_cpus_allowed_ptr(tsk, &affinity);
+		return set_cpus_allowed_ptr(tsk, &affinity);
 	}
 
 	return 0;
@@ -278,8 +278,9 @@ static ssize_t kcompactd_cpu_affinity_store(struct kobject *kobj,
 	if (tsk_kcompactd) {
 		ret = parse_cpu_affinity(&affinity, buf);
 		if (ret == 0) {
-			kcompactd_requested_cpu_affinity_set(&affinity);
-			set_cpus_allowed_ptr(tsk_kcompactd, &affinity);
+			ret = set_cpus_allowed_ptr(tsk_kcompactd, &affinity);
+			if (!ret)
+				kcompactd_requested_cpu_affinity_set(&affinity);
 		}
 	} else {
 		WARN_ON_ONCE(1);
