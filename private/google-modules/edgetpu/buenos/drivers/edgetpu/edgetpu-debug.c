@@ -609,7 +609,6 @@ static int edgetpu_debug_dump_init(struct edgetpu_dev *etdev)
 
 	*sscd_dev = (struct platform_device) {
 		.name = DRIVER_NAME,
-		.driver_override = SSCD_NAME,
 		.id = PLATFORM_DEVID_NONE,
 		.dev = {
 			.platform_data = sscd_pdata,
@@ -617,7 +616,10 @@ static int edgetpu_debug_dump_init(struct edgetpu_dev *etdev)
 		},
 	};
 	/* Register SSCD platform device */
-	ret = platform_device_register(sscd_dev);
+	device_initialize(&sscd_dev->dev);
+	ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(sscd_dev);
 	if (ret) {
 		etdev_err(etdev, "SSCD platform device registration failed: %d", ret);
 		goto out_free_sscd_dev;
@@ -628,6 +630,7 @@ static int edgetpu_debug_dump_init(struct edgetpu_dev *etdev)
 	return ret;
 
 out_free_sscd_dev:
+	platform_device_put(sscd_dev);
 	devm_kfree(etdev->dev, sscd_dev);
 out_free_pdata:
 	devm_kfree(etdev->dev, sscd_pdata);
