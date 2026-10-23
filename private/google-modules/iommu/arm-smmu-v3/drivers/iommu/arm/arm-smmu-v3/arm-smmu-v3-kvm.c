@@ -455,6 +455,8 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
 
 	if (smmu && (kvm_smmu_domain->domain.type != IOMMU_DOMAIN_IDENTITY)) {
 		ret = kvm_call_hyp_nvhe(__pkvm_host_iommu_free_domain, kvm_smmu_domain->id);
+		if (WARN_ON(ret))
+			return;
 		ida_free(&kvm_arm_smmu_domain_ida, kvm_smmu_domain->id);
 	}
 
