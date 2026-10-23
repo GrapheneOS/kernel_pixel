@@ -3521,4 +3521,4 @@ module_exit(aoc_exit);
 
 MODULE_DESCRIPTION("Google AOC platform driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
