@@ -1075,7 +1075,7 @@ static int gsa_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gsa_remove(struct platform_device *pdev)
+static void gsa_remove(struct platform_device *pdev)
 {
 	struct gsa_dev_state *s = platform_get_drvdata(pdev);
 
@@ -1090,7 +1090,7 @@ static int gsa_remove(struct platform_device *pdev)
 	/* Destroy mailbox allocations */
 	gsa_mbox_destroy(s->mb);
 
-	return 0;
+	return;
 }
 
 static int __maybe_unused gsa_pm_suspend(struct device *dev)

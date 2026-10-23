@@ -313,7 +313,7 @@ err_data:
 	return ret;
 }
 
-static int irm_devfreq_remove(struct platform_device *pdev)
+static void irm_devfreq_remove(struct platform_device *pdev)
 {
 	struct irm_devfreq_data *data = platform_get_drvdata(pdev);
 
@@ -323,8 +323,6 @@ static int irm_devfreq_remove(struct platform_device *pdev)
 		devm_devfreq_remove_device(data->dev, data->devfreq);
 	}
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id irm_devfreq_of_match_table[] = {

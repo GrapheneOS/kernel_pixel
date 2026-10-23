@@ -9,7 +9,7 @@
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/uaccess.h>
-#include <trace/hooks/signal.h>
+#include <trace/events/signal.h>
 
 #include <linux/cred.h>
 #include <linux/string.h>
@@ -22,10 +22,10 @@
 #define AID_LMKD 1069
 
 /*
- * This hook is called on the return path of __send_signal_locked().
+ * This tracepoint is called on the return path of __send_signal_locked().
  */
-static void vh_send_signal_locked(void *data, int result, int ret, int sig, struct task_struct *t,
-				  enum pid_type type, struct kernel_siginfo *info)
+static void pixelmd_signal_generate(void *data, int sig, struct kernel_siginfo *info,
+				    struct task_struct *t, int group, int result)
 {
 	struct pixelmd_lmkd_kill_event event = { 0 };
 
@@ -34,7 +34,7 @@ static void vh_send_signal_locked(void *data, int result, int ret, int sig, stru
 		return;
 
 	/*
-	 * This hook (vh_send_signal_locked) is called with t->sighand->siglock held,
+	 * The tracepoint is called with t->sighand->siglock held,
 	 * so it is safe to access t->signal without any additional locking.
 	 *
 	 * t->signal shouldn't realistically be NULL here, so if it is NULL, we simply
@@ -52,12 +52,12 @@ static void vh_send_signal_locked(void *data, int result, int ret, int sig, stru
 
 int pixelmd_lmkd_kill_register_hooks(void)
 {
-	return register_trace_android_vh_send_signal_locked(vh_send_signal_locked, NULL);
+	return register_trace_signal_generate(pixelmd_signal_generate, NULL);
 }
 
 void pixelmd_lmkd_kill_unregister_hooks(void)
 {
-	unregister_trace_android_vh_send_signal_locked(vh_send_signal_locked, NULL);
+	unregister_trace_signal_generate(pixelmd_signal_generate, NULL);
 }
 
 /*

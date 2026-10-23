@@ -385,7 +385,7 @@ static void sbb_mux_drv_undo_probe(struct sbb_gpio_tracker **gpio_trackers_ptr);
 /*
  * Driver remove point: free up resources allocated during probe.
  */
-static int sbb_mux_drv_remove(struct platform_device *dev);
+static void sbb_mux_drv_remove(struct platform_device *dev);
 
 /*
  * Driver entry point.

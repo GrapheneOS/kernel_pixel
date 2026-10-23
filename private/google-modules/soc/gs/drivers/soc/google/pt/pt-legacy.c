@@ -1089,7 +1089,7 @@ static void pt_testfct(const char *name)
 
 }
 
-static int pt_sysctl_command(struct ctl_table *ctl, int write,
+static int pt_sysctl_command(const struct ctl_table *ctl, int write,
 		void __user *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;

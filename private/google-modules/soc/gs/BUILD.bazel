@@ -103,7 +103,6 @@ ddk_headers(
     includes = [
         "drivers/dma-buf/heaps",
         "drivers/soc/google/vh/include",
-        "drivers/usb/dwc3",
         "drivers/usb/host",
         "drivers/usb/typec/tcpm/google",
         "include",

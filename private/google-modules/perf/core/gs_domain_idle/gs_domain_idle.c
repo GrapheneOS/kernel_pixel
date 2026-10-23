@@ -404,7 +404,7 @@ static int gs_domain_idle_add_idle_states_sysfs(struct device *dev,
  *
  * Puts back notifier blocks and returns sysfs resources.
  */
-void gs_domain_idle_cleanup(struct device *dev)
+static void gs_domain_idle_cleanup(struct device *dev)
 {
 	int num_power_domains = of_get_child_count(dev->of_node);
 	int cluster_idx;
@@ -522,10 +522,9 @@ err_out:
 	return ret;
 }
 
-static int gs_domain_idle_driver_remove(struct platform_device *pdev)
+static void gs_domain_idle_driver_remove(struct platform_device *pdev)
 {
 	gs_domain_idle_cleanup(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id gs_domain_idle_root_match[] = {
