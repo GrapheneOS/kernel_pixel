@@ -12,6 +12,7 @@
 #include "cma.h"
 #include "vmscan.h"
 #include "compaction.h"
+#include "pixel_mm.h"
 
 DEFINE_PER_CPU(unsigned long, pgalloc_costly_order);
 DEFINE_PER_CPU(unsigned long, pgcache_miss);

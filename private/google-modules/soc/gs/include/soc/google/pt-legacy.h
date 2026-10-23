@@ -237,4 +237,7 @@ void pt_driver_log_module(const char *driver_name, const char *fn_name, u64 arg0
 	u64 sec_ret1, u64 sec_ret2);
 struct list_head *pt_get_handle_list(void);
 
+struct pt_global;
+void pt_global_disable(struct pt_global *global);
+
 #endif /* __GOOGLE_PT_H_ */

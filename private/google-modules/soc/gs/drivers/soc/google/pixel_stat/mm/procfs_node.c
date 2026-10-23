@@ -7,6 +7,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/mm.h>
+#include "pixel_mm.h"
 
 struct proc_dir_entry *vendor_mm;
 EXPORT_SYMBOL_GPL(vendor_mm);
@@ -46,7 +47,7 @@ static void init_task_groups(struct task_group *group, int array_len)
  * pointer.  Return p, or any of its subthreads with a valid ->mm, with
  * task_lock() held.
  */
-struct task_struct *vendor_find_lock_task_mm(struct task_struct *p)
+static struct task_struct *vendor_find_lock_task_mm(struct task_struct *p)
 {
 	struct task_struct *t;
 

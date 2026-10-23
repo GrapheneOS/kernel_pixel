@@ -82,7 +82,7 @@ static int slg51002_gpio_get_direction(struct gpio_chip *chip,
 	case SLG51002_SEQ2:
 	case SLG51002_SEQ3:
 	case SLG51002_SEQ4:
-		return GPIOF_DIR_OUT;
+		return GPIO_LINE_DIRECTION_OUT;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -93,7 +93,8 @@ static int slg51002_gpio_get_direction(struct gpio_chip *chip,
 		return ret;
 	}
 
-	return (val & SLG51002_GPIO_DIR_MASK) ? GPIOF_DIR_OUT : GPIOF_DIR_IN;
+	return (val & SLG51002_GPIO_DIR_MASK) ?
+		GPIO_LINE_DIRECTION_OUT : GPIO_LINE_DIRECTION_IN;
 }
 
 static int slg51002_generic_seq_get_direction(struct gpio_chip *chip,
@@ -108,7 +109,7 @@ static int slg51002_generic_seq_get_direction(struct gpio_chip *chip,
 	case SLG51002_GENERIC_SEQ5:
 	case SLG51002_GENERIC_SEQ6:
 	case SLG51002_GENERIC_SEQ7:
-		return GPIOF_DIR_OUT;
+		return GPIO_LINE_DIRECTION_OUT;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -147,7 +148,7 @@ static int slg51002_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return val;
 }
 
-static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
+static int slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	int ret;
@@ -173,7 +174,8 @@ static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		break;
 	default:
 		dev_err(data->chip->dev, "Unsupported GPIO offset %d\n", offset);
-		return;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ret = regmap_write(data->regmap, addr, val);
@@ -181,8 +183,10 @@ static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
 
+out:
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
+	return ret;
 }
 
 static int slg51002_gpio_seq_get(struct gpio_chip *chip, unsigned int offset)
@@ -200,7 +204,7 @@ static int slg51002_gpio_seq_get(struct gpio_chip *chip, unsigned int offset)
 	return val & slg51002_ctrl_bit_tbl[offset];
 }
 
-static void slg51002_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
+static int slg51002_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	int ret;
@@ -213,7 +217,7 @@ static void slg51002_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
 
-	return;
+	return ret;
 }
 
 static int slg51002_generic_seq_get(struct gpio_chip *chip, unsigned int offset)
@@ -231,7 +235,7 @@ static int slg51002_generic_seq_get(struct gpio_chip *chip, unsigned int offset)
 	return val & BIT(offset);
 }
 
-static void slg51002_generic_seq_set(struct gpio_chip *chip,
+static int slg51002_generic_seq_set(struct gpio_chip *chip,
 				unsigned int offset, int value)
 {
 	int ret;
@@ -243,8 +247,7 @@ static void slg51002_generic_seq_set(struct gpio_chip *chip,
 	if (ret < 0) {
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
-
-	return;
+	return ret;
 }
 
 static int slg51002_gpio_direction_input(struct gpio_chip *chip,
@@ -575,11 +578,6 @@ static int slg51002_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int slg51002_pinctrl_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct platform_device_id slg51002_pinctrl_id[] = {
 	{ "slg51002_gpio", 0 },
 	{ },
@@ -592,7 +590,6 @@ static struct platform_driver slg51002_pinctrl_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = slg51002_pinctrl_probe,
-	.remove = slg51002_pinctrl_remove,
 	.id_table = slg51002_pinctrl_id,
 };
 
