@@ -191,9 +191,6 @@ typedef irqreturn_t(*FN_ISR) (int irq, void *dev_id, struct pt_regs *ptregs);
 #endif /* LINUX_VERS >= 4.11.0 */
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
-#include <net/lib80211.h>
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
 #include <linux/ieee80211.h>
 #else
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 14)
@@ -394,8 +391,8 @@ extern void timer_cb_compat(struct timer_list *tl);
 #define timer_set_private(timer_compat, priv) (timer_compat)->arg = priv
 #define timer_expires(timer_compat) (timer_compat)->timer.expires
 
-#define del_timer(t) del_timer(&((t)->timer))
-#define del_timer_sync(t) del_timer_sync(&((t)->timer))
+#define timer_delete(t) timer_delete(&((t)->timer))
+#define timer_delete_sync(t) timer_delete_sync(&((t)->timer))
 #define timer_pending(t) timer_pending(&((t)->timer))
 #define add_timer(t) add_timer(&((t)->timer))
 #define mod_timer(t, j) mod_timer(&((t)->timer), j)
