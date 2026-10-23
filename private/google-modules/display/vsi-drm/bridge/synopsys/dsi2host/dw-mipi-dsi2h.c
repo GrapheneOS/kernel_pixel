@@ -930,8 +930,11 @@ static int dw_mipi_dsi2h_host_attach(struct mipi_dsi_host *host,
 
 	if (pdata->host_ops && pdata->host_ops->attach) {
 		ret = pdata->host_ops->attach(pdata->priv_data, device);
-		if (ret < 0)
+		if (ret < 0) {
+			drm_bridge_remove(&dsi2h->bridge);
+			dsi2h->dsi_device = NULL;
 			return ret;
+		}
 	}
 
 	return 0;
@@ -940,6 +943,17 @@ static int dw_mipi_dsi2h_host_attach(struct mipi_dsi_host *host,
 static int dw_mipi_dsi2h_host_detach(struct mipi_dsi_host *host,
 				     struct mipi_dsi_device *device)
 {
+	struct dw_mipi_dsi2h *dsi2h = host_to_dsi2h(host);
+	const struct dw_mipi_dsi2h_plat_data *pdata = dsi2h->plat_data;
+	int ret;
+
+	if (pdata->host_ops && pdata->host_ops->detach) {
+		ret = pdata->host_ops->detach(pdata->priv_data, device);
+		if (ret < 0)
+			return ret;
+	}
+	drm_bridge_remove(&dsi2h->bridge);
+	dsi2h->dsi_device = NULL;
 	return 0;
 }
 
@@ -3345,7 +3359,7 @@ static struct dw_mipi_dsi2h *__dw_mipi_dsi2h_probe(struct platform_device *pdev,
 	ret = dw_mipi_dsi2h_create_vdev(dw_dsi2h);
 	if (ret) {
 		dev_err(dev, "Failed to create MIPI vdev: %d\n", ret);
-		goto disable_phy;
+		goto unregister_host;
 	}
 
 	ret = dw_mipi_dsi2h_debugfs_init(dw_dsi2h);
@@ -3359,13 +3373,13 @@ static struct dw_mipi_dsi2h *__dw_mipi_dsi2h_probe(struct platform_device *pdev,
 	if (unlikely(!dw_dsi2h->stat_data)) {
 		dev_err(dev, "Failed to allocate dsi2h stat_data\n");
 		ret = -ENOMEM;
-		goto end;
+		goto remove_debugfs;
 	}
 
 	ret = dw_mipi_dsi2h_sysfs_init(dw_dsi2h);
 	if (unlikely(ret)) {
 		dev_err(dev, "Failed to create sysfs: %d\n", ret);
-		goto end;
+		goto remove_debugfs;
 	}
 
 	ret = pm_runtime_resume_and_get(dev);
@@ -3395,8 +3409,12 @@ static struct dw_mipi_dsi2h *__dw_mipi_dsi2h_probe(struct platform_device *pdev,
 
 	return dw_dsi2h;
 
+remove_debugfs:
+	dw_mipi_dsi2h_debugfs_remove(dw_dsi2h);
 destroy_vdev:
 	dw_mipi_dsi2h_destroy_vdev(dw_dsi2h);
+unregister_host:
+	mipi_dsi_host_unregister(&dw_dsi2h->dsi_host);
 disable_phy:
 	phy_exit(dw_dsi2h->phy);
 end:
@@ -3421,7 +3439,7 @@ int dw_mipi_dsi2h_remove(void *handle)
 		pm_runtime_put(dsi2h->dev);
 		dsi2h->handoff_power_vote = false;
 	}
-	kfree(dsi2h);
+	mipi_dsi_host_unregister(&dsi2h->dsi_host);
 
 	return 0;
 }
