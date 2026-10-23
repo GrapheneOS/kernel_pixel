@@ -376,7 +376,7 @@ static struct device* max77779_get_spmi_dev(struct device_node *dn)
 {
 	struct spmi_device *sdev;
 
-	sdev = spmi_device_from_of(dn);
+	sdev = spmi_find_device_by_of_node(dn);
 
 	return sdev ? &sdev->dev : NULL;
 }
@@ -1879,7 +1879,7 @@ static void max77779_wcin_inlim_work_en(struct max77779_chgr_data *data, bool en
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int max77779_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int max77779_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1887,7 +1887,7 @@ static int max77779_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max77779_chgr_data *data = gpiochip_get_data(chip);
 	int ret = 0;
@@ -1907,6 +1907,7 @@ static void max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int v
 
 	if (ret < 0)
 		dev_warn(data->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void max77779_gpio_init(struct max77779_chgr_data *data)
@@ -2216,7 +2217,7 @@ static int max77779_init_wcin_psy(struct max77779_chgr_data *data)
 	int ret;
 
 	wcin_cfg.drv_data = data;
-	wcin_cfg.of_node = dev->of_node;
+	wcin_cfg.fwnode = of_fwnode_handle(dev->of_node);
 
 	if (of_property_read_bool(dev->of_node, "max77779,dc-psy-type-wireless"))
 		max77779_wcin_psy_desc.psy_dsc.type = POWER_SUPPLY_TYPE_WIRELESS;
@@ -2730,7 +2731,7 @@ static int max77779_read_thm2_temp(struct max77779_chgr_data *data, int *intval)
 
 static int max77779_vs_thm2_tz_get(struct thermal_zone_device *tzd, int *vs)
 {
-	struct max77779_chgr_data *data = tzd->devdata;
+	struct max77779_chgr_data *data = thermal_zone_device_priv(tzd);
 	int ret;
 
 	if (!vs)

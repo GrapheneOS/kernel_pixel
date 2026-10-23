@@ -661,7 +661,7 @@ static const struct file_operations gbms_providers_status_ops = {
 static const struct file_operations name = {	\
 	.owner	= THIS_MODULE,			\
 	.open	= simple_open,			\
-	.llseek	= no_llseek,			\
+	.llseek	= NULL,			\
 	.read	= fn_read,			\
 	.write	= fn_write,			\
 }
