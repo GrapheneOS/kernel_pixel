@@ -22,7 +22,7 @@ static void zram_read_page_end_io(struct page *page)
 	folio_unlock(folio);
 }
 
-static void rvh_swap_readpage_bdev_sync(void *data, struct block_device *bdev,
+static void rvh_swap_read_folio_bdev_sync(void *data, struct block_device *bdev,
 					sector_t sector, struct page *page,
 					bool *read)
 {
@@ -30,7 +30,7 @@ static void rvh_swap_readpage_bdev_sync(void *data, struct block_device *bdev,
 	struct zram *zram;
 	int ret;
 
-	if (PageTransHuge(page))
+	if (folio_test_large(page_folio(page)))
 		return;
 
 	zram = bdev->bd_disk->private_data;
@@ -53,10 +53,10 @@ int zram_vh_init(void)
 {
 	int ret = 0;
 
-	ret = register_trace_android_rvh_swap_readpage_bdev_sync(
-		rvh_swap_readpage_bdev_sync, NULL);
+	ret = register_trace_android_rvh_swap_read_folio_bdev_sync(
+		rvh_swap_read_folio_bdev_sync, NULL);
 	if (ret)
-		pr_err("register swap_readpage_bdev_sync failed\n");
+		pr_err("register swap_read_folio_bdev_sync failed\n");
 
 	return ret;
 }
