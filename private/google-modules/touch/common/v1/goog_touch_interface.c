@@ -2559,6 +2559,7 @@ static void unregister_panel_bridge(struct drm_bridge *bridge)
 	drm_modeset_lock(&bridge->dev->mode_config.connection_mutex, NULL);
 	list_for_each_entry(node, &bridge->encoder->bridge_chain, chain_node) {
 		if (node == bridge) {
+			drm_atomic_private_obj_fini(&bridge->base);
 			if (bridge->funcs->detach)
 				bridge->funcs->detach(bridge);
 			list_del(&bridge->chain_node);
