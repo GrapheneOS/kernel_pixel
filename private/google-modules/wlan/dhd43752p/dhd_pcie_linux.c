@@ -1180,9 +1180,10 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 		DHD_ERROR(("%s: pci_set_power_state error %d\n",
 			__FUNCTION__, ret));
 	}
-#ifdef OEM_ANDROID
+	/* Keep a valid saved state for the PCI core on 6.18 and later. */
+#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0))
 	dev->state_saved = FALSE;
-#endif /* OEM_ANDROID */
+#endif /* OEM_ANDROID && LINUX_VERSION_CODE < 6.18 */
 	dhdpcie_suspend_dump_cfgregs(bus, "AFTER_EP_SUSPEND");
 	return ret;
 }
@@ -1233,9 +1234,9 @@ static int dhdpcie_resume_dev(struct pci_dev *dev)
 	pci_load_and_free_saved_state(dev, &pch->state);
 #endif /* OEM_ANDROID && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
 	DHD_RPM(("%s: Enter\n", __FUNCTION__));
-#ifdef OEM_ANDROID
+#if defined(OEM_ANDROID) && (LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0))
 	dev->state_saved = TRUE;
-#endif /* OEM_ANDROID */
+#endif /* OEM_ANDROID && LINUX_VERSION_CODE < 6.18 */
 	pci_restore_state(dev);
 
 	/* Resture back current bar1 window */

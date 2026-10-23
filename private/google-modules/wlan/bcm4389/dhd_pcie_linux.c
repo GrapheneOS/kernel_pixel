@@ -1195,7 +1195,10 @@ static int dhdpcie_suspend_dev(struct pci_dev *dev)
 		DHD_ERROR(("%s: pci_set_power_state error %d\n",
 			__FUNCTION__, ret));
 	}
+	/* Keep a valid saved state for the PCI core on 6.18 and later. */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0)
 	dev->state_saved = FALSE;
+#endif
 	dhdpcie_suspend_dump_cfgregs(bus, "AFTER_EP_SUSPEND");
 	return ret;
 }
@@ -1284,7 +1287,9 @@ static int dhdpcie_resume_dev(struct pci_dev *dev)
 		goto out;
 	}
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0)
 	dev->state_saved = TRUE;
+#endif
 	pci_restore_state(dev);
 
 	BCM_REFERENCE(pch);
