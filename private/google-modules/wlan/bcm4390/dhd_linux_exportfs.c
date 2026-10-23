@@ -2751,7 +2751,7 @@ set_wl_debug_level(struct dhd_info *dhd, const char *buf, size_t count)
 
 	bzero(tbuf, sizeof(tbuf));
 	bzero(sublog, sizeof(sublog));
-	strlcpy(tbuf, buf, minsize);
+	strscpy(tbuf, buf, minsize);
 
 	DHD_INFO(("current wl_dbg_level %d \n", wl_dbg_level));
 

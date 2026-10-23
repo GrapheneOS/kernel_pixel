@@ -3199,7 +3199,7 @@ wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 		dev = ndev;
 	}
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 	/* clear scan enq time on complete */
 	CLR_TS(cfg, scan_enq);
 	CLR_TS(cfg, scan_start);
@@ -3338,7 +3338,7 @@ int wl_cfg80211_scan_suppress(struct net_device *dev, int suppress)
 		return 0;
 	}
 
-	del_timer_sync(&cfg->scan_supp_timer);
+	timer_delete_sync(&cfg->scan_supp_timer);
 
 	if ((ret = wldev_ioctl_set(dev, WLC_SET_SCANSUPPRESS,
 		&suppress, sizeof(int))) < 0) {
@@ -4944,7 +4944,7 @@ wl_priortize_scan_over_listen(struct bcm_cfg80211 *cfg,
 	wl_set_drv_status(cfg, FAKE_REMAINING_ON_CHANNEL, ndev);
 
 	WL_DBG(("cancel current listen timer \n"));
-	del_timer_sync(&cfg->p2p->listen_timer);
+	timer_delete_sync(&cfg->p2p->listen_timer);
 
 	wl_clr_p2p_status(cfg, LISTEN_EXPIRED);
 
@@ -4959,13 +4959,13 @@ wl_priortize_scan_over_listen(struct bcm_cfg80211 *cfg,
 #if defined(WL_CFG80211_P2P_DEV_IF)
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
-	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie)
+	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie, const u8 *rx_addr)
 #else
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 	struct ieee80211_channel *channel,
 	enum nl80211_channel_type channel_type,
-	unsigned int duration, u64 *cookie)
+	unsigned int duration, u64 *cookie, const u8 *rx_addr)
 #endif /* WL_CFG80211_P2P_DEV_IF */
 {
 	s32 target_channel;
