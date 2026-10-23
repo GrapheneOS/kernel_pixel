@@ -391,9 +391,8 @@ static int aoc_compr_playback_open(struct snd_compr_stream *cstream)
 	alsa_stream->draining = 0; // set to 1 when partial drain
 
 	alsa_stream->timer_interval_ns = COMPR_OFFLOAD_TIMER_INTERVAL_NANOSECS;
-	hrtimer_init(&(alsa_stream->hr_timer), CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	alsa_stream->hr_timer.function = &aoc_compr_hrtimer_irq_handler;
+	hrtimer_setup(&alsa_stream->hr_timer, aoc_compr_hrtimer_irq_handler,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	dev->prvdata = alsa_stream; /* For interrupt-driven playback */
 
@@ -648,7 +647,7 @@ int aoc_compr_get_position(struct aoc_alsa_stream *alsa_stream, uint64_t *positi
 }
 
 static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_compr_stream *cstream,
-			     struct snd_compr_tstamp *arg)
+			     struct snd_compr_tstamp64 *arg)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct aoc_alsa_stream *alsa_stream = runtime->private_data;
@@ -669,7 +668,7 @@ static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_com
 	arg->pcm_io_frames = (current_sample - alsa_stream->compr_pcm_io_sample_base) *
 			     (long)arg->sampling_rate / AOC_COMPR_OFFLOAD_DEFAULT_SR;
 
-	pr_debug("compr ptr -total bytes: %llu copied: %u diff:%llu,sampes=%u,fs=%d,base=%llu\n",
+	pr_debug("compr ptr -total bytes: %llu copied: %llu diff:%llu,sampes=%llu,fs=%d,base=%llu\n",
 		 runtime->total_bytes_available, arg->copied_total,
 		 runtime->total_bytes_available - arg->copied_total, arg->pcm_io_frames,
 		 arg->sampling_rate, alsa_stream->compr_pcm_io_sample_base);

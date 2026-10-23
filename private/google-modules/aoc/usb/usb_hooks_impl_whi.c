@@ -21,14 +21,14 @@
  * Set bypass = 1 will skip USB suspend.
  */
 static void usb_vendor_dev_suspend(void *unused, struct usb_device *udev,
-				   pm_message_t msg, int *bypass)
+				   pm_message_t msg, bool *bypass)
 {
 	int port1, usb_audio_count = xhci_get_usb_audio_count();
 	struct usb_device *child_dev = NULL;
 	bool usb_playback = false;
 	bool usb_capture = false;
 
-	*bypass = 0;
+	*bypass = false;
 
 	/* If no USB audio device is connected, we won't skip suspend.*/
 	if (!udev || usb_audio_count < 1)
@@ -48,7 +48,7 @@ static void usb_vendor_dev_suspend(void *unused, struct usb_device *udev,
 	if (usb_playback || usb_capture) {
 		dev_info(&udev->dev, "%s: skip suspend process (playback:%d,capture:%d)\n",
 			 __func__, usb_playback, usb_capture);
-		*bypass = 1;
+		*bypass = true;
 	}
 
 	return;
@@ -58,18 +58,18 @@ static void usb_vendor_dev_suspend(void *unused, struct usb_device *udev,
  * Set bypass = 1 will skip USB resume.
  */
 static void usb_vendor_dev_resume(void *unused, struct usb_device *udev,
-				  pm_message_t msg, int *bypass)
+				  pm_message_t msg, bool *bypass)
 {
 	if (!udev) {
-		*bypass = 0;
+		*bypass = false;
 		return;
 	}
 
 	if (udev->port_is_suspended || udev->state == USB_STATE_SUSPENDED) {
-		*bypass = 0;
+		*bypass = false;
 	} else {
 		dev_info(&udev->dev, "%s: skip resume process\n", __func__);
-		*bypass = 1;
+		*bypass = true;
 	}
 
 	return;
