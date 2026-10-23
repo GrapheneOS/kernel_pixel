@@ -395,7 +395,7 @@ void get_customized_country_code(void *adapter, char *country_iso_code, wl_count
 #endif /* CUSTOM_COUNTRY_CODE */
 
 	if (cloc_ptr) {
-		strlcpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
+		strscpy(cspec->ccode, cloc_ptr->custom_locale, WLC_CNTRY_BUF_SZ);
 		cspec->rev = cloc_ptr->custom_locale_rev;
 	}
 	return;
