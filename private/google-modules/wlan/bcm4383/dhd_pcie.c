@@ -15779,8 +15779,8 @@ dhdpcie_readshared(dhd_bus_t *bus)
 			for (addr = 0; addr < MAX_HP2P_FLOWS; addr++) {
 				hp2p_info_t *hp2p_info = &bus->dhd->hp2p_info[addr];
 				hp2p_info->hrtimer_init = FALSE;
-				hrtimer_init(&hp2p_info->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-				hp2p_info->timer.function = &dhd_hp2p_write;
+				hrtimer_setup(&hp2p_info->timer, dhd_hp2p_write,
+					      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 			}
 		}
 	}
