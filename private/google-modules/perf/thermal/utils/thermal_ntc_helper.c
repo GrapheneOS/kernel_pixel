@@ -606,7 +606,7 @@ void thermal_ntc_cleanup(struct platform_device *pdev)
  *
  * Return: 0 always.
  */
-int thermal_ntc_set_trip_hyst(struct thermal_zone_device *tzd, int trip_id, int temp)
+int thermal_ntc_set_trip_hyst(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp)
 {
 	return 0;
 }
@@ -617,7 +617,7 @@ int __thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, in
 	struct thermal_trip trip;
 	int ret = 0;
 
-	ret = __thermal_zone_get_trip(tzd, trip_id, &trip);
+	ret = google_thermal_get_trip(tzd, trip_id, &trip);
 	if (ret || trip.type != THERMAL_TRIP_HOT)
 		return ret;
 	if (dt_hot_trip == THERMAL_TEMP_INVALID)
@@ -646,11 +646,11 @@ int __thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, in
  *
  * Return: 0 always.
  */
-int thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, int temp)
+int thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp)
 {
 	/* Enable changing the hot trip only for userdebug build. */
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-	return __thermal_ntc_set_trip_temp(tzd, trip_id, temp);
+	return __thermal_ntc_set_trip_temp(tzd, google_thermal_trip_id(tzd, trip), temp);
 #else
 	return 0;
 #endif

@@ -861,14 +861,11 @@ static void thermal_ntc_irq_notify_test(struct kunit *test)
 static void thermal_ntc_create_tzd_with_trip(struct kunit *test)
 {
 	struct ntc_test_data *ntc_data = test->priv;
-	struct thermal_trip *trips = kunit_kcalloc(test, THERMAL_TRIP_CRITICAL, sizeof(*trips),
-						   GFP_KERNEL);
-	int i = 0;
+	int i;
 
-	for (i = 0; i <= THERMAL_TRIP_CRITICAL; i++)
-		trips[i].type = i;
-	ntc_data->tzd->trips = trips;
 	ntc_data->tzd->num_trips = THERMAL_TRIP_CRITICAL + 1;
+	for (i = 0; i <= THERMAL_TRIP_CRITICAL; i++)
+		ntc_data->tzd->trips[i].trip.type = i;
 }
 
 static void thermal_ntc_set_trip_cb_test(struct kunit *test)
@@ -876,7 +873,7 @@ static void thermal_ntc_set_trip_cb_test(struct kunit *test)
 	struct ntc_test_data *ntc_data = test->priv;
 	int i = 0;
 
-	/* __thermal_zone_get_trip() returning error. */
+	/* google_thermal_get_trip() returning error. */
 	thermal_ntc_test_init_var();
 	KUNIT_EXPECT_EQ(test,
 			__thermal_ntc_set_trip_temp(ntc_data->tzd, 1,
@@ -949,13 +946,10 @@ static struct thermal_zone_device *__thermal_ntc_create_tripless_tzd(
 		struct kunit *test, struct google_sensor_data *sens)
 {
 	struct thermal_zone_device *tzd;
-	struct thermal_zone_device_ops *ops;
 
-	ops = kunit_kzalloc(test, sizeof(*ops), GFP_KERNEL);
-	ops->get_temp = mock_get_temp;
-
-	tzd = kunit_kzalloc(test, sizeof(*tzd), GFP_KERNEL);
-	tzd->ops = ops;
+	tzd = kunit_kzalloc(test, struct_size(tzd, trips, THERMAL_TRIP_CRITICAL + 1), GFP_KERNEL);
+	tzd->ops.get_temp = mock_get_temp;
+	mutex_init(&tzd->lock);
 	tzd->devdata = sens;
 	snprintf(tzd->type, THERMAL_NAME_LENGTH, "mock-thermal-sensor");
 

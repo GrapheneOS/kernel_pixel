@@ -114,7 +114,7 @@ static struct gpowercap_ops gpc_devfreq_ops = {
 	.release = gpc_devfreq_pd_release,
 };
 
-void __gpc_devfreq_cdev_success(struct cdev_devfreq_data *cdev)
+static void __gpc_devfreq_cdev_success(struct cdev_devfreq_data *cdev)
 {
 	struct gpowercap_devfreq *gpowercap_devfreq = container_of(cdev,
 								   struct gpowercap_devfreq,
@@ -123,7 +123,7 @@ void __gpc_devfreq_cdev_success(struct cdev_devfreq_data *cdev)
 	gpc_devfreq_update_pd_power_uw(&gpowercap_devfreq->gpowercap);
 }
 
-void __gpc_devfreq_cdev_exit(struct cdev_devfreq_data *cdev)
+static void __gpc_devfreq_cdev_exit(struct cdev_devfreq_data *cdev)
 {
 	struct gpowercap_devfreq *gpowercap_devfreq = container_of(cdev,
 								   struct gpowercap_devfreq,

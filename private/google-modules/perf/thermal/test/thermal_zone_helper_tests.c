@@ -12,6 +12,7 @@
 #include <kunit/test-bug.h>
 
 #include "thermal_zone_helper.h"
+#include "thermal_zone_mock.h"
 
 #define THERMAL_TEST_SENSOR_CT 2
 #define THERMAL_TEST_TRIP_CT (THERMAL_TRIP_CRITICAL + 1)
@@ -107,12 +108,12 @@ static int mock_get_temp(struct thermal_zone_device *tzd, int *temp)
 	return 0;
 }
 
-static int mock_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
+static int mock_set_trip_temp(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp)
 {
 	return 0;
 }
 
-static int mock_set_trip_hyst(struct thermal_zone_device *tzd, int trip, int temp)
+static int mock_set_trip_hyst(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp)
 {
 	return 0;
 }
@@ -132,7 +133,7 @@ static void thermal_construct_and_register(int sens_ct,
 {
 	struct kunit *test = kunit_get_current_test();
 	struct thermal_zone_test_data *zone_data = test->priv;
-	struct thermal_zone_device_ops ops;
+	struct thermal_zone_device_ops ops = {};
 	struct device *fake_device = zone_data->fake_device;
 
 	ops.get_temp = use_get_temp ? mock_get_temp : NULL;
@@ -274,7 +275,7 @@ static void thermal_sens_register_test(struct kunit *test)
 static void thermal_sens_register_invalid_arg(struct kunit *test)
 {
 	struct thermal_zone_test_data *zone_data = test->priv;
-	struct thermal_zone_device_ops ops;
+	struct thermal_zone_device_ops ops = {};
 
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, zone_data->tzd);
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, zone_data->fake_device);
@@ -451,7 +452,7 @@ static void thermal_sens_fetch_and_reg_irqs(struct kunit *test)
 static void thermal_sens_setup_irq_and_sensors(struct kunit *test)
 {
 	struct thermal_zone_test_data *zone_data = test->priv;
-	struct thermal_zone_device_ops ops;
+	struct thermal_zone_device_ops ops = {};
 
 	// thermal_sens_fetch_and_reg_irqs() errors out.
 	zone_data->req_th_irq_ret = -ENODEV;
@@ -486,31 +487,26 @@ static void thermal_sens_create_tzd(struct kunit *test, bool include_hot)
 {
 	struct thermal_zone_test_data *zone_data = test->priv;
 	int i = 0;
-	struct thermal_trip *trip;
-
-	trip = kunit_kcalloc(test, THERMAL_TEST_TRIP_CT, sizeof(*zone_data->tzd->trips),
-			     GFP_KERNEL);
+	zone_data->tzd->num_trips = THERMAL_TEST_TRIP_CT;
 	for (i = 0; i < THERMAL_TEST_TRIP_CT; i++) {
+		struct thermal_trip *trip = &zone_data->tzd->trips[i].trip;
+
+		memset(trip, 0, sizeof(*trip));
 		if (!include_hot && i == THERMAL_TRIP_HOT)
 			continue;
-		trip[i].temperature = THERMAL_TEST_TEMP + i * 1000;
-		trip[i].hysteresis = THERMAL_TEST_HYST;
-		trip[i].type = i;
+		trip->temperature = THERMAL_TEST_TEMP + i * 1000;
+		trip->hysteresis = THERMAL_TEST_HYST;
+		trip->type = i;
 	}
-	zone_data->tzd->trips = trip;
-	zone_data->tzd->num_trips = THERMAL_TEST_TRIP_CT;
 }
 
 static struct thermal_zone_device *__thermal_sens_create_tripless_tzd(void)
 {
 	struct thermal_zone_device *tzd;
-	struct thermal_zone_device_ops *ops;
 
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	ops->get_temp = mock_get_temp;
-
-	tzd = kzalloc(sizeof(*tzd), GFP_KERNEL);
-	tzd->ops = ops;
+	tzd = kzalloc(struct_size(tzd, trips, THERMAL_TEST_TRIP_CT), GFP_KERNEL);
+	tzd->ops.get_temp = mock_get_temp;
+	mutex_init(&tzd->lock);
 	snprintf(tzd->type, THERMAL_NAME_LENGTH, "mock-thermal-sensor");
 
 	return tzd;
@@ -520,7 +516,6 @@ static void __thermal_sens_cleanup_tzd(struct thermal_zone_device *tzd)
 {
 	if (!tzd)
 		return;
-	kfree(tzd->ops);
 	kfree(tzd);
 }
 

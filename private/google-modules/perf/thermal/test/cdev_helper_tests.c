@@ -100,7 +100,7 @@ unsigned long mock_dev_pm_opp_get_voltage(struct dev_pm_opp *opp)
 	return CDEV_VOLT_INIT;
 }
 
-void cdev_test_init_data(void)
+static void cdev_test_init_data(void)
 {
 	get_devfreq_ret = 0;
 	qos_add_ret = 0;

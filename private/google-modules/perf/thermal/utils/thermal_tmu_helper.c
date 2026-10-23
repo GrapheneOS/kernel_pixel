@@ -365,7 +365,7 @@ int __thermal_tmu_trip_points_init(struct google_sensor_data *sensor)
 	dev = sensor->dev;
 	tz_id = (u8)sensor->sensor_id;
 
-	tz_trip_count = thermal_zone_get_num_trips(tzd);
+	tz_trip_count = tzd->num_trips;
 	if (tz_trip_count != THERMAL_TMU_NR_TRIPS) {
 		dev_err(dev,
 			"%s: %d trips found in device tree but %d are expected",
@@ -837,11 +837,11 @@ int __thermal_tmu_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, in
 	return tmu_set_trip_temp(tz_id, trip_temps, THERMAL_TMU_NR_TRIPS);
 }
 
-int thermal_tmu_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, int temp)
+int thermal_tmu_set_trip_temp(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp)
 {
 	/* Enable changing the trip temperature only for userdebug build. */
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-	return __thermal_tmu_set_trip_temp(tzd, trip_id, temp);
+	return __thermal_tmu_set_trip_temp(tzd, google_thermal_trip_id(tzd, trip), temp);
 #else
 	return 0;
 #endif
@@ -887,11 +887,11 @@ int __thermal_tmu_set_trip_hyst(struct thermal_zone_device *tzd, int trip_id, in
 	return tmu_set_trip_hyst(tz_id, trip_hysts, THERMAL_TMU_NR_TRIPS);
 }
 
-int thermal_tmu_set_trip_hyst(struct thermal_zone_device *tzd, int trip_id, int hyst)
+int thermal_tmu_set_trip_hyst(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int hyst)
 {
 	/* Enable changing the trip hysteresis only for userdebug build. */
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-	return __thermal_tmu_set_trip_hyst(tzd, trip_id, hyst);
+	return __thermal_tmu_set_trip_hyst(tzd, google_thermal_trip_id(tzd, trip), hyst);
 #else
 	return 0;
 #endif

@@ -10,6 +10,7 @@
 #include <kunit/test.h>
 
 #include "thermal_msg_helper.h"
+#include "thermal_msg_mock.h"
 
 static int mock_ret_code;
 static int mock_status_code;

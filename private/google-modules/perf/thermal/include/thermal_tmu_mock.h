@@ -183,7 +183,7 @@ static inline int get_thermal_zone_trip(struct thermal_zone_device *tzd, int idx
 #if IS_ENABLED(CONFIG_GOOGLE_THERMAL_HELPER_KUNIT_TEST)
 	return mock_thermal_zone_get_trip(tzd, idx, trip);
 #else
-	return __thermal_zone_get_trip(tzd, idx, trip);
+	return google_thermal_get_trip(tzd, idx, trip);
 #endif
 }
 

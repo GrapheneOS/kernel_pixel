@@ -81,7 +81,7 @@ int __gpc_volt_algo_update_power_uw(struct gpowercap *gpowercap)
 	return 0;
 }
 
-void __gpc_free_opp_table_mem(struct gpowercap_volt_algo *gpc_volt)
+static void __gpc_free_opp_table_mem(struct gpowercap_volt_algo *gpc_volt)
 {
 	int i = 0;
 
@@ -92,7 +92,7 @@ void __gpc_free_opp_table_mem(struct gpowercap_volt_algo *gpc_volt)
 	kfree(gpc_volt->opp_table);
 }
 
-int __gpc_allocate_opp_table_mem(struct gpowercap_volt_algo *gpc_volt, unsigned int child_ct)
+static int __gpc_allocate_opp_table_mem(struct gpowercap_volt_algo *gpc_volt, unsigned int child_ct)
 {
 	int i = 0, opp_ct;
 
