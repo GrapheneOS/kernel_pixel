@@ -154,7 +154,8 @@ static int h2omg_slg_v3_update_timing_regs(struct h2omg_info *info)
 /* configure chip to trigger either when either sensor is wet (SINGLE_TRIGGER)
  * or only when both sensors get wet at the same time (to the resolution of the chip)
  */
-int h2omg_slg_v3_set_trigger_state(struct h2omg_info *info, enum h2omg_trigger_state state)
+static int h2omg_slg_v3_set_trigger_state(struct h2omg_info *info,
+					 enum h2omg_trigger_state state)
 {
 	struct regmap *regmap = info->regmap;
 	int err;
