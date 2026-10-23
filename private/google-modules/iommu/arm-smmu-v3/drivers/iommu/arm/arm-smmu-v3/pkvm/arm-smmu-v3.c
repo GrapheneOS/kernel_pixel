@@ -782,7 +782,8 @@ static int smmu_reset_device(struct hyp_arm_smmu_v3_device *smmu)
 	return smmu_write_cr0(smmu, CR0_SMMUEN | CR0_CMDQEN | CR0_ATSCHK | CR0_EVTQEN);
 
 err_disable_cmdq:
-	return smmu_write_cr0(smmu, 0);
+	WARN_ON(smmu_write_cr0(smmu, 0));
+	return ret;
 }
 
 static struct hyp_arm_smmu_v3_device *to_smmu(struct kvm_hyp_iommu *iommu)
