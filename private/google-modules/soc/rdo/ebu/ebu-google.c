@@ -5,6 +5,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/of_platform.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/io.h>
@@ -93,12 +94,8 @@ struct google_ebu {
 	struct mutex lock;
 };
 
-uint32_t ebu_readl(struct google_ebu *gebu, uint32_t offset)
-{
-	return readl(gebu->csr_base + offset);
-}
 
-void ebu_writel(struct google_ebu *gebu, uint32_t offset, uint32_t value)
+static void ebu_writel(struct google_ebu *gebu, uint32_t offset, uint32_t value)
 {
 	writel(value, gebu->csr_base + offset);
 }
@@ -107,7 +104,7 @@ void ebu_writel(struct google_ebu *gebu, uint32_t offset, uint32_t value)
 #define NIBBLE_MASK(idx) ((uint64_t)0xf << NIBBLE_POS(idx))
 #define GET_NIBBLE(dword, idx) (((dword) >> NIBBLE_POS(idx)) & 0xf)
 
-int reinit_ebu(struct google_ebu *gebu)
+static int reinit_ebu(struct google_ebu *gebu)
 {
 	ebu_writel(gebu, EBU_TID_TRACE, gebu->trace_tid);
 	ebu_writel(gebu, EBU_TRACE_TIMEOUT, gebu->trace_timeout);
@@ -117,14 +114,14 @@ int reinit_ebu(struct google_ebu *gebu)
 	return 0;
 }
 
-void stop_ebu(struct google_ebu *gebu)
+static void stop_ebu(struct google_ebu *gebu)
 {
 	reset_control_assert(gebu->ebu_rst);
 	clk_disable_unprepare(gebu->ebu_clk);
 	gebu->state = EBU_STOPPED;
 }
 
-int google_ebu_add_mapping(struct ebu_controller *ebu, u8 channel, u8 epaddr)
+static int google_ebu_add_mapping(struct ebu_controller *ebu, u8 channel, u8 epaddr)
 {
 	int ret = 0;
 	u8 prev_channel, prev_epnum;
@@ -171,7 +168,7 @@ unlock:
 	return ret;
 }
 
-int google_ebu_release_mapping(struct ebu_controller *ebu, u8 channel)
+static int google_ebu_release_mapping(struct ebu_controller *ebu, u8 channel)
 {
 	int ret = 0;
 	struct google_ebu *gebu = container_of(ebu, struct google_ebu, ebu);
@@ -193,7 +190,7 @@ unlock:
 	return ret;
 }
 
-int google_ebu_enable_data(struct ebu_controller *ebu, enum usb_device_speed speed)
+static int google_ebu_enable_data(struct ebu_controller *ebu, enum usb_device_speed speed)
 {
 	int ret;
 	struct google_ebu *gebu = container_of(ebu, struct google_ebu, ebu);
@@ -218,7 +215,7 @@ unlock:
 	return ret;
 }
 
-dma_addr_t google_ebu_get_fifo(struct ebu_controller *ebu, u8 channel)
+static dma_addr_t google_ebu_get_fifo(struct ebu_controller *ebu, u8 channel)
 {
 	struct google_ebu *gebu = container_of(ebu, struct google_ebu, ebu);
 
@@ -302,14 +299,13 @@ static int google_ebu_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_ebu_remove(struct platform_device *pdev)
+static void google_ebu_remove(struct platform_device *pdev)
 {
 	struct ebu_controller *ebu = platform_get_drvdata(pdev);
 	struct google_ebu *gebu = container_of(ebu, struct google_ebu, ebu);
 
 	stop_ebu(gebu);
 	mutex_destroy(&gebu->lock);
-	return 0;
 }
 
 static const struct of_device_id google_ebu_match[] = {

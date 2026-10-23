@@ -308,7 +308,7 @@ static struct google_usb_phy_otp_names otp_names[GOOGLE_USB_NUM_OTPS] = {
 	}
 };
 
-int wait_for_sram_init(struct google_usb_phy *gphy)
+static int wait_for_sram_init(struct google_usb_phy *gphy)
 {
 	DP_USBCS_PHY_CFG1 creg;
 
@@ -354,7 +354,7 @@ static void phy_debug_dump(struct google_usb_phy *gphy)
 #endif
 }
 
-int wait_for_lane0_phystatus(struct google_usb_phy *gphy)
+static int wait_for_lane0_phystatus(struct google_usb_phy *gphy)
 {
 	int ret;
 	TCA_PSTATE_0 creg;
@@ -415,7 +415,7 @@ static void set_sram_bypass(struct google_usb_phy *gphy, int bypass)
 	writel(phy_cfg1.reg_value, gphy->dp_top_csr_base + DP_USBCS_PHY_CFG1_OFFSET);
 }
 
-void set_ext_load_done(struct google_usb_phy *gphy, int done)
+static void set_ext_load_done(struct google_usb_phy *gphy, int done)
 {
 	DP_USBCS_PHY_CFG1 phy_cfg1;
 
@@ -596,7 +596,7 @@ static void lga_pm_callback(struct device *dev, bool resume)
 			bulk_array[i].id = names_array[i]; \
 	}
 
-int google_usb_phy_parse_clocks(struct google_usb_phy *gphy)
+static int google_usb_phy_parse_clocks(struct google_usb_phy *gphy)
 {
 	int ret;
 	const char *u2phy_clock_names[GOOGLE_U2PHY_NUM_CLOCKS] = {
@@ -623,7 +623,7 @@ int google_usb_phy_parse_clocks(struct google_usb_phy *gphy)
 	return 0;
 }
 
-int google_usb_phy_parse_resets(struct google_usb_phy *gphy)
+static int google_usb_phy_parse_resets(struct google_usb_phy *gphy)
 {
 	gphy->u2phy_reset = devm_reset_control_get_exclusive(gphy->dev, "usb2_phy_reset");
 	if (IS_ERR(gphy->u2phy_reset)) {
@@ -1489,7 +1489,7 @@ static const struct dev_pm_ops google_usb_phy_dev_pm_ops = {
 };
 
 static struct phy *google_usb_phy_xlate(struct device *dev,
-	struct of_phandle_args *args)
+	const struct of_phandle_args *args)
 {
 	struct google_usb_phy *gphy = dev_get_drvdata(dev);
 
@@ -2380,7 +2380,7 @@ free_firmware:
 	return ret;
 }
 
-static int google_usb_phy_remove(struct platform_device *pdev)
+static void google_usb_phy_remove(struct platform_device *pdev)
 {
 	struct google_usb_phy *gphy = dev_get_drvdata(&pdev->dev);
 
@@ -2391,7 +2391,6 @@ static int google_usb_phy_remove(struct platform_device *pdev)
 	google_usb_phy_debugfs_remove(gphy);
 	google_dpphy_sysfs_destroy(gphy);
 	release_firmware(gphy->fw);
-	return 0;
 }
 
 static const struct usb_phy_init_config lga_usb_power_config_table[] = {

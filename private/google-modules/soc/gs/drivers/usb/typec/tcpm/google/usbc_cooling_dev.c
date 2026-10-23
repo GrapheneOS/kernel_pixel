@@ -479,14 +479,13 @@ static int usb_set_cur_state(struct thermal_cooling_device *cooling_dev, unsigne
 	return 0;
 }
 
-static enum alarmtimer_restart unplug_alarm_handler(struct alarm *alarm, ktime_t time)
+static void unplug_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct usb_port_cooling_dev_info *usb_cdev_info =
 		container_of(alarm, struct usb_port_cooling_dev_info, unplug_alarm);
 
 	usb_cdev_changed(usb_cdev_info);
 
-	return ALARMTIMER_NORESTART;
 }
 
 static const struct thermal_cooling_device_ops usb_cdev_ops = {
@@ -584,7 +583,7 @@ put_dev:
 	return ret;
 }
 
-static int usb_cdev_remove(struct platform_device *pdev)
+static void usb_cdev_remove(struct platform_device *pdev)
 {
 	struct usb_port_cooling_dev_info *usb_cdev_info = platform_get_drvdata(pdev);
 
@@ -593,7 +592,6 @@ static int usb_cdev_remove(struct platform_device *pdev)
 				   &usb_cdev_info->connected_nb);
 	put_device(&pdev->dev);
 
-	return 0;
 }
 
 static const struct of_device_id match_table[] = {
