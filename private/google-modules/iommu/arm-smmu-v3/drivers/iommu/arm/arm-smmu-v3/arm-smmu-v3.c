@@ -21,10 +21,9 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <kunit/visibility.h>
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include "arm-smmu-v3.h"
-/* This header is in ACK under drivers/iommu. */
-#include <iommu-sva.h>
 
 static bool disable_msipolling;
 module_param(disable_msipolling, bool, 0444);
@@ -749,8 +748,8 @@ static int arm_smmu_cmdq_batch_submit(struct arm_smmu_device *smmu,
 	return arm_smmu_cmdq_issue_cmdlist(smmu, cmds->cmds, cmds->num, true);
 }
 
-static int arm_smmu_page_response(struct device *dev,
-				  struct iommu_fault_event *unused,
+static void arm_smmu_page_response(struct device *dev,
+				  struct iopf_fault *unused,
 				  struct iommu_page_response *resp)
 {
 	int ret;
@@ -771,14 +770,14 @@ static int arm_smmu_page_response(struct device *dev,
 			cmd.resume.resp = CMDQ_RESUME_0_RESP_RETRY;
 			break;
 		default:
-			return -EINVAL;
+			return;
 		}
 	} else {
-		return -ENODEV;
+		return;
 	}
 	ret = arm_smmu_rpm_get(master->smmu);
 	if (ret < 0)
-		return ret;
+		return;
 	arm_smmu_cmdq_issue_cmd(master->smmu, &cmd);
 	/*
 	 * Don't send a SYNC, it doesn't do anything for RESUME or PRI_RESP.
@@ -788,7 +787,7 @@ static int arm_smmu_page_response(struct device *dev,
 	 */
 
 	arm_smmu_rpm_put(master->smmu);
-	return 0;
+	return;
 }
 
 /* Context descriptor manipulation functions */
@@ -1539,26 +1538,18 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
 static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 {
 	int ret;
-	u32 reason;
 	u32 perm = 0;
 	struct arm_smmu_master *master;
 	bool ssid_valid = evt[0] & EVTQ_0_SSV;
 	u32 sid = FIELD_GET(EVTQ_0_SID, evt[0]);
-	struct iommu_fault_event fault_evt = { };
+	struct iopf_fault fault_evt = { };
 	struct iommu_fault *flt = &fault_evt.fault;
 
 	switch (FIELD_GET(EVTQ_0_ID, evt[0])) {
 	case EVT_ID_TRANSLATION_FAULT:
-		reason = IOMMU_FAULT_REASON_PTE_FETCH;
-		break;
 	case EVT_ID_ADDR_SIZE_FAULT:
-		reason = IOMMU_FAULT_REASON_OOR_ADDRESS;
-		break;
 	case EVT_ID_ACCESS_FAULT:
-		reason = IOMMU_FAULT_REASON_ACCESS;
-		break;
 	case EVT_ID_PERMISSION_FAULT:
-		reason = IOMMU_FAULT_REASON_PERMISSION;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1592,25 +1583,33 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 			flt->prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
 			flt->prm.pasid = FIELD_GET(EVTQ_0_SSID, evt[0]);
 		}
-	} else {
-		flt->type = IOMMU_FAULT_DMA_UNRECOV;
-		flt->event = (struct iommu_fault_unrecoverable) {
-			.reason = reason,
-			.flags = IOMMU_FAULT_UNRECOV_ADDR_VALID,
-			.perm = perm,
-			.addr = FIELD_GET(EVTQ_2_ADDR, evt[2]),
-		};
-
-		if (ssid_valid) {
-			flt->event.flags |= IOMMU_FAULT_UNRECOV_PASID_VALID;
-			flt->event.pasid = FIELD_GET(EVTQ_0_SSID, evt[0]);
-		}
 	}
 
 	mutex_lock(&smmu->streams_mutex);
 	master = arm_smmu_find_master(smmu, sid);
 	if (!master) {
 		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	if (!(evt[1] & EVTQ_1_STALL)) {
+		struct arm_smmu_domain *smmu_domain = NULL;
+		struct arm_smmu_cd *cd;
+		u32 ssid = ssid_valid ? FIELD_GET(EVTQ_0_SSID, evt[0]) : IOMMU_NO_PASID;
+
+		/* Serialize CD lookup and reporting against detach and ASID reuse. */
+		mutex_lock(&arm_smmu_asid_lock);
+		cd = ssid < (1U << master->ssid_bits) ? arm_smmu_get_cd_ptr(master, ssid) : NULL;
+		if (cd && (le64_to_cpu(cd->data[0]) & CTXDESC_CD_0_V)) {
+			u16 asid = FIELD_GET(CTXDESC_CD_0_ASID, le64_to_cpu(cd->data[0]));
+
+			smmu_domain = xa_load(&arm_smmu_asid_xa, asid);
+		}
+		/* Device diagnostics remain useful after the faulting CD has been detached. */
+		ret = pixel_iommu_report_fault(smmu_domain ? &smmu_domain->domain : NULL,
+				master->dev, FIELD_GET(EVTQ_2_ADDR, evt[2]), ssid,
+				evt[1] & EVTQ_1_RnW ? IOMMU_FAULT_READ : IOMMU_FAULT_WRITE);
+		mutex_unlock(&arm_smmu_asid_lock);
 		goto out_unlock;
 	}
 
@@ -1802,7 +1801,7 @@ static irqreturn_t arm_smmu_gerror_handler(int irq, void *dev)
 	irqreturn_t irqret;
 
 	if (pm_runtime_enabled(smmu->dev)) {
-		ret = pm_runtime_get_if_active(smmu->dev, true);
+		ret = pm_runtime_get_if_active(smmu->dev);
 		if (ret == 0) {
 			dev_err(smmu->dev, "Unable to handle global error interrupt because device not runtime active\n");
 			return IRQ_NONE;
@@ -2146,24 +2145,6 @@ static const struct iommu_flush_ops arm_smmu_flush_ops = {
 static struct iommu_domain arm_smmu_identity_domain;
 static struct iommu_domain arm_smmu_blocked_domain;
 static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev);
-
-static struct iommu_domain *arm_smmu_domain_alloc_dispatch(unsigned int type)
-{
-
-	if (type == IOMMU_DOMAIN_IDENTITY)
-		return &arm_smmu_identity_domain;
-
-	if (type == IOMMU_DOMAIN_BLOCKED)
-		return &arm_smmu_blocked_domain;
-
-	if (type == IOMMU_DOMAIN_SVA)
-		return arm_smmu_sva_domain_alloc();
-
-	if (type & __IOMMU_DOMAIN_PAGING)
-		return arm_smmu_domain_alloc_paging(NULL);
-
-	return NULL;
-}
 
 struct arm_smmu_domain *arm_smmu_domain_alloc(void)
 {
@@ -2735,7 +2716,8 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 }
 
 static int arm_smmu_s1_set_dev_pasid(struct iommu_domain *domain,
-				      struct device *dev, ioasid_t id)
+				      struct device *dev, ioasid_t id,
+				      struct iommu_domain *old)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
@@ -2761,7 +2743,7 @@ static int arm_smmu_s1_set_dev_pasid(struct iommu_domain *domain,
 	 */
 	arm_smmu_make_s1_cd(&target_cd, master, smmu_domain);
 	return arm_smmu_set_pasid(master, to_smmu_domain(domain), id,
-				  &target_cd);
+				  &target_cd, old);
 }
 
 static void arm_smmu_update_ste(struct arm_smmu_master *master,
@@ -2791,16 +2773,13 @@ static void arm_smmu_update_ste(struct arm_smmu_master *master,
 
 int arm_smmu_set_pasid(struct arm_smmu_master *master,
 		       struct arm_smmu_domain *smmu_domain, ioasid_t pasid,
-		       struct arm_smmu_cd *cd)
+		       struct arm_smmu_cd *cd, struct iommu_domain *old)
 {
 	struct arm_smmu_device *smmu = master->smmu;
 	struct iommu_domain *sid_domain = iommu_get_domain_for_dev(master->dev);
 	struct arm_smmu_attach_state state = {
 		.master = master,
-		/*
-		 * For now the core code prevents calling this when a domain is
-		 * already attached, no need to set old_domain.
-		 */
+		.old_domain = old,
 		.ssid = pasid,
 	};
 	struct arm_smmu_cd *cdptr;
@@ -2850,23 +2829,23 @@ out_rpm_put:
 	return ret;
 }
 
-static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
+static int arm_smmu_blocking_set_dev_pasid(struct iommu_domain *new_domain,
+					 struct device *dev, ioasid_t pasid,
+					 struct iommu_domain *domain)
 {
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct arm_smmu_device *smmu = master->smmu;
-	struct iommu_domain *domain;
 	struct arm_smmu_domain *smmu_domain;
 	int ret;
 
-	domain = iommu_get_domain_for_dev_pasid(dev, pasid, 0);
-	if (WARN_ON(IS_ERR(domain)) || !domain)
-		return;
+	if (!domain || domain->type == IOMMU_DOMAIN_BLOCKED)
+		return 0;
 
 	smmu_domain = to_smmu_domain(domain);
 
 	ret = arm_smmu_rpm_get(smmu);
 	if (ret < 0)
-		return;
+		return ret;
 
 	mutex_lock(&arm_smmu_asid_lock);
 	arm_smmu_clear_cd(master, pasid);
@@ -2888,6 +2867,7 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 			sid_domain->ops->attach_dev(sid_domain, dev);
 	}
 	arm_smmu_rpm_put(smmu);
+	return 0;
 }
 
 static void arm_smmu_attach_dev_ste(struct iommu_domain *domain,
@@ -2980,6 +2960,7 @@ static int arm_smmu_attach_dev_blocked(struct iommu_domain *domain,
 }
 
 static const struct iommu_domain_ops arm_smmu_blocked_ops = {
+	.set_dev_pasid = arm_smmu_blocking_set_dev_pasid,
 	.attach_dev = arm_smmu_attach_dev_blocked,
 };
 
@@ -3000,15 +2981,15 @@ static int arm_smmu_map_pages(struct iommu_domain *domain, unsigned long iova,
 	return ops->map_pages(ops, iova, paddr, pgsize, pgcount, prot, gfp, mapped);
 }
 
-static void arm_smmu_iotlb_sync_map(struct iommu_domain *domain,
+static int arm_smmu_iotlb_sync_map(struct iommu_domain *domain,
 				    unsigned long iova, size_t size)
 {
 	struct io_pgtable_ops *ops = to_smmu_domain(domain)->pgtbl_ops;
 
 	if (!ops || !ops->iotlb_sync_map)
-		return;
+		return 0;
 
-	ops->iotlb_sync_map(ops, iova, size);
+	return ops->iotlb_sync_map(ops, iova, size);
 }
 
 static size_t arm_smmu_unmap_pages(struct iommu_domain *domain, unsigned long iova,
@@ -3184,7 +3165,7 @@ static struct iommu_device *arm_smmu_probe_device(struct device *dev)
 	struct arm_smmu_master *master;
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
-	if (!fwspec || fwspec->ops != &arm_smmu_ops)
+	if (!fwspec)
 		return ERR_PTR(-ENODEV);
 
 	if (WARN_ON_ONCE(dev_iommu_priv_get(dev)))
@@ -3266,73 +3247,6 @@ static void arm_smmu_release_device(struct device *dev)
 	kfree(master);
 }
 
-static int arm_smmu_enable_nesting(struct iommu_domain *domain)
-{
-	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	int ret = 0;
-
-	mutex_lock(&smmu_domain->init_mutex);
-	if (smmu_domain->smmu)
-		ret = -EPERM;
-	else
-		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
-	mutex_unlock(&smmu_domain->init_mutex);
-
-	return ret;
-}
-
-static int arm_smmu_dev_enable_feature(struct device *dev,
-				       enum iommu_dev_features feat)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-
-	if (!master)
-		return -ENODEV;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-		if (!arm_smmu_master_iopf_supported(master))
-			return -EINVAL;
-		if (master->iopf_enabled)
-			return -EBUSY;
-		master->iopf_enabled = true;
-		return 0;
-	case IOMMU_DEV_FEAT_SVA:
-		if (!arm_smmu_master_sva_supported(master))
-			return -EINVAL;
-		if (arm_smmu_master_sva_enabled(master))
-			return -EBUSY;
-		return arm_smmu_master_enable_sva(master);
-	default:
-		return -EINVAL;
-	}
-}
-
-static int arm_smmu_dev_disable_feature(struct device *dev,
-					enum iommu_dev_features feat)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-
-	if (!master)
-		return -EINVAL;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-		if (!master->iopf_enabled)
-			return -EINVAL;
-		if (master->sva_enabled)
-			return -EBUSY;
-		master->iopf_enabled = false;
-		return 0;
-	case IOMMU_DEV_FEAT_SVA:
-		if (!arm_smmu_master_sva_enabled(master))
-			return -EINVAL;
-		return arm_smmu_master_disable_sva(master);
-	default:
-		return -EINVAL;
-	}
-}
-
 /*
  * HiSilicon PCIe tune and trace device can be used to trace TLP headers on the
  * PCIe link and save the data to memory by DMA. The hardware is restricted to
@@ -3360,18 +3274,16 @@ static int arm_smmu_def_domain_type(struct device *dev)
 
 static struct iommu_ops arm_smmu_ops = {
 	.capable		= arm_smmu_capable,
-	.domain_alloc		= arm_smmu_domain_alloc_dispatch,
+	.domain_alloc_paging	= arm_smmu_domain_alloc_paging,
+	.identity_domain	= &arm_smmu_identity_domain,
+	.blocked_domain		= &arm_smmu_blocked_domain,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
 	.device_group		= arm_smmu_device_group,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
-	.remove_dev_pasid	= arm_smmu_remove_dev_pasid,
-	.dev_enable_feat	= arm_smmu_dev_enable_feature,
-	.dev_disable_feat	= arm_smmu_dev_disable_feature,
 	.page_response		= arm_smmu_page_response,
 	.def_domain_type	= arm_smmu_def_domain_type,
-	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
 	.owner			= THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev		= arm_smmu_attach_dev,
@@ -3382,7 +3294,7 @@ static struct iommu_ops arm_smmu_ops = {
 		.iotlb_sync_map		= arm_smmu_iotlb_sync_map,
 		.iotlb_sync		= arm_smmu_iotlb_sync,
 		.iova_to_phys		= arm_smmu_iova_to_phys,
-		.enable_nesting		= arm_smmu_enable_nesting,
+
 		.free			= arm_smmu_domain_free_paging,
 	}
 };
@@ -3757,11 +3669,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (disable_msipolling)
 		smmu->options &= ~ARM_SMMU_OPT_MSIPOLL;
 
-	if (arm_smmu_ops.pgsize_bitmap == -1UL)
-		arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
-	else
-		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
-
 	/* Initialise in-memory data structures */
 	ret = arm_smmu_init_structures(smmu);
 	if (ret)
@@ -3914,7 +3821,7 @@ static struct platform_driver arm_smmu_driver = {
 		.suppress_bind_attrs	= true,
 	},
 	.probe	= arm_smmu_device_probe,
-	.remove_new = arm_smmu_device_remove,
+	.remove = arm_smmu_device_remove,
 	.shutdown = arm_smmu_device_shutdown,
 };
 module_driver(arm_smmu_driver, platform_driver_register,
