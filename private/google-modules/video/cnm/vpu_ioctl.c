@@ -1496,7 +1496,7 @@ err:
 	return rc;
 }
 
-static int vpu_remove(struct platform_device *pdev)
+static void vpu_remove(struct platform_device *pdev)
 {
 	struct vpu_core *core = (struct vpu_core *)platform_get_drvdata(pdev);
 
@@ -1513,7 +1513,6 @@ static int vpu_remove(struct platform_device *pdev)
 	vpu_of_dt_release(core);
 	deinit_chardev(core);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct dev_pm_ops vpu_pm_ops = {

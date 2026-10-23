@@ -4,7 +4,7 @@
 #
 
 # Needed for the trace points
-ccflags-y += -I$(srctree)/$(src)/
+ccflags-y += -I$(src)/
 
 obj-$(CONFIG_TRUSTY)		+= trusty-core.o
 trusty-core-objs		+= trusty.o trusty-mem.o trusty-sched-share.o

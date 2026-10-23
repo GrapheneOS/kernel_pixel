@@ -2135,8 +2135,10 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 	struct tipc_virtio_dev *vds;
 	struct tipc_dev_config config;
 	struct virtqueue *vqs[2];
-	vq_callback_t *vq_cbs[] = {_rxvq_cb, _txvq_cb};
-	static const char * const vq_names[] = { "rx", "tx" };
+	struct virtqueue_info vqs_info[] = {
+		{ .name = "rx", .callback = _rxvq_cb },
+		{ .name = "tx", .callback = _txvq_cb },
+	};
 
 	vds = kzalloc(sizeof(*vds), GFP_KERNEL);
 	if (!vds)
@@ -2167,8 +2169,7 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 	vds->cdev_name[sizeof(vds->cdev_name)-1] = '\0';
 
 	/* find tx virtqueues (rx and tx and in this order) */
-	err = vdev->config->find_vqs(vdev, 2, vqs, vq_cbs, vq_names, NULL,
-				     NULL);
+	err = virtio_find_vqs(vdev, 2, vqs, vqs_info, NULL);
 	if (err)
 		goto err_find_vqs;
 
