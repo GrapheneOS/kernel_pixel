@@ -11,6 +11,7 @@
 #include <linux/err.h>
 #include <linux/eventfd.h>
 #include <linux/fdtable.h>
+#include <linux/file.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
@@ -259,18 +260,21 @@ static int google_cpm_tp_set_eventfd_ctx(struct google_cpm_tp_dev *cpm_tp)
 	struct file *eventfd_filp;
 	struct google_cpm_tp_notif_param *notif_param = &cpm_tp->notif_param;
 
+	eventfd_filp = NULL;
 	rcu_read_lock();
 	userspace_task = find_task_by_vpid(notif_param->pid);
-	rcu_read_unlock();
-	if (!userspace_task) {
-		dev_err(dev, "Failed to find task with PID %d\n",
-			notif_param->pid);
-		return -EINVAL;
+	if (userspace_task) {
+		task_lock(userspace_task);
+		if (userspace_task->files) {
+			spin_lock(&userspace_task->files->file_lock);
+			eventfd_filp = files_lookup_fd_locked(userspace_task->files,
+							     notif_param->eventfd);
+			if (eventfd_filp)
+				get_file(eventfd_filp);
+			spin_unlock(&userspace_task->files->file_lock);
+		}
+		task_unlock(userspace_task);
 	}
-
-	rcu_read_lock();
-	eventfd_filp = files_lookup_fd_rcu(userspace_task->files,
-					   notif_param->eventfd);
 	rcu_read_unlock();
 	if (!eventfd_filp) {
 		dev_err(dev,
@@ -280,6 +284,7 @@ static int google_cpm_tp_set_eventfd_ctx(struct google_cpm_tp_dev *cpm_tp)
 	}
 
 	cpm_tp->event_ctx = eventfd_ctx_fileget(eventfd_filp);
+	fput(eventfd_filp);
 	if (IS_ERR(cpm_tp->event_ctx)) {
 		unsigned long err = PTR_ERR(cpm_tp->event_ctx);
 
