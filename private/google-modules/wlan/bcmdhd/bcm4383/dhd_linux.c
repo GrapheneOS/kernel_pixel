@@ -11160,7 +11160,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		DHD_GENERAL_LOCK(&dhd->pub, flags);
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 
 #endif /* !BCMPCIE_OOB_HOST_WAKE */
 		DHD_STOP_RPM_TIMER(&dhd->pub);
@@ -11216,7 +11216,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		DHD_GENERAL_LOCK(&dhd->pub, flags);
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 		DHD_ERROR(("%s failed bus is not ready\n", __FUNCTION__));
 		DHD_STOP_RPM_TIMER(&dhd->pub);
 #ifdef BCMSDIO
@@ -11246,7 +11246,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		DHD_GENERAL_LOCK(&dhd->pub, flags);
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 		DHD_ERROR(("%s failed to sync with dongle\n", __FUNCTION__));
 		DHD_OS_WD_WAKE_UNLOCK(&dhd->pub);
 		return ret;
@@ -16123,7 +16123,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 	dhd->wd_timer_valid = FALSE;
 	DHD_GENERAL_UNLOCK(&dhd->pub, flags);
 	if (timer_valid)
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 	DHD_STOP_RPM_TIMER(&dhd->pub);
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_THREADS_CREATED) {
@@ -17093,7 +17093,7 @@ dhd_os_wd_timer(void *bus, uint wdtick)
 	if (!wdtick && dhd->wd_timer_valid == TRUE) {
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 #ifdef BCMSDIO
 		DHD_OS_WD_WAKE_UNLOCK(pub);
 #endif /* BCMSDIO */
@@ -17181,7 +17181,7 @@ dhd_os_runtimepm_timer(void *bus, uint tick)
 		if (dhd->rpm_timer_valid == TRUE) {
 			dhd->rpm_timer_valid = FALSE;
 			DHD_GENERAL_UNLOCK(pub, flags);
-			del_timer_sync(&dhd->rpm_timer);
+			timer_delete_sync(&dhd->rpm_timer);
 			DHD_PRINT(("DHD Runtime PM Timer OFF \n"));
 			/* we have already released the lock, so just go to exit */
 			goto exit;

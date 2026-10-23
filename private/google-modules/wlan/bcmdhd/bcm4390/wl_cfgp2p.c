@@ -1558,7 +1558,7 @@ wl_cfgp2p_listen_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 
 	if (wl_get_p2p_status(cfg, LISTEN_EXPIRED) == 0) {
 		wl_set_p2p_status(cfg, LISTEN_EXPIRED);
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 
 		if (cfg->afx_hdl->is_listen == TRUE &&
 			wl_get_drv_status_all(cfg, FINDING_COMMON_CHANNEL)) {
@@ -1672,7 +1672,7 @@ wl_cfgp2p_cancel_listen(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_DEVICE));
 #endif /* NOT_YET */
 	if (timer_pending(&cfg->p2p->listen_timer)) {
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 		if (notify) {
 #if defined(WL_CFG80211_P2P_DEV_IF)
 			if (bcmcfg_to_p2p_wdev(cfg))
