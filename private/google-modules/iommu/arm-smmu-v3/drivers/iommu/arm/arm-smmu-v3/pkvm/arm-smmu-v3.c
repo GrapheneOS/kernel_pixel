@@ -1301,7 +1301,7 @@ static bool smmu_domain_compat(struct hyp_arm_smmu_v3_device *smmu,
 	cfg2 = &smmu_domain->pgtable->cfg;
 
 	/* Best effort. */
-	return (cfg1->ias == cfg2->ias) && (cfg1->oas == cfg2->oas) && (cfg1->fmt && cfg2->fmt) &&
+	return (cfg1->ias == cfg2->ias) && (cfg1->oas == cfg2->oas) && (cfg1->fmt == cfg2->fmt) &&
 	       (cfg1->pgsize_bitmap == cfg2->pgsize_bitmap) && (cfg1->quirks == cfg2->quirks);
 }
 
