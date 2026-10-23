@@ -782,18 +782,8 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 	blk_paddr = iopte_to_paddr(blk_pte, data);
 	pte = iopte_prot(blk_pte);
 	__arm_lpae_init_pte(data, blk_iova, blk_paddr, pte, lvl, unmap_idx_start, tablep, false);
-	for (i = unmap_idx_start, blk_paddr += split_sz * unmap_idx_start;
-	     i < unmap_idx_start + num_entries; i++, blk_paddr += split_sz) {
-		/* Unmap! */
-		if (walker && walker->cb) {
-			struct io_pgtable_ctxt ctx = {
-				.arg	= walker->arg,
-				.addr	= blk_paddr,
-				.size	= split_sz,
-			};
-			walker->cb(&ctx);
-		}
-	}
+	i = unmap_idx_start + num_entries;
+	blk_paddr += split_sz * i;
 	if (i < ptes_per_table)
 		__arm_lpae_init_pte(data, blk_iova + split_sz * i, blk_paddr, pte, lvl,
 				    ptes_per_table - i, &tablep[i], false);
@@ -837,8 +827,19 @@ static size_t arm_lpae_split_blk_unmap(struct arm_lpae_io_pgtable *data,
 
 		tablep = iopte_deref(pte, data);
 	} else if (num_entries) {
-		for (i = 0; i < num_entries; i++)
+		blk_paddr = iopte_to_paddr(blk_pte, data) + split_sz * unmap_idx_start;
+		for (i = 0; i < num_entries; i++) {
 			io_pgtable_tlb_add_page(&data->iop, gather, iova + i * size, size);
+			if (walker && walker->cb) {
+				struct io_pgtable_ctxt ctx = {
+					.arg = walker->arg,
+					.addr = blk_paddr + i * size,
+					.size = size,
+				};
+
+				walker->cb(&ctx);
+			}
+		}
 
 		return num_entries * size;
 	}
