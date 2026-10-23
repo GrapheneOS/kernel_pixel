@@ -4403,7 +4403,7 @@ static int of_hl7132_dt(struct device *dev,
 #if IS_ENABLED(CONFIG_THERMAL)
 static int hl7132_usb_tz_read_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct hl7132_charger *hl7132 = tzd->devdata;
+	struct hl7132_charger *hl7132 = thermal_zone_device_priv(tzd);
 
 	if (!hl7132)
 		return -ENODEV;

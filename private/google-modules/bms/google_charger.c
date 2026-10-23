@@ -461,7 +461,7 @@ static void reschedule_chg_work(struct chg_drv *chg_drv)
 	pr_debug("%s: rescheduling\n", __func__);
 }
 
-static enum alarmtimer_restart
+static void
 google_chg_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct chg_drv *chg_drv =
@@ -471,7 +471,7 @@ google_chg_alarm_handler(struct alarm *alarm, ktime_t time)
 
 	reschedule_chg_work(chg_drv);
 
-	return ALARMTIMER_NORESTART;
+	return;
 }
 
 static void chg_psy_work(struct work_struct *work)
@@ -1255,7 +1255,7 @@ error:
 	chg_reset_termination_data(chg_drv);
 }
 
-static enum alarmtimer_restart chg_termination_alarm_cb(struct alarm *alarm,
+static void chg_termination_alarm_cb(struct alarm *alarm,
 							ktime_t now)
 {
 	struct chg_termination *chg_term =
@@ -1269,7 +1269,7 @@ static enum alarmtimer_restart chg_termination_alarm_cb(struct alarm *alarm,
 	pm_stay_awake(chg_drv->device);
 	schedule_work(&chg_term->work);
 
-	return ALARMTIMER_NORESTART;
+	return;
 }
 
 static void chg_reset_termination_data(struct chg_drv *chg_drv)
@@ -6101,7 +6101,7 @@ static struct power_supply *get_tcpm_psy(struct chg_drv *chg_drv)
 	int i, ret;
 	struct power_supply *tcpm_psy = NULL;
 
-	ret = power_supply_get_by_phandle_array(chg_drv->device->of_node,
+	ret = power_supply_get_by_reference_array(dev_fwnode(chg_drv->device),
 						"google,tcpm-power-supply", psy,
 						ARRAY_SIZE(psy));
 	if (ret < 0 && !chg_drv->usb_skip_probe) {
@@ -6484,7 +6484,7 @@ static int google_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_charger_remove(struct platform_device *pdev)
+static void google_charger_remove(struct platform_device *pdev)
 {
 	struct chg_drv *chg_drv = (struct chg_drv *)platform_get_drvdata(pdev);
 
@@ -6521,8 +6521,6 @@ static int google_charger_remove(struct platform_device *pdev)
 		if (chg_drv->bd_state.bd_log)
 			logbuffer_unregister(chg_drv->bd_state.bd_log);
 	}
-
-	return 0;
 }
 
 static void google_charger_shutdown(struct platform_device *pdev)

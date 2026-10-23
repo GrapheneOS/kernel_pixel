@@ -6,6 +6,7 @@
  *
  */
 
+#include "../soc_defs.h"
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/list.h>
@@ -54,7 +55,7 @@ static int get_idx_from_zone(struct bcl_device *bcl_dev, const char *name)
 	return -EINVAL;
 }
 
-int google_bcl_setup_qos_device(struct bcl_device *bcl_dev, enum non_cpu_qos_device_idx qidx)
+static int google_bcl_setup_qos_device(struct bcl_device *bcl_dev, enum non_cpu_qos_device_idx qidx)
 {
 	struct device_node *np = bcl_dev->device->of_node;
 	struct device_node *df_node;

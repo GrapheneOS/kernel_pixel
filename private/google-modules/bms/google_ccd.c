@@ -651,7 +651,7 @@ static int google_ccd_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gccd);
 
 	psy_cfg.drv_data = gccd;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 
 	gccd->psy = devm_power_supply_register(gccd->device,
 					       &gccd_psy_desc.psy_dsc, &psy_cfg);
@@ -669,7 +669,7 @@ static int google_ccd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_ccd_remove(struct platform_device *pdev)
+static void google_ccd_remove(struct platform_device *pdev)
 {
 	struct gccd_drv *gccd = platform_get_drvdata(pdev);
 
@@ -681,7 +681,6 @@ static int google_ccd_remove(struct platform_device *pdev)
 	if (gccd->buck_chg_psy)
 		power_supply_put(gccd->buck_chg_psy);
 
-	return 0;
 }
 
 static const struct of_device_id google_ccd_of_match[] = {

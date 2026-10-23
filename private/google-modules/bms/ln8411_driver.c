@@ -5122,7 +5122,7 @@ error:
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int ln8411_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int ln8411_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -5153,7 +5153,7 @@ static int ln8411_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return ret;
 }
 
-static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct ln8411_charger *ln8411 = gpiochip_get_data(chip);
 	int ret = 0;
@@ -5179,6 +5179,7 @@ static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int val
 
 	if (ret < 0)
 		dev_err(&ln8411->client->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void ln8411_gpio_init(struct ln8411_charger *ln8411)
@@ -5691,7 +5692,7 @@ static int of_ln8411_dt(struct device *dev,
 #if IS_ENABLED(CONFIG_THERMAL)
 static int ln8411_usb_tz_read_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct ln8411_charger *ln8411 = tzd->devdata;
+	struct ln8411_charger *ln8411 = thermal_zone_device_priv(tzd);
 
 	if (!ln8411)
 		return -ENODEV;

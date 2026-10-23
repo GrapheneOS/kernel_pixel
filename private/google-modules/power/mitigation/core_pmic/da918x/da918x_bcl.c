@@ -188,7 +188,7 @@ static u16 retrieve_pre_ocp_addr(int idx, int *pmic)
 	}
 }
 
-int google_bcl_core_pmic_get_pre_ocp(struct bcl_device *bcl_dev, int idx)
+static int google_bcl_core_pmic_get_pre_ocp(struct bcl_device *bcl_dev, int idx)
 {
 	int ret;
 	struct mailbox_data req_data, resp_data;
@@ -228,7 +228,7 @@ void core_pmic_set_scratch_pad(struct bcl_device *bcl_dev, u8 value)
 		dev_err(bcl_dev->device, "Cannot set scratchpad\n");
 }
 
-int google_bcl_core_pmic_set_pre_ocp(struct bcl_device *bcl_dev, int value, int idx)
+static int google_bcl_core_pmic_set_pre_ocp(struct bcl_device *bcl_dev, int value, int idx)
 {
 	int ret;
 	struct mailbox_data req_data;
@@ -250,7 +250,7 @@ int google_bcl_core_pmic_set_pre_ocp(struct bcl_device *bcl_dev, int value, int 
 
 }
 
-int google_bcl_core_pmic_set_pre_ocp_deb(struct bcl_device *bcl_dev, u8 value, int idx)
+static int google_bcl_core_pmic_set_pre_ocp_deb(struct bcl_device *bcl_dev, u8 value, int idx)
 {
 	struct mailbox_data req_data;
 	int pmic;
@@ -456,7 +456,7 @@ static void google_bcl_setup_main_odpm(struct work_struct *work)
 	dev_info(bcl_dev->device, "odpm iio retrieved\n");
 }
 
-int read_sys_evt_cache(struct bcl_device *bcl_dev, int addr, int pmic, void *data, size_t len)
+static int read_sys_evt_cache(struct bcl_device *bcl_dev, int addr, int pmic, void *data, size_t len)
 {
 	switch (pmic) {
 	case SYS_EVT_MAIN:
@@ -472,7 +472,7 @@ int read_sys_evt_cache(struct bcl_device *bcl_dev, int addr, int pmic, void *dat
 	return 0;
 }
 
-int read_sys_evt(struct bcl_device *bcl_dev, int addr, int pmic, void *data, size_t len)
+static int read_sys_evt(struct bcl_device *bcl_dev, int addr, int pmic, void *data, size_t len)
 {
 	int ret;
 	int i;
@@ -1203,7 +1203,7 @@ int read_pre_ocp_bckup(struct bcl_device *bcl_dev, int *pre_ocp_bckup, int rail)
 	return 0;
 }
 
-int read_odpm_ch_type(struct bcl_device *bcl_dev, u16 *type, int pmic, int channel)
+static int read_odpm_ch_type(struct bcl_device *bcl_dev, u16 *type, int pmic, int channel)
 {
 	int ret;
 	u16 addr;
@@ -1232,7 +1232,7 @@ int read_odpm_ch_type(struct bcl_device *bcl_dev, u16 *type, int pmic, int chann
 	return ret;
 }
 
-int read_odpm_int_select_ch(struct bcl_device *bcl_dev, int pmic, int channel, u16 *int_sel)
+static int read_odpm_int_select_ch(struct bcl_device *bcl_dev, int pmic, int channel, u16 *int_sel)
 {
 	int ret;
 	u16 addr;
@@ -1353,7 +1353,7 @@ void core_pmic_teardown(struct bcl_device *bcl_dev)
 }
 
 
-uint32_t _core_pmic_read_pwrwarn(struct bcl_device *bcl_dev, int pwrwarn_idx, int cmd)
+static uint32_t _core_pmic_read_pwrwarn(struct bcl_device *bcl_dev, int pwrwarn_idx, int cmd)
 {
 	uint32_t response[] = {0, 0};
 

@@ -300,6 +300,9 @@ int bms_usecase_init(struct bms_usecase_data *bms_uc_data,
 		     struct bms_usecase_chg_data *data);
 void bms_usecase_remove(struct bms_usecase_data *bms_uc_data);
 void bms_usecase_add_tail(struct bms_usecase_data *bms_uc_data, struct bms_usecase_entry *entry);
+void bms_usecase_free_node_locked(struct bms_usecase_data *bms_uc_data,
+				  struct bms_usecase_entry *entry,
+				  enum bms_usecase_free_state free_state);
 void bms_usecase_clear_queue(struct bms_usecase_data *bms_uc_data, int err);
 void bms_usecase_entry_set_usecase(struct bms_usecase_entry *entry, int usecase);
 int bms_usecase_get_usecase(struct bms_usecase_data *bms_uc_data);
