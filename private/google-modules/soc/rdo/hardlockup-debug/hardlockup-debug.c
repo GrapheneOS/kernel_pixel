@@ -38,6 +38,7 @@
 
 static raw_spinlock_t hardlockup_seq_lock;
 static raw_spinlock_t hardlockup_log_lock;
+static bool hardlockup_hook_registered;
 static int watchdog_fiq;
 static int allcorelockup_detected;
 static unsigned long hardlockup_core_mask;
@@ -401,6 +402,12 @@ static int hardlockup_debugger_probe(struct platform_device *pdev)
 	}
 
 #ifdef SMC_CMD_LOCKUP_NOTICE
+	if (!hardlockup_hook_registered) {
+		raw_spin_lock_init(&hardlockup_seq_lock);
+		raw_spin_lock_init(&hardlockup_log_lock);
+		register_kernel_break_hook(&hardlockup_debug_break_hook);
+		hardlockup_hook_registered = true;
+	}
 	ret = google_smc(SMC_CMD_LOCKUP_NOTICE,
 			 (unsigned long)hardlockup_debug_bug_func, watchdog_fiq, 0);
 
@@ -411,11 +418,8 @@ static int hardlockup_debugger_probe(struct platform_device *pdev)
 	if (ret != 0)
 		goto error;
 
-	raw_spin_lock_init(&hardlockup_seq_lock);
-	raw_spin_lock_init(&hardlockup_log_lock);
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &hardlockup_debug_panic_nb);
-	register_kernel_break_hook(&hardlockup_debug_break_hook);
 
 	register_pm_notifier(&hardlockup_debugger_pm_nb);
 
@@ -449,9 +453,23 @@ static struct platform_driver hardlockup_debug_driver = {
 	.driver = {
 			.name = "hardlockup-debug-driver",
 			.of_match_table = hardlockup_debug_dt_match,
+			.suppress_bind_attrs = true,
 		},
 };
-module_platform_driver(hardlockup_debug_driver);
+static int __init hardlockup_debug_init(void)
+{
+	int ret = platform_driver_register(&hardlockup_debug_driver);
+
+	/* Registration can fail after probe has installed the permanent hook. */
+	if (ret && hardlockup_hook_registered) {
+		pr_err("hardlockup-debug: driver registration failed (%d), retaining permanent hook\n",
+		       ret);
+		return 0;
+	}
+	return ret;
+}
+/* Firmware and the break hook retain callbacks for the rest of the boot. */
+module_init(hardlockup_debug_init);
 
 MODULE_DESCRIPTION("Module for Debugging Hardlockups via FIQ");
 MODULE_LICENSE("GPL");
