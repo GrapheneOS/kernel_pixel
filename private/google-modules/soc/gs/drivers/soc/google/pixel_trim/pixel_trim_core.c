@@ -10,6 +10,7 @@
 #include <linux/kthread.h>
 #include <linux/wait.h>
 #include <pixel_trim.h>
+#include "pixel_trim_core.h"
 #include "pixel_trim_sysfs.h"
 
 static cpumask_t trim_task_cpu_affinity;
@@ -112,7 +113,7 @@ static int pixel_trim_thread(void *data)
 	return 0;
 }
 
-int __init pixel_trim_init(void)
+static int __init pixel_trim_init(void)
 {
 	int err;
 	struct task_struct *task;

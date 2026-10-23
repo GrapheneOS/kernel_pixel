@@ -376,14 +376,14 @@ static int slg51002_regulator_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int slg51002_regulator_remove(struct platform_device *pdev)
+static void slg51002_regulator_remove(struct platform_device *pdev)
 {
 	struct slg51002_dev *chip = dev_get_drvdata(pdev->dev.parent);
 
 	flush_workqueue(chip->slg51002_wq);
 	destroy_workqueue(chip->slg51002_wq);
 
-	return 0;
+	return;
 }
 
 static const struct platform_device_id slg51002_regulator_id[] = {

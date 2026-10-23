@@ -3,6 +3,7 @@
  * Copyright 2024 Google LLC
  */
 
+#include <linux/of.h>
 #include <linux/device.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -124,7 +125,7 @@ static int mbfs_cpm_backend_device_probe(struct platform_device *pdev)
 }
 
 /* Platform driver remove function */
-static int mbfs_cpm_backend_device_remove(struct platform_device *pdev)
+static void mbfs_cpm_backend_device_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -133,7 +134,6 @@ static int mbfs_cpm_backend_device_remove(struct platform_device *pdev)
 	remove_cpm_client(comm.cpm_client);
 	initialized = false;
 
-	return 0;
 }
 
 static const struct of_device_id mbfs_cpm_backend_of_match[] = {

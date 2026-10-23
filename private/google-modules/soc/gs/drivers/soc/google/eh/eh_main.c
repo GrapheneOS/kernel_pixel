@@ -1401,7 +1401,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 				  virt_to_phys(&eh_dev->decompr_status[index]));
 #endif
 
-	src_data = (__ffs(alignment) - 5) << EH_DCMD_BUF_SIZE_SHIFT;
+	src_data = ((u64)__ffs(alignment) - 5) << EH_DCMD_BUF_SIZE_SHIFT;
 	src_data |= src_paddr;
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF0(index), src_data);
 	eh_write_register(eh_dev, EH_REG_DCMD_BUF1(index), 0);
@@ -1619,7 +1619,7 @@ free_ehdev:
 	return ret;
 }
 
-static int eh_of_remove(struct platform_device *pdev)
+static void eh_of_remove(struct platform_device *pdev)
 {
 	struct eh_device *eh_dev = platform_get_drvdata(pdev);
 
@@ -1631,7 +1631,6 @@ static int eh_of_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	kobject_put(&eh_dev->kobj);
-	return 0;
 }
 
 static int eh_suspend(struct device *dev)

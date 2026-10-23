@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
+#include <linux/samsung-secure-iova.h>
 
 #if IS_ENABLED(CONFIG_SOC_GS101) || IS_ENABLED(CONFIG_SOC_GS201) || IS_ENABLED(CONFIG_SOC_ZUMA)
 #define SECURE_DMA_BASE	0x40000000

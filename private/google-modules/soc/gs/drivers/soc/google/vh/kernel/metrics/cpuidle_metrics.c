@@ -79,7 +79,7 @@ void cpuidle_metrics_histogram_register(char *name, int cluster_id, s64 target_r
 		spin_unlock(&cluster_spinlocks[cluster_id]);
 		return;
 	}
-	strlcpy(all_cluster_stats[cluster_id].name, name, NAME_LEN);
+	strscpy(all_cluster_stats[cluster_id].name, name, NAME_LEN);
 	all_cluster_stats[cluster_id].target_residency = target_residency_us;
 	all_cluster_stats[cluster_id].initialized = true;
 	spin_unlock(&cluster_spinlocks[cluster_id]);

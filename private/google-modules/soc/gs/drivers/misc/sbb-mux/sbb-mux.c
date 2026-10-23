@@ -735,13 +735,13 @@ static void sbb_mux_drv_undo_probe(struct sbb_gpio_tracker **gpio_trackers_ptr)
 	*gpio_trackers_ptr = NULL;
 }
 
-static int sbb_mux_drv_remove(struct platform_device *dev)
+static void sbb_mux_drv_remove(struct platform_device *dev)
 {
 	pr_info("sbb-mux: Calling %s!\n", __func__);
 
 	sbb_mux_drv_undo_probe(&gpio_trackers);
 
-	return 0;
+	return;
 }
 
 static int __init sbb_mux_init(void)

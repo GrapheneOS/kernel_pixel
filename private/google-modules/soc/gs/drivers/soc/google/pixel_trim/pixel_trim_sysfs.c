@@ -3,6 +3,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include "pixel_trim_core.h"
+#include "pixel_trim_sysfs.h"
 
 extern struct kobject *vendor_mm_kobj;
 static struct kobject pixel_trim_kobj;
