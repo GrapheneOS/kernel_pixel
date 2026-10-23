@@ -80,7 +80,7 @@ static int goog_chip_info_ids_translator(struct goog_chip_info_feature *feature,
 static int goog_chip_info_asic_id_translator(struct goog_chip_info_feature *feature,
 					     u64 value, int index, char *buffer, int max_size)
 {
-	const char *chip_name;
+	const char *chip_name = "Unknown";
 
 	if (value == 0x500)
 		chip_name = "LGA A0";
