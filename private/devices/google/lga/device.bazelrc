@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 build:lga_base --//private/devices/google/common:soc=laguna
+# Pixel uses hardware memory tagging instead of slab canaries.
+build:lga_base --defconfig_fragment=//private/devices/google/lga:disable_slab_canary_defconfig
 build:lga_base --//private/google-modules/radio/common/metrics_collection:metrics_collection=//private/google-modules/radio/common/metrics_collection:metrics_collection_enabled
 build:lga_base --//private/google-modules/soc/gs/drivers/soc/google/eh:ip_idle=google_ip_idle
 build:lga_base --//private/google-modules/soc/gs:gs_soc_module=//private/devices/google/lga:gs_soc

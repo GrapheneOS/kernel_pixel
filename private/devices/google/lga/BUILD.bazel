@@ -14,6 +14,11 @@ package(
     ],
 )
 
+exports_files(
+    ["disable_slab_canary_defconfig"],
+    visibility = ["//visibility:public"],
+)
+
 checkpatch(
     name = "checkpatch",
     checkpatch_pl = "//common:scripts/checkpatch.pl",
