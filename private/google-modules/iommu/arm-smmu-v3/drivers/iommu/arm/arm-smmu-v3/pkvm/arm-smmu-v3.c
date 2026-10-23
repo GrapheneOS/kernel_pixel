@@ -1729,10 +1729,14 @@ bool smmu_dabt_device(struct hyp_arm_smmu_v3_device *smmu,
 
 	if (!mask)
 		return false;
-	if (is_write)
-		writel_relaxed(cpu_reg(host_ctxt, rd) & mask, smmu->base + off);
-	else
-		cpu_reg(host_ctxt, rd) = readl_relaxed(smmu->base + off);
+	if (is_write) {
+		writel_relaxed((rd == 31 ? 0 : cpu_reg(host_ctxt, rd)) & mask, smmu->base + off);
+	} else {
+		u32 val = readl_relaxed(smmu->base + off);
+
+		if (rd != 31)
+			cpu_reg(host_ctxt, rd) = val;
+	}
 
 	return true;
 }
