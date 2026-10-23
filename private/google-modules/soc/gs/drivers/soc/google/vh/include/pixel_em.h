@@ -80,4 +80,7 @@ extern struct pixel_idle_em *vendor_sched_pixel_idle_em;
 
 #endif /* CONFIG_PIXEL_EM */
 
+void update_thermal_freq_cap(unsigned int cpu);
+void reset_scaling_freq(int cpu);
+
 #endif /* __PIXEL_EM_H__ */

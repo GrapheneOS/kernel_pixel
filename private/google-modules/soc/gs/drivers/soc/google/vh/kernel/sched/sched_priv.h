@@ -53,6 +53,39 @@
 
 #define UCLAMP_BUCKET_DELTA DIV_ROUND_CLOSEST(SCHED_CAPACITY_SCALE, UCLAMP_BUCKETS)
 
+/* These 6.6 scheduler helpers were removed from 6.18. */
+#define capacity_orig_of(cpu) arch_scale_cpu_capacity(cpu)
+#define arch_scale_thermal_pressure(cpu) arch_scale_hw_pressure(cpu)
+#define SCHED_WARN_ON(condition) WARN_ON_ONCE(condition)
+
+enum cpu_util_type {
+	FREQUENCY_UTIL,
+	ENERGY_UTIL,
+};
+
+static inline unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
+						struct task_struct *p)
+{
+	unsigned long min_util = 0, max_util = 0;
+
+	if (!uclamp_is_used())
+		return util;
+
+	if (p) {
+		min_util = uclamp_eff_value(p, UCLAMP_MIN);
+		max_util = uclamp_eff_value(p, UCLAMP_MAX);
+		if (uclamp_rq_is_idle(rq))
+			goto apply;
+	}
+
+	min_util = max(min_util, uclamp_rq_get(rq, UCLAMP_MIN));
+	max_util = max(max_util, uclamp_rq_get(rq, UCLAMP_MAX));
+apply:
+	if (min_util >= max_util)
+		return min_util;
+	return clamp(util, min_util, max_util);
+}
+
 /*
  * Bit definition for sched qos features.
  */
@@ -325,7 +358,6 @@ enum VENDOR_TUNABLE_TYPE {
 	SCHED_AUTO_UCLAMP_MAX,
 	SCHED_DVFS_HEADROOM,
 	SCHED_IOWAIT_BOOST_MAX,
-	SCHED_TEO_UTIL_THRESHOLD,
 	SCHED_THERMAL_CAP_MARGIN,
 	SCHED_MAX_UCLAMP_ST,
 };
@@ -402,21 +434,6 @@ static inline unsigned long task_util_est(struct task_struct *p)
 static inline unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
-}
-
-static inline unsigned int uclamp_none(enum uclamp_id clamp_id)
-{
-	if (clamp_id == UCLAMP_MIN)
-		return 0;
-	return SCHED_CAPACITY_SCALE;
-}
-
-static inline void uclamp_se_set(struct uclamp_se *uc_se,
-				 unsigned int value, bool user_defined)
-{
-	uc_se->value = value;
-	uc_se->bucket_id = get_bucket_id(value);
-	uc_se->user_defined = user_defined;
 }
 
 extern inline void uclamp_rq_inc_id(struct rq *rq, struct task_struct *p,
@@ -1339,3 +1356,123 @@ static inline void send_trace_sched_group_tracker(struct task_struct *p, bool is
 	vp->group_tracked_ctx_count = 0;
 	trace_sched_group_tracker(p, GRP_NAME[vp->group], vp->group);
 }
+
+void vh_scheduler_tick_pixel_mod_locked(struct rq *rq);
+void vh_scheduler_tick_pixel_mod_nolock(struct rq *rq);
+void vh_scheduler_tick_pixel_mod(void *data, struct rq *rq);
+void vh_sched_switch_pixel_mod(void *data, bool preempt, struct task_struct *prev,
+			       struct task_struct *next, unsigned int prev_state);
+void rvh_after_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
+void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
+void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags);
+void rvh_set_cpus_allowed_by_task(void *data, const struct cpumask *cpu_valid_mask,
+	const struct cpumask *new_mask, struct task_struct *p, unsigned int *dest_cpu);
+void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
+	struct task_struct *p);
+void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t);
+void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
+		struct binder_transaction *t, struct task_struct *binder_th_task,
+		bool pending_async, bool sync);
+void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
+	struct task_struct *pi_task);
+void rvh_try_to_wake_up_success_pixel_mod(void *data, struct task_struct *p);
+void set_cluster_enabled_cb(int cluster, int enabled);
+int get_cluster_enabled(int cluster);
+int sched_cpu_idle(int cpu);
+void init_vendor_group_data(void);
+void init_pixel_em(void);
+void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned int new);
+unsigned long cpu_util(int cpu);
+struct vendor_group_property *get_vendor_group_property(enum vendor_group group);
+#if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
+struct vendor_util_group_property *get_vendor_util_group_property(enum utilization_group group);
+#endif
+void rvh_util_fits_cpu_pixel_mod(void *data, unsigned long util, unsigned long uclamp_min,
+	unsigned long uclamp_max, int cpu, bool *fits, bool *done);
+int cpu_is_idle(int cpu);
+void update_task_prio(struct task_struct *p, struct vendor_task_struct *vp, bool val);
+int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
+		cpumask_t *valid_mask);
+void rvh_set_iowait_pixel_mod(void *data, struct task_struct *p, struct rq *rq,
+			      int *should_iowait_boost);
+void rvh_cpu_overutilized_pixel_mod(void *data, int cpu, int *overutilized);
+void initialize_vendor_group_property(void);
+void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
+			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
+			struct sched_entity *pse);
+void rvh_post_init_entity_util_avg_pixel_mod(void *data, struct sched_entity *se);
+void vh_sched_uclamp_validate_pixel_mod(void *data, struct task_struct *tsk,
+					const struct sched_attr *attr,
+					int *ret, bool *done);
+void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk, int clamp_id,
+					    unsigned int value);
+
+void update_uclamp_stats(int cpu, u64 time);
+inline void update_misfit_status(struct task_struct *p, struct rq *rq);
+unsigned long cpu_util_cfs_group_mod(int cpu);
+int get_ev_data(int cpu, unsigned long *inst, unsigned long *cyc,
+			unsigned long *stall, unsigned long *l2_cachemiss,
+			unsigned long *l3_cachemiss, unsigned long *mem_stall,
+			unsigned long *l2_cache_wb, unsigned long *l3_cache_access,
+			unsigned long *mem_count, unsigned long *cpu_freq);
+int ___update_load_sum(u64 now, struct sched_avg *sa,
+			  unsigned long load, unsigned long runnable, int running);
+void ___update_load_avg(struct sched_avg *sa, unsigned long load);
+void init_uclamp_stats(void);
+int create_procfs_node(void);
+void vh_set_sugov_sched_attr_pixel_mod(void *data, struct sched_attr *attr);
+void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
+					    int sd_flag, int wake_flags, int *new_cpu);
+void rvh_util_est_update_pixel_mod(void *data, struct cfs_rq *cfs_rq, struct task_struct *p,
+					  bool task_sleep, int *ret);
+void rvh_cpu_cgroup_online_pixel_mod(void *data, struct cgroup_subsys_state *css);
+void vh_dup_task_struct_pixel_mod(void *data, struct task_struct *tsk,
+					 struct task_struct *orig);
+void rvh_select_task_rq_fair_pixel_mod(void *data, struct task_struct *p, int prev_cpu,
+					      int sd_flag, int wake_flags, int *target_cpu);
+void rvh_update_rt_rq_load_avg_pixel_mod(void *data, u64 now, struct rq *rq,
+						struct task_struct *p, int running);
+void rvh_set_task_cpu_pixel_mod(void *data, struct task_struct *p, unsigned int new_cpu);
+void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
+					    int flags);
+void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
+					    int flags);
+void vh_dump_throttled_rt_tasks_mod(void *data, int cpu, u64 clock, ktime_t rt_period,
+					   u64 rt_runtime, s64 rt_period_timer_expires);
+void rvh_sched_setaffinity_mod(void *data, struct task_struct *task,
+					const struct cpumask *in_mask, int *res);
+void rvh_set_cpus_allowed_ptr_mod(void *data, struct task_struct *task,
+					struct affinity_context *ctx, bool *skip_user_ptr);
+void rvh_can_migrate_task_pixel_mod(void *data, struct task_struct *p, int dst_cpu,
+						int *can_migrate);
+void rvh_attach_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
+						 struct sched_entity *se);
+void rvh_detach_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
+						 struct sched_entity *se);
+void rvh_update_load_avg_pixel_mod(void *data, u64 now, struct cfs_rq *cfs_rq,
+					  struct sched_entity *se);
+void rvh_remove_entity_load_avg_pixel_mod(void *data, struct cfs_rq *cfs_rq,
+						 struct sched_entity *se);
+void rvh_update_blocked_fair_pixel_mod(void *data, struct rq *rq);
+void rvh_set_user_nice_locked_pixel_mod(void *data, struct task_struct *p, long *nice,
+	bool *allowed);
+void rvh_setscheduler_prio_pixel_mod(void *data, struct task_struct *p);
+void rvh_find_lowest_rq_pixel_mod(void *data, struct task_struct *p,
+					 struct task_struct *exec_ctx,
+					 struct cpumask *lowest_mask,
+					 int ret, int *cpu);
+int pmu_poll_init(void);
+void vh_sched_resume_end(void *data, void *unused);
+void vh_set_task_comm_pixel_mod(void *data, struct task_struct *p, bool exec);
+void vh_exit_check_pixel_mod(void *data, struct task_struct *tsk);
+void reset_uclamp_stats(void);
+int pmu_poll_enable(void);
+void pmu_poll_disable(void);
+int set_prefer_idle_task_name(void);
+
+void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_flags *rf,
+		int *pulled_task, int *done);
+unsigned int map_scaling_freq(int cpu, unsigned int freq);
+void reset_scaling_freq(int cpu);
+
+void update_thermal_freq_cap(unsigned int cpu);

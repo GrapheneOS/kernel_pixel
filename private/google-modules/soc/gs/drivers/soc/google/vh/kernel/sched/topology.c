@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #if IS_ENABLED(CONFIG_VH_SCHED) && IS_ENABLED(CONFIG_PIXEL_EM)
 #include "../../include/pixel_em.h"
+#include "topology.h"
 extern struct pixel_em_profile **vendor_sched_pixel_em_profile;
 #endif
 

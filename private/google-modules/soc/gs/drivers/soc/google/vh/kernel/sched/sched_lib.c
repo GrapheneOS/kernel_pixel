@@ -90,14 +90,14 @@ static inline void boost_priority_task(struct task_struct *p)
 	task_rq_unlock(rq, p, &rf);
 }
 
-void vh_set_task_comm_pixel_mod(void *data, struct task_struct *p)
+void vh_set_task_comm_pixel_mod(void *data, struct task_struct *p, bool exec)
 {
 	char tmp[LIB_PATH_LENGTH];
 	char *tok, *str;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priority_task_name_lock, flags);
-	strlcpy(tmp, priority_task_name, LIB_PATH_LENGTH);
+	strscpy(tmp, priority_task_name, LIB_PATH_LENGTH);
 	spin_unlock_irqrestore(&priority_task_name_lock, flags);
 	str = tmp;
 
@@ -124,7 +124,7 @@ int set_prefer_idle_task_name(void)
 	int ret = -1;
 
 	spin_lock(&prefer_idle_task_name_lock);
-	strlcpy(tmp, prefer_idle_task_name, LIB_PATH_LENGTH);
+	strscpy(tmp, prefer_idle_task_name, LIB_PATH_LENGTH);
 	spin_unlock(&prefer_idle_task_name_lock);
 
 	if (*tmp != '\0') {
