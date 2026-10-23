@@ -3,6 +3,7 @@
  * Copyright (C) 2020 VeriSilicon Holdings Co., Ltd.
  */
 
+#include <linux/vmalloc.h>
 #include <linux/dma-buf.h>
 
 #include <asm/set_memory.h>

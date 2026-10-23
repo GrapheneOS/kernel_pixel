@@ -79,7 +79,7 @@ int vs_init_trace(struct device *dev)
 	int ret;
 	struct trace_array *trace;
 
-	trace = trace_array_get_by_name_ext(TRACE_INSTANCE, NULL);
+	trace = trace_array_get_by_name(TRACE_INSTANCE, NULL);
 	if (!trace) {
 		dev_warn(dev, "failed to get trace instance array in %s\n", TRACE_INSTANCE);
 		return -EINVAL;

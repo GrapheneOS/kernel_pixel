@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2020 VeriSilicon Holdings Co., Ltd.
  */
+#include <linux/debugfs.h>
 #include <linux/bitops.h>
 #include <linux/file.h>
 

@@ -45,7 +45,6 @@ int gs_panel_set_op_hz(struct gs_panel *ctx, unsigned int hz);
 int gs_panel_set_pwm_mode(struct gs_panel *ctx, enum gs_pwm_mode mode);
 
 /* drm_bridge_funcs.c */
-const struct drm_bridge_funcs *get_panel_drm_bridge_funcs(void);
 /**
  * gs_panel_set_backlight_state() - sets the state for the backlight
  * @ctx: Pointer to gs_panel

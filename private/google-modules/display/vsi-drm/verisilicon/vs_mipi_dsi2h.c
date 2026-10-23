@@ -472,12 +472,11 @@ static int vs_mipi_dsi2h_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int vs_mipi_dsi2h_remove(struct platform_device *pdev)
+static void vs_mipi_dsi2h_remove(struct platform_device *pdev)
 {
 	struct vs_mipi_dsi2h *dsi = platform_get_drvdata(pdev);
 
 	dw_mipi_dsi2h_remove(dsi->dw_mipi_dsi_handle);
-	return 0;
 }
 
 static const struct of_device_id vs_mipi_dsi2h_dt_match[] = {
