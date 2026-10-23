@@ -98,6 +98,7 @@ i2c-designware-core.ko
 i2c-designware-platform.ko
 iif.ko
 io-pgtable-pixel.ko
+pixel-iommu-fault.ko
 irq-gia-google.ko
 irq-gia-lib.ko
 irq-google-cpm.ko
