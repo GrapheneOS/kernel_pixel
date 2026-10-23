@@ -974,7 +974,9 @@ static int dptx_probe(struct platform_device *pdev)
 	dptx->bridge.funcs = &dptx_bridge_funcs;
 	dptx->bridge.of_node = dev->of_node;
 	dptx->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
-	devm_drm_bridge_add(dptx->dev, &dptx->bridge);
+	retval = devm_drm_bridge_add(dptx->dev, &dptx->bridge);
+	if (retval)
+		goto fail;
 
 	retval = init_regfields(dptx);
 	if (retval) {
