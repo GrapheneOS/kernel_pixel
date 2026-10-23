@@ -17,24 +17,8 @@
 
 #define DEVICE_NAME "gnss"
 
-static void sscd_release(struct device *dev);
-
 static struct sscd_platform_data sscd_pdata;
-
-static struct platform_device sscd_dev = {
-	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
-	.id              = -1,
-	.dev             = {
-		.platform_data = &sscd_pdata,
-		.release       = sscd_release,
-		},
-};
-
-static void sscd_release(struct device *dev)
-{
-	gif_info("%s: enter\n", __FUNCTION__);
-}
+static struct platform_device *sscd_dev;
 
 static ssize_t coredump_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			      size_t count)
@@ -148,7 +132,7 @@ static int gnss_pm_notifier(struct notifier_block *notifier,
 	return NOTIFY_OK;
 }
 
-static int gnss_remove(struct platform_device *pdev)
+static void gnss_remove(struct platform_device *pdev)
 {
 	struct gnss_ctl *gc = platform_get_drvdata(pdev);
 
@@ -162,11 +146,11 @@ static int gnss_remove(struct platform_device *pdev)
 
 	gpio_free(gc->gpio_gnss2ap_spi.num);
 
-	platform_device_unregister(&sscd_dev);
-
 	device_remove_file(&pdev->dev, &dev_attr_coredump);
 
-	return 0;
+	platform_device_unregister(sscd_dev);
+	sscd_dev = NULL;
+
 }
 
 static int gnss_probe(struct platform_device *pdev)
@@ -226,7 +210,21 @@ static int gnss_probe(struct platform_device *pdev)
 		goto free_ld;
 	}
 
-	platform_device_register(&sscd_dev);
+	sscd_dev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
+	if (!sscd_dev) {
+		ret = -ENOMEM;
+		goto unregister_pm;
+	}
+	ret = platform_device_add_data(sscd_dev, &sscd_pdata, sizeof(sscd_pdata));
+	if (!ret)
+		ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(sscd_dev);
+	if (ret) {
+		platform_device_put(sscd_dev);
+		sscd_dev = NULL;
+		goto unregister_pm;
+	}
 
 	if (device_create_file(dev, &dev_attr_coredump))
 		gif_err("Unable to create sysfs coredump entry");
@@ -238,6 +236,8 @@ static int gnss_probe(struct platform_device *pdev)
 
 	return 0;
 
+unregister_pm:
+	unregister_pm_notifier(&gc->pm_notifier);
 free_ld:
 	devm_kfree(dev, ld);
 free_gc:
@@ -272,14 +272,17 @@ module_platform_driver(gnss_driver);
 
 int gnss_set_coredump(const char *buf, int buf_len, const char *info)
 {
-	struct sscd_platform_data *pdata = dev_get_platdata(&sscd_dev.dev);
+	struct sscd_platform_data *pdata;
 	struct sscd_segment seg;
 
+	if (!sscd_dev)
+		return -ENODEV;
+	pdata = dev_get_platdata(&sscd_dev->dev);
 	if (pdata->sscd_report) {
 		memset(&seg, 0, sizeof(seg));
 		seg.addr = (void *)buf;
 		seg.size = buf_len;
-		pdata->sscd_report(&sscd_dev, &seg, 1, 0, info);
+		pdata->sscd_report(sscd_dev, &seg, 1, 0, info);
 	}
 	return 0;
 }

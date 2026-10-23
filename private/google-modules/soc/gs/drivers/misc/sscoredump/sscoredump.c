@@ -747,7 +747,7 @@ VISIBLE_IF_KUNIT int sscoredump_probe(struct platform_device *pdev)
 	sdev->crash_hdr.header_size = sizeof(struct crashinfo_img_hdr);
 
 	/* initialize a new device of our class */
-	minor = ida_simple_get(&sscd_ida, 0, SSCD_MAX_DEVS, GFP_KERNEL);
+	minor = ida_alloc_range(&sscd_ida, 0, SSCD_MAX_DEVS - 1, GFP_KERNEL);
 	if (minor < 0) {
 		pr_err("unable to reserve dev_minor\n");
 		mutex_destroy(&sdev->rx_lock);
@@ -795,19 +795,19 @@ fail2:
 	WRITE_ONCE(sdev->removing, true);
 	mutex_unlock(&sdev->rx_lock);
 	wake_up_all(&sdev->read_wait_q);
-	ida_simple_remove(&sscd_ida, minor);
+	ida_free(&sscd_ida, minor);
 	put_device(&sdev->dev);
 	return ret;
 }
 EXPORT_SYMBOL_IF_KUNIT(sscoredump_probe);
 
-VISIBLE_IF_KUNIT int sscoredump_remove(struct platform_device *pdev)
+VISIBLE_IF_KUNIT void sscoredump_remove(struct platform_device *pdev)
 {
 	struct sscd_device *sdev = platform_get_drvdata(pdev);
 	int minor;
 
 	if (WARN_ON(!sdev))
-		return -ENODEV;
+		return;
 	dev_info(&sdev->dev, "remove");
 
 	mutex_lock(&sscd_mutex);
@@ -825,10 +825,8 @@ VISIBLE_IF_KUNIT int sscoredump_remove(struct platform_device *pdev)
 	/* Readers and the reporter hold references until they finish. */
 	minor = MINOR(sdev->chrdev.dev);
 	cdev_device_del(&sdev->chrdev, &sdev->dev);
-	ida_simple_remove(&sscd_ida, minor);
+	ida_free(&sscd_ida, minor);
 	put_device(&sdev->dev);
-
-	return 0;
 }
 EXPORT_SYMBOL_IF_KUNIT(sscoredump_remove);
 
