@@ -1075,6 +1075,15 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 
 	usb->main_chg_psy_name = (char *)of_get_property(dn, "main-chg-psy-name", NULL);
 
+	retval = device_add_groups(dev, usb_psy_sysfs_groups);
+	if (retval < 0) {
+		logbuffer_logk(usb->log, LOGLEVEL_INFO,
+			       "usb_psy: Unable to create sysfs attr groups, ret=%d",
+			       retval);
+		ret = ERR_PTR(retval);
+		goto chg_psy_put;
+	}
+
 	usb->input_voltage_limit = 9000000; /* 9V */
 	usb_cfg.drv_data = usb;
 	usb_cfg.of_node =  dev->of_node;
@@ -1082,7 +1091,7 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 	if (IS_ERR(usb->usb_psy)) {
 		dev_err(dev, "usb: Power supply register failed");
 		ret = usb->usb_psy;
-		goto chg_psy_put;
+		goto remove_groups;
 	}
 	usb->usb_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 
@@ -1164,15 +1173,6 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 	/* vote default value after icl_work is initialized */
 	gvotable_use_default(usb->dead_battery_el, true);
 
-	retval = device_add_groups(dev, usb_psy_sysfs_groups);
-	if (retval < 0) {
-		logbuffer_logk(usb->log, LOGLEVEL_INFO,
-			       "usb_psy: Unable to create sysfs attr groups, ret=%d",
-			       retval);
-		ret = ERR_PTR(retval);
-		goto unreg_dead_battery_el;
-	}
-
 	return usb;
 
 unreg_dead_battery_el:
@@ -1188,6 +1188,8 @@ usb_psy_unreg:
 		power_supply_put(usb->main_chg_psy);
 	if (!IS_ERR_OR_NULL(usb->usb_psy))
 		power_supply_unregister(usb->usb_psy);
+remove_groups:
+	device_remove_groups(dev, usb_psy_sysfs_groups);
 chg_psy_put:
 	if (!IS_ERR_OR_NULL(usb->chg_psy))
 		power_supply_put(usb->chg_psy);
