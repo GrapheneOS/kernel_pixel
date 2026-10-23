@@ -18,7 +18,7 @@ TRACE_EVENT(
 		__field(int, queue_len)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->queue_len = queue_len;
 	),
 	TP_printk("%s|%u",

@@ -19,7 +19,7 @@ TRACE_EVENT(dw8250_function_entry,
 	),
 	TP_fast_assign(
 		scnprintf(__entry->dev_name, MAX_DEV_NAME_SIZE, "%s", dev_name(dev));
-		__assign_str(func, func);
+		__assign_str(func);
 	),
 	TP_printk("%s: %s", __entry->dev_name, __get_str(func))
 );

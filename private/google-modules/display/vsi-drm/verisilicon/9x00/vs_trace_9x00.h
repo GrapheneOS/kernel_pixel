@@ -108,7 +108,7 @@ TRACE_EVENT(disp_config_hw_fb_mask,
 			__entry->address = fb->address;
 			__entry->stride = fb->stride;
 			__entry->en = fb->enable;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 	),
 	TP_printk("[%s%d] %s: en:%d address:%#llx stride:%d",
 		  show_trace_component_9x00(__entry->component), __entry->hw_id,
@@ -167,7 +167,7 @@ TRACE_EVENT(disp_config_hw_fb,
 			__entry->display_id = fb->display_id;
 			__entry->secure = fb->secure;
 			__entry->en = fb->enable;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 	),
 
 	TP_printk(
