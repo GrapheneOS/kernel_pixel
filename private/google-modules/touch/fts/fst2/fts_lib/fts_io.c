@@ -94,11 +94,11 @@ int open_channel(void *clt)
 	client = clt;
 #ifndef I2C_INTERFACE
 	pr_info("%s: spi_master: flags = %04X !\n", __func__,
-		 ((struct spi_device *)client)->master->flags);
+		 ((struct spi_device *)client)->controller->flags);
 	pr_info("%s: spi_device: max_speed = %d chip select = %02X bits_per_words = %d mode = %04X!\n",
 		__func__,
 		 ((struct spi_device *)client)->max_speed_hz,
-		 ((struct spi_device *)client)->chip_select,
+		 spi_get_chipselect((struct spi_device *)client, 0),
 		 ((struct spi_device *)client)->bits_per_word,
 		 ((struct spi_device *)client)->mode);
 	pr_info("%s: openChannel: completed!\n", __func__);
@@ -697,7 +697,7 @@ char *print_hex(char *label, u8 *buff, int count, u8 *result)
 	int i, offset;
 
 	offset = strlen(label);
-	strlcpy(result, label, offset + 1); /* +1 for terminator char */
+	strscpy(result, label, offset + 1); /* +1 for terminator char */
 
 	for (i = 0; i < count; i++) {
 		snprintf(&result[offset], 4, "%02X ", buff[i]);
@@ -2248,7 +2248,7 @@ goto_end:
 
 }
 
-int fts_validate_hdm_frame_data(struct frame_data *frame_data)
+static int fts_validate_hdm_frame_data(struct frame_data *frame_data)
 {
 	u8 *data = NULL;
 	u8 sum = 0;
