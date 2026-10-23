@@ -13,15 +13,6 @@
 
 #include "sched_priv.h"
 
-extern unsigned long cpu_util(int cpu);
-extern unsigned long task_util(struct task_struct *p);
-extern int cpu_is_idle(int cpu);
-extern int sched_cpu_idle(int cpu);
-extern int ___update_load_sum(u64 now, struct sched_avg *sa, unsigned long load,
-			      unsigned long runnable, int running);
-extern void ___update_load_avg(struct sched_avg *sa, unsigned long load);
-extern int get_cluster_enabled(int cluster);
-
 extern struct cpumask cpu_skip_mask_rt;
 
 /*****************************************************************************/
@@ -289,7 +280,8 @@ out:
  * functions.
  */
 
-static int __find_lowest_rq(struct task_struct *p, struct cpumask *lowest_mask,
+static int __find_lowest_rq(struct task_struct *p, struct task_struct *exec_ctx,
+			    struct cpumask *lowest_mask,
 			    struct cpumask *backup_mask)
 {
 	struct sched_domain *sd;
@@ -301,11 +293,12 @@ static int __find_lowest_rq(struct task_struct *p, struct cpumask *lowest_mask,
 	if (unlikely(!lowest_mask))
 		return -1;
 
-	if (p->nr_cpus_allowed == 1) {
-		return cpumask_first(p->cpus_ptr);
+	if (exec_ctx && exec_ctx->nr_cpus_allowed == 1) {
+		return cpumask_first(exec_ctx->cpus_ptr);
 	}
 
-	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, lowest_mask, NULL);
+	ret = cpupri_find_fitness(&task_rq(p)->rd->cpupri, p, exec_ctx,
+				  lowest_mask, NULL);
 	if (!ret) {
 		return -1;
 	}
@@ -359,16 +352,17 @@ static int __find_lowest_rq(struct task_struct *p, struct cpumask *lowest_mask,
 static int find_lowest_rq(struct task_struct *p, struct cpumask *backup_mask)
 {
 	struct cpumask lowest_mask;
-	return __find_lowest_rq(p, &lowest_mask, backup_mask);
+	return __find_lowest_rq(p, p, &lowest_mask, backup_mask);
 }
 
 void rvh_find_lowest_rq_pixel_mod(void *data, struct task_struct *p,
+				  struct task_struct *exec_ctx,
 				  struct cpumask *lowest_mask,
 				  int ret, int *cpu)
 
 {
 	struct cpumask backup_mask;
-	*cpu = __find_lowest_rq(p, lowest_mask, &backup_mask);
+	*cpu = __find_lowest_rq(p, exec_ctx, lowest_mask, &backup_mask);
 }
 
 void rvh_select_task_rq_rt_pixel_mod(void *data, struct task_struct *p, int prev_cpu, int sd_flag,

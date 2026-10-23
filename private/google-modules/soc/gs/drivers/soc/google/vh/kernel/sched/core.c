@@ -22,14 +22,6 @@
 
 struct vendor_group_list vendor_group_list[VG_MAX];
 
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-extern void update_uclamp_stats(int cpu, u64 time);
-#endif
-
-extern inline void update_misfit_status(struct task_struct *p, struct rq *rq);
-extern int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
-		cpumask_t *valid_mask);
-
 /*
  * Ignore uclamp_min for CFS tasks if
  *
@@ -187,9 +179,9 @@ void vh_scheduler_tick_pixel_mod_locked(struct rq *rq)
 
 	lockdep_assert_rq_held(rq);
 
-	task_tick_uclamp(rq, rq->curr);
-	__update_util_est_invariance(rq, rq->curr, true);
-	uclamp_st_updated = update_auto_max_uclamp_st(rq->curr);
+	task_tick_uclamp(rq, rq->donor);
+	__update_util_est_invariance(rq, rq->donor, true);
+	uclamp_st_updated = update_auto_max_uclamp_st(rq->donor);
 
 	if (uclamp_st_updated) {
 		/* rq clock is already updated */
@@ -202,7 +194,7 @@ void vh_scheduler_tick_pixel_mod_locked(struct rq *rq)
 void vh_scheduler_tick_pixel_mod_nolock(struct rq *rq)
 {
 	/* Check if an RT task needs to move to a better fitting CPU */
-	check_migrate_rt_task(rq, rq->curr);
+	check_migrate_rt_task(rq, rq->donor);
 
 	/* Should be really done when capacity change */
 	update_auto_fits_capacity();
@@ -237,7 +229,7 @@ void vh_scheduler_tick_pixel_mod(void *data, struct rq *rq)
 	vh_scheduler_tick_pixel_mod_nolock(rq);
 }
 
-void reset_task_pmu(struct task_struct *p)
+static void reset_task_pmu(struct task_struct *p)
 {
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
 
@@ -246,7 +238,7 @@ void reset_task_pmu(struct task_struct *p)
 	raw_spin_unlock(&vp->lock);
 }
 
-void finish_task_pmu(int cpu, struct task_struct *p, u64 cycle, u64 stall, u64 inst)
+static void finish_task_pmu(int cpu, struct task_struct *p, u64 cycle, u64 stall, u64 inst)
 {
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
 	s64 cycle_delta, stall_delta, inst_delta;
@@ -285,7 +277,7 @@ void finish_task_pmu(int cpu, struct task_struct *p, u64 cycle, u64 stall, u64 i
 	trace_per_task_pmu_stats(p, cpu, cycle_delta, stall_delta, inst_delta);
 }
 
-void prepare_task_pmu(int cpu, struct task_struct *p, u64 cycle, u64 stall, u64 inst)
+static void prepare_task_pmu(int cpu, struct task_struct *p, u64 cycle, u64 stall, u64 inst)
 {
 	struct vendor_task_struct *vp = get_vendor_task_struct(p);
 
@@ -296,7 +288,7 @@ void prepare_task_pmu(int cpu, struct task_struct *p, u64 cycle, u64 stall, u64 
 	raw_spin_unlock(&vp->lock);
 }
 
-void update_task_pmu(int cpu, struct task_struct *prev, struct task_struct *next)
+static void update_task_pmu(int cpu, struct task_struct *prev, struct task_struct *next)
 {
 	u64 cycle, stall, inst;
 
@@ -576,10 +568,9 @@ void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
 	set_performance_inheritance(p, current, VI_BINDER);
 }
 
-void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
-	struct task_struct *p)
+void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t)
 {
-	set_performance_inheritance(p, NULL, VI_BINDER);
+	set_performance_inheritance(current, NULL, VI_BINDER);
 }
 
 void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,

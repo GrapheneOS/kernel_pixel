@@ -29,9 +29,6 @@ EXPORT_SYMBOL_GPL(vendor_sched_pixel_em_lock);
 #endif
 
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
-extern int ___update_load_sum(u64 now, struct sched_avg *sa,
-			  unsigned long load, unsigned long runnable, int running);
-extern void ___update_load_avg(struct sched_avg *sa, unsigned long load);
 
 static struct vendor_util_group_property ug[UG_MAX];
 struct vendor_cfs_util vendor_cfs_util[UG_MAX][CONFIG_VH_SCHED_MAX_CPU_NR];
@@ -88,10 +85,6 @@ unsigned int map_scaling_freq(int cpu, unsigned int freq);
 
 inline unsigned int get_eff_auto_uclamp_max(struct task_struct *p, int cpu);
 
-extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum uclamp_id clamp_id,
-					 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff,
-					 int *ret);
-
 /*****************************************************************************/
 /*                       Upstream Code Section                               */
 /*****************************************************************************/
@@ -103,29 +96,6 @@ extern void rvh_uclamp_eff_get_pixel_mod(void *data, struct task_struct *p, enum
 
 #define for_each_clamp_id(clamp_id) \
 	for ((clamp_id) = 0; (clamp_id) < UCLAMP_CNT; (clamp_id)++)
-
-static void attach_task(struct rq *rq, struct task_struct *p)
-{
-	lockdep_assert_held(&rq->__lock);
-
-	BUG_ON(task_rq(p) != rq);
-	activate_task(rq, p, ENQUEUE_NOCLOCK);
-	check_preempt_curr(rq, p, 0);
-}
-
-/*
- * attach_one_task() -- attaches the task returned from detach_one_task() to
- * its new rq.
- */
-static void attach_one_task(struct rq *rq, struct task_struct *p)
-{
-	struct rq_flags rf;
-
-	rq_lock(rq, &rf);
-	update_rq_clock(rq);
-	attach_task(rq, p);
-	rq_unlock(rq, &rf);
-}
 
 static inline u64 cfs_rq_last_update_time(struct cfs_rq *cfs_rq)
 {
@@ -151,7 +121,7 @@ static inline unsigned long uclamp_task_util(struct task_struct *p,
 
 static unsigned long capacity_curr_of(int cpu)
 {
-	unsigned long max_cap = cpu_rq(cpu)->cpu_capacity_orig;
+	unsigned long max_cap = arch_scale_cpu_capacity(cpu);
 
 	return cap_scale(max_cap, per_cpu(arch_freq_scale, cpu));
 }
@@ -159,7 +129,7 @@ static unsigned long capacity_curr_of(int cpu)
 /* Runqueue only has SCHED_IDLE tasks enqueued */
 static int sched_idle_rq(struct rq *rq)
 {
-	return unlikely(rq->nr_running == rq->cfs.idle_h_nr_running &&
+	return unlikely(rq->nr_running == rq->cfs.h_nr_idle &&
 			rq->nr_running);
 }
 
@@ -218,6 +188,8 @@ void set_next_buddy(struct sched_entity *se)
 	for_each_sched_entity(se) {
 		if (SCHED_WARN_ON(!se->on_rq))
 			return;
+		if (se->sched_delayed)
+			return;
 		if (se_is_idle(se))
 			return;
 		cfs_rq_of(se)->next = se;
@@ -239,11 +211,6 @@ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	if (cfs_rq->next == se)
 		__clear_buddies_next(se);
-}
-
-static inline struct task_group *css_tg(struct cgroup_subsys_state *css)
-{
-	return css ? container_of(css, struct task_group, css) : NULL;
 }
 
 static inline unsigned int
@@ -442,7 +409,7 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 	if (!task_on_rq_queued(p))
 		return;
 
-	if (rq->cfs.nr_running == 1)
+	if (rq->cfs.nr_queued == 1)
 		return;
 
 	/*
@@ -450,11 +417,11 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 	 * our priority decreased, or if we are not currently running on
 	 * this runqueue and our priority is higher than the current's
 	 */
-	if (task_current(rq, p)) {
+	if (task_current_donor(rq, p)) {
 		if (p->prio > oldprio)
 			resched_curr(rq);
 	} else
-		check_preempt_curr(rq, p, 0);
+		wakeup_preempt(rq, p, 0);
 }
 
 static inline unsigned long cfs_rq_load_avg(struct cfs_rq *cfs_rq)
@@ -713,7 +680,7 @@ static inline void update_vendor_group_util_blocked(u64 now, struct rq *rq)
 	struct sched_avg *sa;
 
 	sa = &vendor_cfs_util[UG_BG][rq->cpu].avg;
-	if ((available_idle_cpu(rq->cpu) || task_is_realtime(rq->curr)) &&
+	if ((available_idle_cpu(rq->cpu) || rt_or_dl_task_policy(rq->donor)) &&
 	    (sa->util_avg != 0 || sa->util_sum != 0)) {
 		raw_spin_lock_irqsave(&vendor_cfs_util[UG_BG][rq->cpu].lock, irqflags);
 		if (___update_load_sum(now, sa, 0, 0, 0))
@@ -1497,6 +1464,19 @@ static inline bool group_overutilized(int cpu, struct task_group *tg, unsigned l
 #endif
 #endif
 
+static void reweight_pixel_task(struct task_struct *p, int prio)
+{
+	struct load_weight lw = {
+		.weight = scale_load(sched_prio_to_weight[prio - MAX_RT_PRIO]),
+		.inv_weight = sched_prio_to_wmult[prio - MAX_RT_PRIO],
+	};
+
+	if (p->sched_class->reweight_task)
+		p->sched_class->reweight_task(task_rq(p), p, &lw);
+	else
+		p->se.load = lw;
+}
+
 static void prio_changed(struct task_struct *p, int old_prio, int new_prio)
 {
 	struct rq *rq;
@@ -1506,14 +1486,14 @@ static void prio_changed(struct task_struct *p, int old_prio, int new_prio)
 	update_rq_clock(rq);
 
 	queued = task_on_rq_queued(p);
-	running = task_current(rq, p);
+	running = task_current_donor(rq, p);
 
 	if (queued)
 		p->sched_class->dequeue_task(rq, p, DEQUEUE_SAVE | DEQUEUE_NOCLOCK);
 	if (running)
 		put_prev_task(rq, p);
 
-	reweight_task(p, new_prio - MAX_RT_PRIO);
+	reweight_pixel_task(p, new_prio);
 
 	if (queued)
 		p->sched_class->enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
@@ -2423,7 +2403,7 @@ void initialize_vendor_group_property(void)
 
 void rvh_check_preempt_wakeup_pixel_mod(void *data, struct rq *rq, struct task_struct *p,
 			bool *preempt, bool *nopreempt, int wake_flags, struct sched_entity *se,
-			struct sched_entity *pse, int next_buddy_marked)
+			struct sched_entity *pse)
 {
 	if (!entity_is_task(se) || !entity_is_task(pse))
 		return;
@@ -2771,7 +2751,8 @@ out:
 	set_prefer_high_cap(p, false);
 }
 
-void rvh_set_user_nice_locked_pixel_mod(void *data, struct task_struct *p, long *nice)
+void rvh_set_user_nice_locked_pixel_mod(void *data, struct task_struct *p, long *nice,
+	bool *allowed)
 {
 	struct vendor_task_struct *vp;
 	unsigned long irqflags;
@@ -2817,9 +2798,17 @@ void rvh_setscheduler_prio_pixel_mod(void *data, struct task_struct *p)
 
 		if (unlikely(p->prio != NICE_TO_PRIO(MIN_NICE))) {
 			p->prio = NICE_TO_PRIO(MIN_NICE);
-			reweight_task(p, p->prio - MAX_RT_PRIO);
+			reweight_pixel_task(p, p->prio);
 		}
 	}
+}
+
+static bool can_migrate_fair_task(struct rq *rq, struct task_struct *p)
+{
+	return task_on_rq_queued(p) && p->sched_class == &fair_sched_class &&
+		!task_on_cpu(rq, p) && !task_current_donor(rq, p) &&
+		!p->se.sched_delayed && !task_is_blocked(p) &&
+		!is_migration_disabled(p);
 }
 
 static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
@@ -2833,7 +2822,7 @@ static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
 
-		if (task_on_cpu(src_rq, p))
+		if (!can_migrate_fair_task(src_rq, p))
 			continue;
 
 		/*
@@ -2922,6 +2911,7 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 	 * re-start the picking loop.
 	 */
 	rq_unpin_lock(this_rq, rf);
+	rq_modified_clear(this_rq);
 	raw_spin_rq_unlock(this_rq);
 
 	this_cpu = this_rq->cpu;
@@ -2998,11 +2988,11 @@ void sched_newidle_balance_pixel_mod(void *data, struct rq *this_rq, struct rq_f
 	 * have been enqueued in the meantime. Since we're not going idle,
 	 * pretend we pulled a task.
 	 */
-	if (this_rq->cfs.h_nr_running && !*pulled_task)
+	if (this_rq->cfs.h_nr_queued && !*pulled_task)
 		*pulled_task = 1;
 
-	/* Is there a task of a high priority class? */
-	if (this_rq->nr_running != this_rq->cfs.h_nr_running)
+	/* Restart the pick if a higher-priority class changed while unlocked. */
+	if (rq_modified_above(this_rq, &fair_sched_class))
 		*pulled_task = -1;
 
 	if (*pulled_task)
@@ -3155,13 +3145,18 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 
 void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
 {
-	struct vendor_task_struct *vp = get_vendor_task_struct(p);
+	struct vendor_task_struct *vp;
 	struct vendor_rq_struct *vrq = get_vendor_rq_struct(rq);
 	unsigned long irqflags;
+
+	/* Delayed task-group dequeues have no task to account. */
+	if (!p)
+		return;
 
 	if (!static_branch_unlikely(&enqueue_dequeue_ready))
 		return;
 
+	vp = get_vendor_task_struct(p);
 	fair_remove_pushable_task(rq, p);
 
 	vp->state_dequeued = READ_ONCE(p->__state);
@@ -3181,7 +3176,7 @@ void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 		int group = get_utilization_group(p, get_vendor_group(p));
 
 		raw_spin_lock_irqsave(&vendor_cfs_util[group][rq->cpu].lock, irqflags);
-		if (!rq->cfs.h_nr_running)
+		if (!rq->cfs.h_nr_queued)
 			vendor_cfs_util[group][rq->cpu].util_est = 0;
 		else
 			lsub_positive(&vendor_cfs_util[group][rq->cpu].util_est,
@@ -3378,6 +3373,9 @@ static inline bool is_latency_overloaded(struct task_struct *p, struct rq *rq)
 
 static inline bool sched_energy_push_task(struct task_struct *p, struct rq *rq)
 {
+	if (p->se.sched_delayed || task_is_blocked(p))
+		return false;
+
 	if (p->nr_cpus_allowed == 1)
 		return false;
 
@@ -3498,7 +3496,7 @@ static bool push_fair_task(struct rq *rq)
 	if (!next_task)
 		return false;
 
-	if (is_migration_disabled(next_task))
+	if (!can_migrate_fair_task(rq, next_task))
 		return true;
 
 	/*
@@ -3522,21 +3520,22 @@ static bool push_fair_task(struct rq *rq)
 
 	new_rq = cpu_rq(new_cpu);
 
-	if (double_lock_balance(rq, new_rq)) {
-		/* The task has already migrated in between */
-		if (task_cpu(next_task) != rq->cpu) {
-			double_unlock_balance(rq, new_rq);
-			goto out;
-		}
-
-		deactivate_task(rq, next_task, 0);
-		set_task_cpu(next_task, new_cpu);
-		activate_task(new_rq, next_task, 0);
-
-		resched_curr(new_rq);
-
+	double_lock_balance(rq, new_rq);
+	/* The source lock may have been dropped while locking the destination. */
+	if (task_cpu(next_task) != rq->cpu ||
+	    !can_migrate_fair_task(rq, next_task) ||
+	    !cpu_active(new_cpu) || !cpumask_test_cpu(new_cpu, next_task->cpus_ptr)) {
 		double_unlock_balance(rq, new_rq);
+		goto out;
 	}
+
+	deactivate_task(rq, next_task, 0);
+	set_task_cpu(next_task, new_cpu);
+	activate_task(new_rq, next_task, 0);
+
+	resched_curr(new_rq);
+
+	double_unlock_balance(rq, new_rq);
 
 out:
 	put_task_struct(next_task);
