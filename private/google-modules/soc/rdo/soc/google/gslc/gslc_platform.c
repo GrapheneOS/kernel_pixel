@@ -64,7 +64,7 @@ static int gslc_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int gslc_platform_remove(struct platform_device *pdev)
+static void gslc_platform_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gslc_dev *gslc_dev = platform_get_drvdata(pdev);
@@ -73,7 +73,6 @@ static int gslc_platform_remove(struct platform_device *pdev)
 	gslc_cpm_mba_deinit(gslc_dev);
 
 	dev_info(dev, "GSLC remove complete\n");
-	return 0;
 }
 
 static const struct of_device_id gslc_of_match[] = {

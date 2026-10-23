@@ -417,8 +417,7 @@ static int google_ehld_start_cpu(u32 cpu)
 	u64 interval = ehld_main.interval * NSEC_PER_MSEC;
 
 	dev_info(ehld_dev.dev, "@%s: cpu%u ehld running with hrtimer\n", __func__, cpu);
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer->function = ehld_value_raw_hrtimer_fn;
+	hrtimer_setup(hrtimer, ehld_value_raw_hrtimer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	if (google_ehld_value_raw_update(cpu))
 		dev_err(ehld_dev.dev, "cpu%u DRAM updated failed when cpu is onlined\n", cpu);
 
@@ -809,7 +808,7 @@ static int ehld_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ehld_remove(struct platform_device *pdev)
+static void ehld_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
 
@@ -829,8 +828,6 @@ static int ehld_remove(struct platform_device *pdev)
 	unregister_pm_notifier(&google_ehld_pm_notifier_block);
 
 	dev_dbg(ehld_dev.dev, "Removed Google EHLD device.\n");
-
-	return 0;
 }
 
 static const struct of_device_id ehld_dt_match[] = {

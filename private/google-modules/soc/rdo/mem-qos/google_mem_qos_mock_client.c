@@ -98,11 +98,9 @@ static int google_mem_qos_mock_client_platform_probe(struct platform_device *pde
 	return ret;
 }
 
-static int
-google_mem_qos_mock_client_platform_remove(struct platform_device *pdev)
+static void google_mem_qos_mock_client_platform_remove(struct platform_device *pdev)
 {
 	debugfs_remove(base_dir);
-	return 0;
 }
 
 static const struct of_device_id google_mem_qos_mock_client_of_match_table[] = {

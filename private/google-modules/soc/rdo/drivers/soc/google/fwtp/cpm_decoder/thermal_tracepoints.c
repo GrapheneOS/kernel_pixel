@@ -36,7 +36,7 @@ static const char *const tzid_string[] = {
 };
 
 #define CURR_STATE_STR_LEN 13
-enum tracepoint_handle curr_state_handler(const char *tp_string, u32 payload,
+static enum tracepoint_handle curr_state_handler(const char *tp_string, u32 payload,
 					  u64 timestamp)
 {
 	union curr_state_u state;
@@ -68,7 +68,7 @@ struct client_tracepoint thermal_tj_pid_curr_state = {
 };
 
 #define SENSOR_STR_LEN 16
-enum tracepoint_handle thermsen_handler(const char *tp_string, u32 payload,
+static enum tracepoint_handle thermsen_handler(const char *tp_string, u32 payload,
 					u64 timestamp)
 {
 	char sensor_error_clock_name[SENSOR_STR_LEN];

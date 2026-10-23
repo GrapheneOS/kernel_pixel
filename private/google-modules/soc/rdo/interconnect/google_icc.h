@@ -55,6 +55,6 @@ struct google_icc_desc {
 };
 
 int google_icc_platform_probe(struct platform_device *pdev);
-int google_icc_platform_remove(struct platform_device *pdev);
+void google_icc_platform_remove(struct platform_device *pdev);
 
 #endif /* _GOOGLE_ICC_H */

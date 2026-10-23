@@ -26,6 +26,8 @@ extern bool google_cdd_get_reboot_status(void);
 extern bool google_cdd_get_panic_status(void);
 void google_cdd_set_debug_test_buffer_addr(u64 paddr, unsigned int cpu);
 unsigned int google_cdd_get_debug_test_buffer_addr(unsigned int cpu);
+unsigned long google_cdd_get_header_paddr(void);
+bool google_cdd_get_warm_status(void);
 extern uint64_t google_cdd_get_last_pc(unsigned int cpu);
 extern uint32_t google_cdd_get_hardlockup_mask(void);
 extern uint32_t google_cdd_get_hardlockup_magic(int cpu);

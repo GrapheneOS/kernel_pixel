@@ -7,6 +7,9 @@
 #define __QOS_BOX_GOOGLE_QOS_BOX_REG_API_H
 
 #include <linux/errno.h>
+#include <linux/types.h>
+
+struct device;
 
 struct qos_box_dev;
 

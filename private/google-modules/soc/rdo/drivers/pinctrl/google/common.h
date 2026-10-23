@@ -5,6 +5,8 @@
 #ifndef _PINCTRL_GOOGLE_COMMON_H_
 #define _PINCTRL_GOOGLE_COMMON_H_
 
+struct platform_device;
+
 #include <linux/interrupt.h>
 #include <linux/gpio/driver.h>
 
@@ -463,7 +465,9 @@ int google_pinctrl_probe(struct platform_device *pdev,
  * @pdev: platform device that was passed with google_pinctrl_probe().
  * Returns zero on success else returns a negative error code.
  */
-int google_pinctrl_remove(struct platform_device *pdev);
+void google_pinctrl_aoc_ssr_request(bool start);
+
+void google_pinctrl_remove(struct platform_device *pdev);
 
 int google_pinctrl_trylock(struct google_pinctrl *gctl, unsigned long *flags, bool check_aoc_ssr);
 

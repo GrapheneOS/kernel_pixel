@@ -4,6 +4,7 @@
 #include <linux/interconnect-provider.h>
 #include <linux/limits.h>
 #include <linux/module.h>
+#include <linux/of_platform.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
@@ -11,6 +12,7 @@
 #include "google_icc.h"
 #include "google_icc_internal.h"
 #include "google_irm.h"
+#include "google_icc_provider.h"
 
 #define NUM_VC   5
 
@@ -81,7 +83,7 @@ static void total_bw_latency_calc(struct icc_vote *vote)
 	}
 }
 
-int google_icc_set(struct icc_node *src, struct icc_node *dst)
+static int google_icc_set(struct icc_node *src, struct icc_node *dst)
 {
 	struct google_icc_node *gn_src, *gn_dst;
 	struct google_icc_provider *gp_src;
@@ -313,13 +315,12 @@ err:
 	return ret;
 }
 
-int google_icc_platform_remove(struct platform_device *pdev)
+void google_icc_platform_remove(struct platform_device *pdev)
 {
 	struct google_icc_provider *gp = platform_get_drvdata(pdev);
 
 	icc_nodes_remove(&gp->provider);
 	icc_provider_deregister(&gp->provider);
-	return 0;
 }
 
 MODULE_AUTHOR("Google LLC");

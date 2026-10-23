@@ -282,7 +282,6 @@ static int google_gdmc_dhub_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gdmc_dhub *gdmc_dhub;
-	int ret;
 
 	gdmc_dhub = devm_kzalloc(dev, sizeof(*gdmc_dhub), GFP_KERNEL);
 	if (!gdmc_dhub)
@@ -293,24 +292,14 @@ static int google_gdmc_dhub_probe(struct platform_device *pdev)
 	if (IS_ERR(gdmc_dhub->gdmc_iface))
 		return PTR_ERR(gdmc_dhub->gdmc_iface);
 
-	ret = devm_device_add_groups(dev, attr_groups);
-	if (ret)
-		goto put_gdmc_iface;
-
 	return 0;
-
-put_gdmc_iface:
-	gdmc_iface_put(gdmc_dhub->gdmc_iface);
-	return ret;
 }
 
-static int google_gdmc_dhub_remove(struct platform_device *pdev)
+static void google_gdmc_dhub_remove(struct platform_device *pdev)
 {
 	struct gdmc_dhub *gdmc_dhub = platform_get_drvdata(pdev);
 
 	gdmc_iface_put(gdmc_dhub->gdmc_iface);
-
-	return 0;
 }
 
 static const struct of_device_id google_gdmc_dhub_of_match_table[] = {
@@ -324,6 +313,7 @@ static struct platform_driver google_gdmc_dhub_driver = {
 	.remove = google_gdmc_dhub_remove,
 	.driver = {
 		.name = "google-gdmc-dhub",
+		.dev_groups = attr_groups,
 		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(google_gdmc_dhub_of_match_table),
 	},

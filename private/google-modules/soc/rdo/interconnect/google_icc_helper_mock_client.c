@@ -552,11 +552,10 @@ out:
 	return ret;
 }
 
-static int
+static void
 google_icc_helper_mock_client_platform_remove(struct platform_device *pdev)
 {
 	debugfs_remove(base_dir);
-	return 0;
 }
 
 static const struct of_device_id google_icc_helper_mock_client_of_match_table[] = {

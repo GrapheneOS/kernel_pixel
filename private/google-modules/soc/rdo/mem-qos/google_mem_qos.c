@@ -5,6 +5,7 @@
  * Copyright (C) 2024 Google LLC.
  */
 
+#include <mem-qos/google_mem_qos_scenario.h>
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>

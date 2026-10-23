@@ -15,7 +15,7 @@
 
 #define DOMAIN_TRACE_STR_LEN (MAX_DVFS_NAME_LEN + sizeof("_freq"))
 
-enum tracepoint_handle domain_freq_handler(const char *tp_string, u32 payload,
+static enum tracepoint_handle domain_freq_handler(const char *tp_string, u32 payload,
 					   u64 timestamp)
 {
 	u16 domain_id;
@@ -86,7 +86,7 @@ const char *voter_id_str[] = {
 #define AGG_UPDATE_TRACE_STR_LEN \
 	(MAX_DVFS_NAME_LEN + sizeof("_agg_") + sizeof("max"))
 
-enum tracepoint_handle freq_agg_update_handler(const char *tp_string,
+static enum tracepoint_handle freq_agg_update_handler(const char *tp_string,
 					       u32 payload, u64 timestamp)
 {
 	char trace_name_min_max[AGG_UPDATE_TRACE_STR_LEN];

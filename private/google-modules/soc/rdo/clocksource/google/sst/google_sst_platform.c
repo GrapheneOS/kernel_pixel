@@ -480,14 +480,13 @@ remove_clocksource:
 	return ret;
 }
 
-static int google_sst_remove(struct platform_device *pdev)
+static void google_sst_remove(struct platform_device *pdev)
 {
 	struct google_sst *sst = platform_get_drvdata(pdev);
 
 	clocksource_unregister(&sst->clk_src);
 	device_remove_file(sst->dev, &dev_attr_gtc_and_clock_boottime);
 
-	return 0;
 }
 
 static const struct google_sst_ops sst_ops = {
