@@ -224,7 +224,7 @@ void deinit_modem_boot_duration_manager(
 
 	common_metric_manager_deinit(&manager->modem_boot_duration_mgr.mgr);
 
-	del_timer_sync(&manager->modem_boot_duration_mgr.calculator.boot_timer);
+	timer_delete_sync(&manager->modem_boot_duration_mgr.calculator.boot_timer);
 }
 
 int mcf_notify_modem_boot_start(u32 boot_types_mask,
@@ -244,7 +244,7 @@ int mcf_notify_modem_boot_start(u32 boot_types_mask,
 		return -EINVAL;
 	}
 
-	if (del_timer_sync(&mgr->calculator.boot_timer))
+	if (timer_delete_sync(&mgr->calculator.boot_timer))
 		modem_boot_duration_record_failure(mgr->calculator.fail_type);
 
 	mgr->calculator.start_boot_ms = ktime_to_ms(ktime_get_boottime());
@@ -266,7 +266,7 @@ int mcf_notify_modem_boot_end(u32 boot_types_mask)
 	enum modem_boot_type boot_type;
 	u64 duration;
 
-	if (!del_timer_sync(&mgr->calculator.boot_timer)) {
+	if (!timer_delete_sync(&mgr->calculator.boot_timer)) {
 		mcf_err("Unexpected boot end, the boot timer is inactive\n");
 		return -EINVAL;
 	}
