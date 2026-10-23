@@ -29,8 +29,6 @@
 #include <linux/timer.h>
 #include <linux/jiffies.h>
 #include <linux/refcount.h>
-#include <linux/notifier.h>
-#include <linux/fb.h>
 #include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeup.h>
@@ -131,7 +129,7 @@ static void timed_wakelock_release(struct timed_wakelock *tw, bool force_release
 	if (refcount_read(&tw->active_count) == 0) {
 		/* Wakelock already released, do nothing. */
 	} else if (refcount_dec_and_test(&tw->active_count) || force_release) {
-		del_timer(&tw->timer);
+		timer_delete(&tw->timer);
 		__pm_relax(tw->ws);
 		refcount_set(&tw->active_count, 0);
 	}
@@ -146,7 +144,7 @@ static void timed_wakelock_release(struct timed_wakelock *tw, bool force_release
  */
 static void timed_wakelock_timeout(struct timer_list *t)
 {
-	struct timed_wakelock *tw = from_timer(tw, t, timer);
+	struct timed_wakelock *tw = timer_container_of(tw, t, timer);
 
 	pr_debug("%s timer expired\n", tw->ws->name);
 	timed_wakelock_release(tw, true);
@@ -178,7 +176,7 @@ static void cleanup_timed_wakelock(struct timed_wakelock *tw)
 {
 	if (!tw->ws)
 		return;
-	del_timer_sync(&tw->timer);
+	timer_delete_sync(&tw->timer);
 	wakeup_source_unregister(tw->ws);
 	tw->ws = NULL;
 }
@@ -757,55 +755,6 @@ static const struct file_operations gf_fops = {
 #endif
 };
 
-static int goodix_fb_state_chg_callback(struct notifier_block *nb,
-										unsigned long val, void *data) {
-	struct gf_dev *gf_dev;
-	struct fb_event *evdata = data;
-	unsigned int blank;
-	char msg = 0;
-
-	pr_info("[info] %s go to the goodix_fb_state_chg_callback value = %d\n",
-			__func__, (int)val);
-	gf_dev = container_of(nb, struct gf_dev, notifier);
-	if (evdata && evdata->data && val == FB_EVENT_BLANK && gf_dev) {
-		blank = *(int *)(evdata->data);
-		switch (blank) {
-			case FB_BLANK_POWERDOWN:
-				if (gf_dev->device_available == 1) {
-					gf_dev->fb_black = 1;
-#if defined(GF_NETLINK_ENABLE)
-					msg = GF_NET_EVENT_FB_BLACK;
-					sendnlmsg(&msg);
-#elif defined(GF_FASYNC)
-					if (gf_dev->async)
-						kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
-#endif
-				}
-				break;
-			case FB_BLANK_UNBLANK:
-				if (gf_dev->device_available == 1) {
-					gf_dev->fb_black = 0;
-#if defined(GF_NETLINK_ENABLE)
-					msg = GF_NET_EVENT_FB_UNBLACK;
-					sendnlmsg(&msg);
-#elif defined(GF_FASYNC)
-					if (gf_dev->async)
-						kill_fasync(&gf_dev->async, SIGIO, POLL_IN);
-#endif
-				}
-				break;
-			default:
-				pr_info("%s default\n", __func__);
-				break;
-		}
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block goodix_noti_block = {
-	.notifier_call = goodix_fb_state_chg_callback,
-};
-
 static struct class *gf_class;
 #if defined(USE_SPI_BUS)
 static int gf_probe(struct spi_device *spi)
@@ -830,7 +779,6 @@ static int gf_probe(struct platform_device *pdev)
 	gf_dev->reset_gpio = -EINVAL;
 	gf_dev->pwr_gpio = -EINVAL;
 	gf_dev->device_available = 0;
-	gf_dev->fb_black = 0;
 
 	status = gf_parse_dts(gf_dev);
 	if (status)
@@ -878,12 +826,6 @@ static int gf_probe(struct platform_device *pdev)
 		goto error_ws;
 	}
 
-	gf_dev->notifier = goodix_noti_block;
-	status = fb_register_client(&gf_dev->notifier);
-	if (status) {
-		dev_err(&gf_dev->spi->dev, "Failed to register fb client!\n");
-		goto error_fb;
-	}
 
 	/*
 	 * If we can allocate a minor number, hook up this device.
@@ -923,8 +865,6 @@ static int gf_probe(struct platform_device *pdev)
 	 * initialization done before the failure.
 	 */
 error_hw:
-	fb_unregister_client(&gf_dev->notifier);
-error_fb:
 	device_init_wakeup(&gf_dev->spi->dev, false);
 error_ws:
 	wakeup_source_unregister(fp_wakeup_source);
@@ -947,14 +887,13 @@ error_dev:
 }
 
 #if defined(USE_SPI_BUS)
-static int gf_remove(struct spi_device *spi)
+static void gf_remove(struct spi_device *spi)
 #elif defined(USE_PLATFORM_BUS)
-static int gf_remove(struct platform_device *pdev)
+static void gf_remove(struct platform_device *pdev)
 #endif
 {
 	struct gf_dev *gf_dev = &gf;
 
-	fb_unregister_client(&gf_dev->notifier);
 	wakeup_source_unregister(fp_wakeup_source);
 	device_init_wakeup(&gf_dev->spi->dev, false);
 	cleanup_timed_wakelock(&gf_dev->ioctl_wakelock);
@@ -972,7 +911,6 @@ static int gf_remove(struct platform_device *pdev)
 	if (IS_ENABLED(USE_PLATFORM_BUS))
 		put_device(&gf_dev->spi_pinctrl_pdev->dev);
 
-	return 0;
 }
 
 static const struct of_device_id gx_match_table[] = {

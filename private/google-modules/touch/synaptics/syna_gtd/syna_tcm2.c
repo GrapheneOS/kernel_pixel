@@ -4099,13 +4099,13 @@ err_allocate_tcm:
  * @return
  *    0 or positive value in case of success, a negative value otherwise.
  */
-static int syna_dev_remove(struct platform_device *pdev)
+static void syna_dev_remove(struct platform_device *pdev)
 {
 	struct syna_tcm *tcm = platform_get_drvdata(pdev);
 
 	if (!tcm) {
 		LOGW("Invalid handle to remove\n");
-		return 0;
+		return;
 	}
 
 #if defined(ENABLE_HELPER)
@@ -4165,7 +4165,6 @@ static int syna_dev_remove(struct platform_device *pdev)
 	/* release the device context */
 	syna_pal_mem_free((void *)tcm);
 
-	return 0;
 }
 
 /** Definitions of TouchComm platform device */

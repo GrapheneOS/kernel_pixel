@@ -789,7 +789,6 @@ static void goog_remove_heatmap_data(struct fts_ts_data *ts_data)
   kfree_safe(ts_data->self_normal_data);
 }
 
-extern void transpose_raw(u8 *src, u8 *dist, int tx, int rx, bool big_endian);
 static void goog_handle_heatmap_format(struct fts_ts_data *ts_data, u8 *data, int datalen)
 {
   if (data == NULL || datalen < FTS_FULL_TOUCH_DATA_SIZE)

@@ -173,7 +173,7 @@ static void timed_wakelock_release(struct timed_wakelock *tw, bool force_release
 	if (refcount_read(&tw->active_count) == 0) {
 		// Wakelock already released, do nothing.
 	} else if (refcount_dec_and_test(&tw->active_count) || force_release) {
-		del_timer(&tw->timer);
+		timer_delete(&tw->timer);
 		__pm_relax(tw->ws);
 		refcount_set(&tw->active_count, 0);
 	}
@@ -185,7 +185,7 @@ static void timed_wakelock_release(struct timed_wakelock *tw, bool force_release
  */
 static void timed_wakelock_timeout(struct timer_list *t)
 {
-	struct timed_wakelock *tw = from_timer(tw, t, timer);
+	struct timed_wakelock *tw = timer_container_of(tw, t, timer);
 
 	pr_debug("%s timer expired\n", tw->ws->name);
 	timed_wakelock_release(tw, true);
@@ -201,7 +201,7 @@ static void cleanup_timed_wakelock(struct timed_wakelock *tw)
 {
 	if (!tw->ws)
 		return;
-	del_timer_sync(&tw->timer);
+	timer_delete_sync(&tw->timer);
 	wakeup_source_unregister(tw->ws);
 	tw->ws = NULL;
 }
@@ -1394,7 +1394,7 @@ end:
 	pr_debug("exit : %d\n", rc);
 	return rc;
 }
-static int qbt_remove(struct platform_device *pdev)
+static void qbt_remove(struct platform_device *pdev)
 {
 	pr_debug("entry\n");
 	struct qbt_drvdata *drvdata = platform_get_drvdata(pdev);
@@ -1419,7 +1419,6 @@ static int qbt_remove(struct platform_device *pdev)
 	cleanup_timed_wakelock(&drvdata->ipc_irq_wakelock);
 	input_unregister_handler(&qbt_touch_handler);
 	put_device(&drvdata->spi_pinctrl_pdev->dev);
-	return 0;
 }
 static int qbt_suspend(struct platform_device *pdev, pm_message_t state)
 {
