@@ -23,6 +23,7 @@
 #endif
 
 #include <net/netdev_rx_queue.h>
+#include <net/rps.h>
 
 static struct cpif_tpmon _tpmon;
 
@@ -538,6 +539,21 @@ out:
 #endif
 
 /* GRO flush timeout */
+/* GRO timeouts are per-NAPI in 6.18, including the saved queue configuration. */
+static void tpmon_set_gro_timeout(struct net_device *dev, unsigned long timeout)
+{
+	struct napi_struct *napi;
+	unsigned int i;
+
+	netdev_lock(dev);
+	WRITE_ONCE(dev->gro_flush_timeout, timeout);
+	list_for_each_entry(napi, &dev->napi_list, dev_list)
+		WRITE_ONCE(napi->gro_flush_timeout, timeout);
+	for (i = 0; i < dev->num_napi_configs; i++)
+		dev->napi_config[i].gro_flush_timeout = timeout;
+	netdev_unlock(dev);
+}
+
 static void tpmon_set_gro(struct tpmon_data *data)
 {
 	struct mem_link_device *mld = container_of(data->tpmon->ld,
@@ -559,19 +575,19 @@ static void tpmon_set_gro(struct tpmon_data *data)
 		for (i = 0; i < ppa->num_queue; i++) {
 			struct pktproc_queue *q = ppa->q[i];
 
-			q->netdev.gro_flush_timeout = timeout;
+			tpmon_set_gro_timeout(q->netdev, timeout);
 		}
 	} else {
-		mld->dummy_net.gro_flush_timeout = timeout;
+		tpmon_set_gro_timeout(mld->dummy_net, timeout);
 	}
 #else
-	mld->dummy_net.gro_flush_timeout = timeout;
+	tpmon_set_gro_timeout(mld->dummy_net, timeout);
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_DIT)
 	if (dit_get_netdev()) {
-		dit_get_netdev()->gro_flush_timeout = timeout;
-		mld->dummy_net.gro_flush_timeout = 0;
+		tpmon_set_gro_timeout(dit_get_netdev(), timeout);
+		tpmon_set_gro_timeout(mld->dummy_net, 0);
 	}
 #endif
 
