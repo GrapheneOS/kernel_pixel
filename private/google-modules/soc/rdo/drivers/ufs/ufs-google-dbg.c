@@ -3,6 +3,7 @@
  * Copyright 2025 Google LLC
  */
 
+#include <linux/of_platform.h>
 #include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/device.h>
@@ -558,7 +559,7 @@ ufs_create_dme_debugfs_file(struct ufs_hba *hba, struct dentry *parent,
 			file_info->name);
 }
 
-int ufs_init_dme_debugfs_files(struct ufs_hba *hba, struct dentry *parent)
+static int ufs_init_dme_debugfs_files(struct ufs_hba *hba, struct dentry *parent)
 {
 	const struct debugfs_file_info *file_info;
 	struct dentry *dme_root;

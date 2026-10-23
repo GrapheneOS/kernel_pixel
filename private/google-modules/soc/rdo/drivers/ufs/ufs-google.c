@@ -257,7 +257,7 @@ static int ufs_google_set_pwr_mode(struct ufs_hba *hba,
 	}
 
 	/*
-	 * We do not support PWM gear, and ufshcd_get_pwr_dev_param() only
+	 * We do not support PWM gear, and ufshcd_negotiate_pwr_params() only
 	 * considers FAST_MODE for hs support. Make only FAST and UNCHANGED
 	 * valid.
 	 */
@@ -361,13 +361,13 @@ static int ufs_google_init_vreg(struct ufs_hba *hba)
 
 	host = ufshcd_get_variant(hba);
 
-	ret = ufshcd_populate_vreg(hba->dev, "vdd0p75", &host->vdd0p75);
+	ret = ufshcd_populate_vreg(hba->dev, "vdd0p75", &host->vdd0p75, false);
 	if (ret) {
 		ufs_dev_err(hba, "failed to populate vdd0p75 (%d)\n", ret);
 		return ret;
 	}
 
-	ret = ufshcd_populate_vreg(hba->dev, "vdd1p2", &host->vdd1p2);
+	ret = ufshcd_populate_vreg(hba->dev, "vdd1p2", &host->vdd1p2, false);
 	if (ret) {
 		ufs_dev_err(hba, "failed to populate vdd1p2 (%d)\n", ret);
 		return ret;
@@ -896,7 +896,6 @@ static int ufs_google_init(struct ufs_hba *hba)
 	 */
 	ufs_google_pd_get_sync(host);
 
-	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_36BIT_ADDRESS_DMA;
 #if IS_ENABLED(CONFIG_SOC_LGA)
 	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_SET_IID_TO_ONE;
 #endif
@@ -1786,14 +1785,43 @@ static int ufs_google_link_startup_notify(struct ufs_hba *hba,
 	return 0;
 }
 
+static int ufs_google_negotiate_pwr_mode(struct ufs_hba *hba,
+				       const struct ufs_pa_layer_attr *dev_max_params,
+				       struct ufs_pa_layer_attr *dev_req_params)
+{
+	struct ufs_google_host *host = ufshcd_get_variant(hba);
+	struct ufs_host_params ufs_google_cap;
+	int ret;
+
+	ufshcd_init_host_params(&ufs_google_cap);
+
+	ufs_google_cap.hs_rx_gear = host->google_pwr_mode.gear_rx;
+	ufs_google_cap.hs_tx_gear = host->google_pwr_mode.gear_tx;
+	ufs_google_cap.rx_lanes = host->google_pwr_mode.lane_rx;
+	ufs_google_cap.tx_lanes = host->google_pwr_mode.lane_tx;
+	ufs_google_cap.rx_pwr_hs = host->google_pwr_mode.pwr_rx;
+	ufs_google_cap.tx_pwr_hs = host->google_pwr_mode.pwr_tx;
+	ufs_google_cap.hs_rate = host->google_pwr_mode.hs_rate;
+
+	ret = ufshcd_negotiate_pwr_params(&ufs_google_cap,
+				       dev_max_params,
+				       dev_req_params);
+	if (ret) {
+		ufs_dev_err(hba,
+			    "%s: failed to determine capabilities (%d)\n",
+			    __func__, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int
 ufs_google_pwr_change_notify(struct ufs_hba *hba,
 			     enum ufs_notify_change_status status,
-			     struct ufs_pa_layer_attr *dev_max_params,
 			     struct ufs_pa_layer_attr *dev_req_params)
 {
 	struct ufs_google_host *host = ufshcd_get_variant(hba);
-	struct ufs_dev_params ufs_google_cap;
 	int ret = 0;
 
 	if (!dev_req_params) {
@@ -1804,26 +1832,6 @@ ufs_google_pwr_change_notify(struct ufs_hba *hba,
 
 	switch (status) {
 	case PRE_CHANGE:
-		ufshcd_init_pwr_dev_param(&ufs_google_cap);
-
-		ufs_google_cap.hs_rx_gear = host->google_pwr_mode.gear_rx;
-		ufs_google_cap.hs_tx_gear = host->google_pwr_mode.gear_tx;
-		ufs_google_cap.rx_lanes = host->google_pwr_mode.lane_rx;
-		ufs_google_cap.tx_lanes = host->google_pwr_mode.lane_tx;
-		ufs_google_cap.rx_pwr_hs = host->google_pwr_mode.pwr_rx;
-		ufs_google_cap.tx_pwr_hs = host->google_pwr_mode.pwr_tx;
-		ufs_google_cap.hs_rate = host->google_pwr_mode.hs_rate;
-
-		ret = ufshcd_get_pwr_dev_param(&ufs_google_cap,
-					       dev_max_params,
-					       dev_req_params);
-		if (ret) {
-			ufs_dev_err(hba,
-				    "%s: failed to determine capabilities (%d)\n",
-				    __func__, ret);
-			return ret;
-		}
-
 		if (dev_req_params->pwr_rx != dev_req_params->pwr_tx ||
 		    dev_req_params->gear_rx != dev_req_params->gear_tx) {
 			ufs_dev_err(hba,
@@ -2051,151 +2059,52 @@ static int ufs_google_get_hba_mac(struct ufs_hba *hba)
 	return MAX_SUPP_MAC;
 }
 
-static const struct ufshcd_res_info ufs_res_info[RES_MAX] = {
-	{.name = "ufs_mem",},
-	{.name = "mcq",},
-	/* Submission Queue Doorbell Address Offset */
-	{.name = "mcq_sqd",},
-	/* Submission Queue Interrupt Status */
-	{.name = "mcq_sqis",},
-	/* Completion Queue Doorbell Address Offset */
-	{.name = "mcq_cqd",},
-	/* Completion Queue Interrupt Status */
-	{.name = "mcq_cqis",},
-	/* MCQ vendor specific */
-	{.name = "mcq_vs",},
-};
-
-static int ufs_google_map_memory_area_as_resource(struct ufs_hba *hba,
-						  int res_info_index, uint32_t mem_offset)
+static void __iomem *ufs_google_map_mcq(struct ufs_hba *hba, u32 offset,
+				       size_t size)
 {
-	struct resource *res_mem, *res_mcq;
 	struct platform_device *pdev = to_platform_device(hba->dev);
-	struct ufshcd_res_info *res;
-	int ret = 0;
-	u32 mem_offsets[RES_MAX] = {
-		[RES_MCQ] = MCQ_QCFG_SIZE,
-		[RES_MCQ_SQD] = MAX_REG_SQDAO,
-		[RES_MCQ_SQIS] = MAX_REG_SQIS,
-		[RES_MCQ_CQD] = MAX_REG_CQDAO,
-		[RES_MCQ_CQIS] = MAX_REG_CQIS,
-	};
+	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource mcq;
 
-	res_mem = &pdev->resource[0];
-	res = &hba->res[res_info_index];
-
-	if (res_info_index == RES_UFS) {
-		res->resource = res_mem;
-		res->base = hba->mmio_base;
-		goto out;
-	}
-
-	/* Explicitly allocate MCQ resource from ufs_mem */
-	res_mcq = devm_kzalloc(hba->dev, sizeof(*res_mcq), GFP_KERNEL);
-	if (!res_mcq) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	res->resource = res_mcq;
-
-	res_mcq->start = mem_offset;
-	res_mcq->flags = res_mem->flags;
-	res_mcq->name = ufs_res_info[res_info_index].name;
-	res_mcq->end = res_mcq->start + hba->nr_hw_queues * mem_offsets[res_info_index] - 1;
-
-	ret = insert_resource(&iomem_resource, res_mcq);
-	if (ret) {
-		ufs_dev_err(hba, "Failed to insert MCQ resource, err=%d\n",
-			    ret);
-		goto out;
-	}
-
-	res->base = devm_ioremap_resource(hba->dev, res_mcq);
-	if (IS_ERR(res->base)) {
-		ufs_dev_err(hba, "MCQ %s registers mapping failed, err=%d\n",
-			    res->name, (int)PTR_ERR(res->base));
-		ret = PTR_ERR(res->base);
-		goto ioremap_err;
-	}
-	if (res_info_index == RES_MCQ)
-		hba->mcq_base = res->base;
-	goto out;
-
-ioremap_err:
-	res->base = NULL;
-	remove_resource(res_mcq);
-out:
-	return ret;
+	if (!regs)
+		return ERR_PTR(-EINVAL);
+	/* MCQ registers lie beyond the legacy 4 KiB controller register window. */
+	mcq = (struct resource)DEFINE_RES_MEM(regs->start + offset, size);
+	mcq.name = "ufs-mcq";
+	return devm_ioremap_resource(hba->dev, &mcq);
 }
 
 static int ufs_google_mcq_config_resource(struct ufs_hba *hba)
 {
-	/* Setting up the memory backed registers for queue configuration. */
-	struct platform_device *pdev = to_platform_device(hba->dev);
-	struct resource *res_mem;
-	int ret;
-
-	memcpy(hba->res, ufs_res_info, sizeof(ufs_res_info));
-
-	res_mem = &pdev->resource[0];
-
-	ret = ufs_google_map_memory_area_as_resource(hba, RES_UFS, 0);
-	if (ret)
-		ufs_dev_err(hba, "Failed to create UFS memory resource\n");
-	ret = ufs_google_map_memory_area_as_resource(hba, RES_MCQ,
-						     res_mem->start +
-						     MCQ_SQATTR_OFFSET(hba->mcq_capabilities));
-	if (ret)
-		ufs_dev_err(hba,
-			    "Failed to create MCQ queue memory resource\n");
-	ret = ufs_google_map_memory_area_as_resource(hba, RES_MCQ_SQD, res_mem->start + MCQ_SQDAO);
-	if (ret)
-		ufs_dev_err(hba,
-			    "Failed to create MCQ SQOPS memory resource\n");
-	ret = ufs_google_map_memory_area_as_resource(hba, RES_MCQ_SQIS, res_mem->start + MCQ_SQINT);
-	if (ret)
-		ufs_dev_err(hba,
-			    "Failed to create MCQ SQINT memory resource\n");
-	ret = ufs_google_map_memory_area_as_resource(hba, RES_MCQ_CQD, res_mem->start + MCQ_CQDAO);
-	if (ret)
-		ufs_dev_err(hba,
-			    "Failed to create MCQ CQOPS memory resource\n");
-	ret = ufs_google_map_memory_area_as_resource(hba, RES_MCQ_CQIS, res_mem->start + MCQ_CQINT);
-	if (ret)
-		ufs_dev_err(hba,
-			    "Failed to create MCQ CQINT memory resource\n");
-
-	return ret;
+	hba->mcq_base = ufs_google_map_mcq(hba, MCQ_SQATTR_OFFSET(hba->mcq_capabilities),
+					  hba->nr_hw_queues * MCQ_QCFG_SIZE);
+	return PTR_ERR_OR_ZERO(hba->mcq_base);
 }
 
 static int ufs_google_op_runtime_config(struct ufs_hba *hba)
 {
-	struct ufshcd_res_info *mem_res, *mcq_res;
-	struct ufshcd_mcq_opr_info_t *opr;
-	unsigned long long mem_base_address;
-	int res_index;
-	unsigned long strides[] = { MAX_REG_SQDAO, MAX_REG_SQIS, MAX_REG_CQDAO, MAX_REG_CQIS };
+	static const u32 offsets[OPR_MAX] = {
+		[OPR_SQD] = MCQ_SQDAO,
+		[OPR_SQIS] = MCQ_SQINT,
+		[OPR_CQD] = MCQ_CQDAO,
+		[OPR_CQIS] = MCQ_CQINT,
+	};
+	static const u32 strides[OPR_MAX] = {
+		[OPR_SQD] = MAX_REG_SQDAO,
+		[OPR_SQIS] = MAX_REG_SQIS,
+		[OPR_CQD] = MAX_REG_CQDAO,
+		[OPR_CQIS] = MAX_REG_CQIS,
+	};
+	int i;
 
-	mem_res = &hba->res[RES_UFS];
-	if (!mem_res->base)
-		return -EINVAL;
-	mem_base_address = mem_res->resource->start;
+	for (i = 0; i < OPR_MAX; i++) {
+		struct ufshcd_mcq_opr_info_t *opr = &hba->mcq_opr[i];
 
-	/*
-	 * Stride should take us from queue 0 to queue 1
-	 * Offset is the start of the memory area in relation to the ufs base.
-	 * example: reg = mcq_opr_base(hba, OPR_SQD, id) + REG_SQRTS;
-	 *          return opr->base + (opr->stride * i);
-	 * array size is nr_hw_queues in size
-	 */
-	for (res_index = RES_MCQ_SQD; res_index <= RES_MCQ_CQIS; ++res_index) {
-		mcq_res = &hba->res[res_index];
-		if (!mcq_res->base)
-			return -EINVAL;
-		opr = &hba->mcq_opr[OPR_SQD + res_index - RES_MCQ_SQD];
-		opr->offset = mcq_res->resource->start - mem_base_address;
-		opr->stride = strides[res_index - RES_MCQ_SQD];
-		opr->base = mcq_res->base;
+		opr->offset = offsets[i];
+		opr->stride = strides[i];
+		opr->base = ufs_google_map_mcq(hba, offsets[i], hba->nr_hw_queues * strides[i]);
+		if (IS_ERR(opr->base))
+			return PTR_ERR(opr->base);
 	}
 
 	return 0;
@@ -2385,7 +2294,7 @@ static void ufs_google_config_scsi_dev(struct scsi_device *sdev)
 	sdev->broken_fua = 1;
 }
 
-void ufs_google_event_notify(struct ufs_hba *hba, enum ufs_event_type evt,
+static void ufs_google_event_notify(struct ufs_hba *hba, enum ufs_event_type evt,
 			     void *data)
 {
 	u32 val = *(u32 *)data;
@@ -2430,11 +2339,18 @@ void ufs_google_event_notify(struct ufs_hba *hba, enum ufs_event_type evt,
 	}
 }
 
+static int ufs_google_set_dma_mask(struct ufs_hba *hba)
+{
+	return dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(36));
+}
+
 static const struct ufs_hba_variant_ops ufs_hba_google_vops = {
+	.set_dma_mask = ufs_google_set_dma_mask,
 	.name = "google-ufs",
 	.init = ufs_google_init,
 	.link_startup_notify = ufs_google_link_startup_notify,
 	.phy_initialization = ufs_google_phy_initialization,
+	.negotiate_pwr_mode = ufs_google_negotiate_pwr_mode,
 	.pwr_change_notify = ufs_google_pwr_change_notify,
 	.suspend = ufs_google_suspend,
 	.resume = ufs_google_resume,
@@ -2479,7 +2395,7 @@ static int ufs_google_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ufs_google_remove(struct platform_device *pdev)
+static void ufs_google_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba = platform_get_drvdata(pdev);
 	struct ufs_google_host *host = ufshcd_get_variant(hba);
@@ -2498,8 +2414,6 @@ static int ufs_google_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 
 	ufs_google_phy_setup_vreg(hba, false);
-
-	return 0;
 }
 
 static int ufs_google_psm_wait_for_state(struct ufs_google_host *host,
@@ -2534,7 +2448,7 @@ static int ufs_google_psm_wait_for_state(struct ufs_google_host *host,
 
 static int ufs_google_uic_hibern8_enter(struct ufs_google_host *host)
 {
-	struct uic_command uic_cmd = { 0 };
+	struct uic_command uic_cmd = { .command = UIC_CMD_DME_HIBER_ENTER };
 	struct ufs_hba *hba = host->hba;
 	u32 val;
 	int ret;
@@ -2556,7 +2470,6 @@ static int ufs_google_uic_hibern8_enter(struct ufs_google_host *host)
 	 * requirement for UCCS=1 and WRITE to clear is fulfilled within
 	 * ufs_google_send_uic_cmd().
 	 */
-	uic_cmd.command = UIC_CMD_DME_HIBER_ENTER;
 	ret = ufs_google_send_uic_cmd(hba, &uic_cmd);
 	if (ret) {
 		ufs_dev_err(hba, "failed to hibern8 enter (%d)\n", ret);
@@ -2598,7 +2511,7 @@ static int ufs_google_uic_hibern8_enter(struct ufs_google_host *host)
 
 static int ufs_google_uic_hibern8_exit(struct ufs_google_host *host)
 {
-	struct uic_command uic_cmd = { 0 };
+	struct uic_command uic_cmd = { .command = UIC_CMD_DME_HIBER_EXIT };
 	struct ufs_hba *hba = host->hba;
 	u32 val;
 	int ret;
@@ -2617,7 +2530,6 @@ static int ufs_google_uic_hibern8_exit(struct ufs_google_host *host)
 	 * and hence we can't use ufs_google_send_uic_cmd(). Instead perform
 	 * the logic here.
 	 */
-	uic_cmd.command = UIC_CMD_DME_HIBER_EXIT;
 	mutex_lock(&hba->uic_cmd_mutex);
 	ufshcd_writel(hba, uic_cmd.command & COMMAND_OPCODE_MASK,
 		      REG_UIC_COMMAND);
