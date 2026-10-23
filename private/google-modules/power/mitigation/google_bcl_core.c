@@ -50,7 +50,7 @@ static struct power_supply *google_get_power_supply(struct bcl_device *bcl_dev)
 	int err = 0;
 
 	batt_psy = NULL;
-	err = power_supply_get_by_phandle_array(bcl_dev->device->of_node, "google,power-supply",
+	err = power_supply_get_by_reference_array(dev_fwnode(bcl_dev->device), "google,power-supply",
 						psy, ARRAY_SIZE(psy));
 	if (err > 0)
 		batt_psy = psy[0];
@@ -73,7 +73,7 @@ static int google_bcl_set_soc(struct bcl_device *bcl_dev, int low, int high)
 
 static int tz_bcl_set_soc(struct thermal_zone_device *tz, int low, int high)
 {
-	return google_bcl_set_soc(tz->devdata, low, high);
+	return google_bcl_set_soc(thermal_zone_device_priv(tz), low, high);
 }
 
 static int google_bcl_read_soc(struct bcl_device *bcl_dev, int *val)
@@ -106,7 +106,7 @@ static int google_bcl_read_soc(struct bcl_device *bcl_dev, int *val)
 
 static int tz_bcl_read_soc(struct thermal_zone_device *tz, int *val)
 {
-	return google_bcl_read_soc(tz->devdata, val);
+	return google_bcl_read_soc(thermal_zone_device_priv(tz), val);
 }
 
 static void google_bcl_evaluate_soc(struct work_struct *work)
@@ -437,7 +437,7 @@ bcl_soc_probe_exit:
 	return 0;
 }
 
-static int google_bcl_remove(struct platform_device *pdev)
+static void google_bcl_remove(struct platform_device *pdev)
 {
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
@@ -445,8 +445,6 @@ static int google_bcl_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(bcl_dev->debug_entry);
 	cpu_pm_unregister_notifier(&bcl_dev->cpu_nb);
 	google_bcl_remove_thermal(bcl_dev);
-
-	return 0;
 }
 
 static void google_bcl_shutdown(struct platform_device *pdev)

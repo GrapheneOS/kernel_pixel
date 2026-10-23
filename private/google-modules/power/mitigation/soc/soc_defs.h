@@ -28,7 +28,6 @@ static inline void google_bcl_set_batfet_timer(struct bcl_device *bcl_dev) {}
 void google_bcl_set_batfet_timer(struct bcl_device *bcl_dev);
 void google_bcl_cancel_batfet_timer(struct bcl_device *bcl_dev);
 void google_bcl_setup_qos_work(struct work_struct *work);
-int google_bcl_setup_qos_device(struct bcl_device *bcl_dev);
 static inline int cpu_buff_read(struct bcl_device *bcl_dev, int cluster, unsigned int type,
 				unsigned int *reg) { return 0; }
 static inline int cpu_buff_write(struct bcl_device *bcl_dev, int cluster, unsigned int type,

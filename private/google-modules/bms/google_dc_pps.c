@@ -878,7 +878,7 @@ int pps_update_adapter(struct pd_pps_data *pps,
 }
 EXPORT_SYMBOL_GPL(pps_update_adapter);
 
-/* just a wrapper for power_supply_get_by_phandle_array() */
+/* Resolve the TCPM supply references attached to the device tree node. */
 struct power_supply *pps_get_tcpm_psy(struct device_node *node, size_t size)
 {
 	const char *propname = "google,tcpm-power-supply";
@@ -889,8 +889,8 @@ struct power_supply *pps_get_tcpm_psy(struct device_node *node, size_t size)
 	if (!node)
 		return ERR_PTR(-EINVAL);
 
-	ret = power_supply_get_by_phandle_array(node, propname, psy,
-						ARRAY_SIZE(psy));
+	ret = power_supply_get_by_reference_array(of_fwnode_handle(node),
+						   propname, psy, ARRAY_SIZE(psy));
 	if (ret < 0)
 		return ERR_PTR(-EAGAIN);
 
