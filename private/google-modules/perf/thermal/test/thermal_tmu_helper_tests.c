@@ -182,7 +182,7 @@ int mock_thermal_zone_get_trip(struct thermal_zone_device *tzd, int idx, struct 
 {
 	struct kunit *test = kunit_get_current_test();
 	struct tmu_test_data *tmu_test_data = test->priv;
-	int ret = __thermal_zone_get_trip(tzd, idx, trip);
+	int ret = google_thermal_get_trip(tzd, idx, trip);
 
 	if (tmu_test_data->get_tzd_trip_ret)
 		return tmu_test_data->get_tzd_trip_ret;
@@ -932,7 +932,7 @@ static int mock_tzd_get_temp(struct thermal_zone_device *tzd, int *temp)
 	return 0;
 }
 
-static int mock_tzd_set_trip_val(struct thermal_zone_device *tzd, int trip_id, int val)
+static int mock_tzd_set_trip_val(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int val)
 {
 	return 0;
 }
@@ -960,15 +960,14 @@ static int thermal_tmu_test_init(struct kunit *test)
 
 static int thermal_tmu_test_suite_init(struct kunit_suite *suite)
 {
-	struct thermal_zone_device_ops *ops;
-
-	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
-	ops->get_temp = mock_tzd_get_temp;
-	ops->set_trip_temp = mock_tzd_set_trip_val;
-	ops->set_trip_hyst = mock_tzd_set_trip_val;
+	const struct thermal_zone_device_ops ops = {
+		.get_temp = mock_tzd_get_temp,
+		.set_trip_temp = mock_tzd_set_trip_val,
+		.set_trip_hyst = mock_tzd_set_trip_val,
+	};
 	fake_tzd = thermal_zone_device_register_with_trips("mock_tmu-sensor", mock_trips,
-							   THERMAL_TMU_NR_TRIPS, 0, NULL,
-							   ops, NULL, 200, 200);
+							   THERMAL_TMU_NR_TRIPS, NULL,
+							   &ops, NULL, 200, 200);
 	fake_dev = root_device_register("mock_tmu-device");
 
 	return 0;

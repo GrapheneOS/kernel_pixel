@@ -858,7 +858,9 @@ static void powercap_cpu_set_power_test(struct kunit *test)
 		struct gpowercap *gpc = &pos->gpowercap;
 
 		for (i = 0; i < GPC_TEST_OPP_CT; i++) {
+#if KERNEL_VERSION(6, 12, 0) > LINUX_VERSION_CODE
 			struct gpowercap_cpu *gpowercap_cpu = to_gpowercap_cpu(gpc);
+#endif
 
 			apply_tp_type = THERMAL_PRESSURE_TYPE_MAX;
 			cpumask_clear(&apply_tp_cpus);

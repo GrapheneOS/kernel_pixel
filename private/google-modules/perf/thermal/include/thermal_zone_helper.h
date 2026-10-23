@@ -17,6 +17,29 @@
 
 #include "thermal_core.h"
 
+/* The caller holds the zone lock, or owns an unpublished test zone. */
+static inline int google_thermal_get_trip(struct thermal_zone_device *tz, int id,
+					 struct thermal_trip *trip)
+{
+	if (id < 0 || id >= tz->num_trips)
+		return -EINVAL;
+	*trip = tz->trips[id].trip;
+	return 0;
+}
+
+static inline int google_thermal_get_trip_locked(struct thermal_zone_device *tz, int id,
+						struct thermal_trip *trip)
+{
+	guard(thermal_zone)(tz);
+	return google_thermal_get_trip(tz, id, trip);
+}
+
+static inline int google_thermal_trip_id(struct thermal_zone_device *tz,
+					 const struct thermal_trip *trip)
+{
+	return trip_to_trip_desc(trip) - tz->trips;
+}
+
 #define TEMPERATURE_LOG_BUF_LEN	5
 
 struct sensor_temp_log {

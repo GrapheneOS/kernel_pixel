@@ -254,7 +254,7 @@ int __set_power_limit_uw(struct gpowercap *gpowercap, u64 power_limit)
 	return 0;
 }
 
-void __power_limit_bypass_clear_work(struct work_struct *work)
+static void __power_limit_bypass_clear_work(struct work_struct *work)
 {
 	struct gpowercap *gpowercap = container_of(work, struct gpowercap,
 						   bypass_work.work);
@@ -331,7 +331,7 @@ ssize_t __power_levels_uw_show(struct gpowercap *gpowercap, char *buf)
 	return buf_ct;
 }
 
-ssize_t
+static ssize_t
 power_levels_uw_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct gpowercap *gpowercap;

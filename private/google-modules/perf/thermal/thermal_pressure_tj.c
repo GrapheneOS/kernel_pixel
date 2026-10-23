@@ -55,7 +55,7 @@ static const struct of_device_id thermal_pressure_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, thermal_pressure_match_table);
 
-int thermal_tj_pressure_process_irq(struct notifier_block *nb, unsigned long val, void *data)
+static int thermal_tj_pressure_process_irq(struct notifier_block *nb, unsigned long val, void *data)
 {
 	// Check immediately if the device is in passive polling
 	if (tj_pressure_data.current_polling_delay_ms == tj_pressure_data.passive_polling_delay_ms)
@@ -335,7 +335,7 @@ static struct platform_driver thermal_pressure_tj_driver = {
 		.of_match_table = thermal_pressure_match_table,
 	},
 	.probe = thermal_pressure_tj_probe,
-	.remove_new = thermal_pressure_tj_remove,
+	.remove = thermal_pressure_tj_remove,
 };
 module_platform_driver(thermal_pressure_tj_driver);
 

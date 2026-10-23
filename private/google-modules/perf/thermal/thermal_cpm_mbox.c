@@ -92,7 +92,7 @@ MODULE_DEVICE_TABLE(of, thermal_cpm_mbox_of_match_table);
 
 static struct platform_driver thermal_cpm_mbox_driver = {
 	.probe = thermal_cpm_mbox_platform_probe,
-	.remove_new = thermal_cpm_mbox_platform_remove,
+	.remove = thermal_cpm_mbox_platform_remove,
 	.driver = {
 		.name = "thermal-cpm-mbox",
 		.owner = THIS_MODULE,

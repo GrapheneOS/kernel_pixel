@@ -65,7 +65,7 @@ static struct platform_driver thermal_stats_driver = {
 		.of_match_table = thermal_stats_match_table,
 	},
 	.probe = thermal_stats_probe,
-	.remove_new = thermal_stats_remove,
+	.remove = thermal_stats_remove,
 };
 module_platform_driver(thermal_stats_driver);
 

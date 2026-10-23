@@ -78,7 +78,7 @@ static const struct of_device_id thermal_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, thermal_match_table);
 
-static int thermal_exit(struct platform_device *pdev)
+static void thermal_exit(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret = 0;
@@ -113,7 +113,6 @@ static int thermal_exit(struct platform_device *pdev)
 		devm_kfree(dev, drv_data);
 	}
 
-	return ret;
 }
 
 static int thermal_probe(struct platform_device *pdev)

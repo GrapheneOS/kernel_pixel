@@ -32,7 +32,7 @@ struct device_node *mock_of_parse_phandle(const struct device_node *np,
 					  const char *phandle_name,
 					  int index);
 #else
-int mock_cdev_devfreq_init(struct cdev_devfreq_data *cdev,
+static inline int mock_cdev_devfreq_init(struct cdev_devfreq_data *cdev,
 		      struct device_node *np,
 		      enum hw_dev_type cdev_id,
 		      cdev_cb success_cb,
@@ -41,21 +41,21 @@ int mock_cdev_devfreq_init(struct cdev_devfreq_data *cdev,
 	return -EOPNOTSUPP;
 }
 
-void mock_cdev_devfreq_exit(struct cdev_devfreq_data *cdev)
+static inline void mock_cdev_devfreq_exit(struct cdev_devfreq_data *cdev)
 { }
 
-int mock_cpm_mbox_register_notification(enum hw_dev_type type, struct notifier_block *nb)
+static inline int mock_cpm_mbox_register_notification(enum hw_dev_type type, struct notifier_block *nb)
 {
 	return -EOPNOTSUPP;
 }
 
-void mock_cpm_mbox_unregister_notification(enum hw_dev_type type, struct notifier_block *nb)
+static inline void mock_cpm_mbox_unregister_notification(enum hw_dev_type type, struct notifier_block *nb)
 { }
 
-void mock_cdev_pm_qos_update_request(struct cdev_devfreq_data *cdev, unsigned long freq)
+static inline void mock_cdev_pm_qos_update_request(struct cdev_devfreq_data *cdev, unsigned long freq)
 { }
 
-struct thermal_cooling_device *
+static inline struct thermal_cooling_device *
 mock_of_cooling_device_register(struct device *dev,
 				struct device_node *np,
 				char *type, void *devdata,
@@ -64,12 +64,12 @@ mock_of_cooling_device_register(struct device *dev,
 	return ERR_PTR(-EOPNOTSUPP);
 }
 
-int mock_of_property_read_u32(const struct device_node *np, const char *propname, u32 *out_value)
+static inline int mock_of_property_read_u32(const struct device_node *np, const char *propname, u32 *out_value)
 {
 	return -EOPNOTSUPP;
 }
 
-struct device_node *mock_of_parse_phandle(const struct device_node *np, const char *phandle_name,
+static inline struct device_node *mock_of_parse_phandle(const struct device_node *np, const char *phandle_name,
 					  int index)
 {
 	return ERR_PTR(-EOPNOTSUPP);

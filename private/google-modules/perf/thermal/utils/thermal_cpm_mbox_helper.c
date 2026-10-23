@@ -4,6 +4,7 @@
  *
  * Copyright (c) 2024, Google LLC. All rights reserved.
  */
+#include "../include/thermal_cpm_mbox_helper.h"
 #include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

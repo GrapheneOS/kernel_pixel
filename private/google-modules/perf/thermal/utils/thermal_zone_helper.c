@@ -221,10 +221,10 @@ int thermal_configure_fault_threshold(struct list_head *head,
 	list_for_each(pos, head) {
 		sens = list_entry(pos, struct google_sensor_data, node);
 
-		for (i = 0; i < thermal_zone_get_num_trips(sens->tzd); i++) {
+		for (i = 0; i < sens->tzd->num_trips; i++) {
 			struct thermal_trip trip;
 
-			ret = thermal_zone_get_trip(sens->tzd, i, &trip);
+			ret = google_thermal_get_trip_locked(sens->tzd, i, &trip);
 			if (ret) {
 				dev_err(sens->dev, "sensor:%d get trip error:%d.\n",
 					sens->sensor_id, ret);

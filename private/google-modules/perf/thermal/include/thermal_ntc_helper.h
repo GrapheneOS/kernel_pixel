@@ -65,8 +65,8 @@ int thermal_ntc_process_irq(struct notifier_block *nb, unsigned long val, void *
 int thermal_ntc_set_fault_trip(struct thermal_zone_device *tzd, int trip);
 void thermal_ntc_cleanup(struct platform_device *pdev);
 int __thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, int temp);
-int thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, int trip_id, int temp);
-int thermal_ntc_set_trip_hyst(struct thermal_zone_device *tzd, int trip_id, int temp);
+int thermal_ntc_set_trip_temp(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp);
+int thermal_ntc_set_trip_hyst(struct thermal_zone_device *tzd, const struct thermal_trip *trip, int temp);
 int thermal_ntc_configure_sensor(struct google_sensor_data *sens);
 int thermal_ntc_post_configure(struct list_head *head);
 int thermal_ntc_cleanup_sensor(struct google_sensor_data *sens);
