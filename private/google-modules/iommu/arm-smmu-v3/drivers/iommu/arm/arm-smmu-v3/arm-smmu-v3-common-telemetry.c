@@ -2,7 +2,7 @@
 
 #define pr_fmt(fmt) "smmu-v3-telemetry: " fmt
 
-#include <kvm/iommu.h>
+#include "pkvm/arm_smmu_v3.h"
 #include "arm-smmu-v3.h"
 #include "arm-smmu-v3-common-telemetry.h"
 #include "pkvm/hyp-arm-smmu-v3-common-telemetry.h"
@@ -759,9 +759,9 @@ void arm_smmu_dom_tlm_rec_domain_id(struct arm_smmu_domain_telemetry_common *asd
 	case PKVM_MODE_DRIVER:
 		asdtc->data.kasdt.domain_id = domain_id;
 
-		if (domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID)
+		if (domain_id == PIXEL_SMMU_IDMAP_ID)
 			asdtc->type = DOMAIN_TYPE_S2;
-		else if (domain_id > KVM_IOMMU_DOMAIN_IDMAP_ID && domain_id < MAX_SMMU_DOMAIN)
+		else if (domain_id > PIXEL_SMMU_IDMAP_ID && domain_id < MAX_SMMU_DOMAIN)
 			asdtc->type = DOMAIN_TYPE_S1;
 		else
 			asdtc->type = DOMAIN_TYPE_UNATTACHED;

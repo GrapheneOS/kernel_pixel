@@ -4,7 +4,8 @@
 
 #include <asm/kvm_asm.h>
 #include <arm-smmu-v3/io-pgtable.h>
-#include <kvm/iommu.h>
+#include <asm/kvm_host.h>
+#include <kvm/power_domain.h>
 
 #if IS_ENABLED(CONFIG_ARM_SMMU_V3_PKVM_PIXEL)
 
@@ -19,7 +20,9 @@
  * Other members are filled and used at runtime by the SMMU driver.
  */
 struct hyp_arm_smmu_v3_device {
-	struct kvm_hyp_iommu	iommu;
+	struct kvm_power_domain	power_domain;
+	u32			lock; /* hyp_spinlock_t, shared layout with EL1 */
+	bool			power_is_off;
 	phys_addr_t		mmio_addr;
 	size_t			mmio_size;
 	unsigned long		features;
@@ -35,6 +38,8 @@ struct hyp_arm_smmu_v3_device {
 	u8			strtab_split;
 	struct io_pgtable_cfg	pgtable_cfg_s1;
 	struct io_pgtable_cfg	pgtable_cfg_s2;
+	u8			asid_bits;
+	u8			vmid_bits;
 	u32			ssid_bits; /* SSID has max of 20 bits*/
 	u32			options;
 };
@@ -50,9 +55,11 @@ extern struct hyp_arm_smmu_v3_device *kvm_nvhe_sym(kvm_hyp_arm_smmu_v3_smmus);
 	     (smmu) != &kvm_hyp_arm_smmu_v3_smmus[kvm_hyp_arm_smmu_v3_count]; \
 	     (smmu)++)
 
+/* Reserved by this driver for its private host identity page table. */
+#define PIXEL_SMMU_IDMAP_ID 0
+
 enum kvm_arm_smmu_domain_stage {
-	KVM_ARM_SMMU_DOMAIN_BYPASS = KVM_IOMMU_DOMAIN_IDMAP_TYPE,
-	KVM_ARM_SMMU_DOMAIN_S1,
+	KVM_ARM_SMMU_DOMAIN_S1 = KVM_IOMMU_DOMAIN_ANY_TYPE,
 	KVM_ARM_SMMU_DOMAIN_S2,
 };
 

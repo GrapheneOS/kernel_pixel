@@ -310,7 +310,7 @@ extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s1_init_fns_pixel;
 extern struct io_pgtable_init_fns io_pgtable_arm_64_lpae_s2_init_fns_pixel;
 
 struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
-						  void *cookie,
+						  void *cookie, bool idmapped,
 						  int *out_ret);
 int kvm_arm_io_pgtable_free_pixel(struct io_pgtable *iop);
 #endif /* __IO_PGTABLE_H */
