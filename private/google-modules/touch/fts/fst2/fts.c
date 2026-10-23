@@ -108,34 +108,16 @@ static int goog_invert_array(int16_t *buf, int len);
   * Set the value of system_reseted_up flag
   * @param val value to write in the flag
   */
-void set_system_reseted_up(int val)
+static void set_system_reseted_up(int val)
 {
 	system_reseted_up = val;
-}
-
-/**
-  * Return the value of system_resetted_down.
-  * @return the flag value: 0 if not set, 1 if set
-  */
-int is_system_resetted_down(void)
-{
-	return system_reseted_down;
-}
-
-/**
-  * Return the value of system_resetted_up.
-  * @return the flag value: 0 if not set, 1 if set
-  */
-int is_system_resetted_up(void)
-{
-	return system_reseted_up;
 }
 
 /**
   * Set the value of system_reseted_down flag
   * @param val value to write in the flag
   */
-void set_system_reseted_down(int val)
+static void set_system_reseted_down(int val)
 {
 	system_reseted_down = val;
 }
@@ -1374,7 +1356,7 @@ static int gti_default_handler(void *private_data, enum gti_cmd_type cmd_type,
   * @param type type of MS frame to read
   * @return zero if success or an error code which specify the type of error
   */
-int goog_get_ms_frame(struct fts_ts_info *info, ms_frame_type_t type)
+static int goog_get_ms_frame(struct fts_ts_info *info, ms_frame_type_t type)
 {
 	u16 offset;
 	int res = 0;
@@ -1444,7 +1426,7 @@ static int goog_invert_array(int16_t *buf, int len)
   * @param type type of SS frame to read
   * @return zero if success or an error code which specify the type of error
   */
-int goog_get_ss_frame(struct fts_ts_info *info, ss_frame_type_t type)
+static int goog_get_ss_frame(struct fts_ts_info *info, ss_frame_type_t type)
 {
 	u16 self_force_offset = 0;
 	u16 self_sense_offset = 0;
@@ -2690,8 +2672,8 @@ static int parse_dt(struct device *dev, struct fts_ts_info *info)
 	struct drm_panel *panel = NULL;
 #endif
 
-	strlcpy(info->fw_name, PATH_FILE_FW, MAX_STR_LABEL_LEN);
-	strlcpy(info->test_limits_name, LIMITS_FILE, MAX_STR_LABEL_LEN);
+	strscpy(info->fw_name, PATH_FILE_FW, MAX_STR_LABEL_LEN);
+	strscpy(info->test_limits_name, LIMITS_FILE, MAX_STR_LABEL_LEN);
 
 #if IS_ENABLED(CONFIG_GOOG_TOUCH_INTERFACE)
 	if (of_property_read_bool(np, "goog,panel_map")) {

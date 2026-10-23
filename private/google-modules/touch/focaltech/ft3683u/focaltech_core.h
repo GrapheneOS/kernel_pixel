@@ -530,5 +530,7 @@ void goog_fts_input_report_b(struct fts_ts_data *data);
 int goog_parse_dt(struct device_node *np, struct fts_ts_platform_data *pdata);
 #endif // IS_ENABLED(CONFIG_GOOG_TOUCH_INTERFACE)
 
+void transpose_raw(u8 *src, u8 *dist, int tx, int rx, bool big_endian);
+size_t goog_internal_sttw_setting_read(char *buf, size_t buf_size);
 
 #endif /* __LINUX_FOCALTECH_CORE_H__ */

@@ -57,7 +57,7 @@ int init_test_to_do(void)
 	/*** Initialize Limit File ***/
 	limit_file.size = 0;
 	limit_file.data = NULL;
-	strlcpy(limit_file.name, " ", MAX_LIMIT_FILE_NAME);
+	strscpy(limit_file.name, " ", MAX_LIMIT_FILE_NAME);
 
 	tests.mutual_raw = 0;
 	tests.mutual_raw_lp = 0;
@@ -484,7 +484,7 @@ int get_limits_file(char *path, struct limit_file *file)
 		file->size = 0;
 	}
 
-	strlcpy(file->name, path, MAX_LIMIT_FILE_NAME);
+	strscpy(file->name, path, MAX_LIMIT_FILE_NAME);
 	if (strncmp(path, "NULL", 4) == 0) {
 #ifdef LIMITS_H_FILE
 		pr_info("%s: Loading Limits File from .h!\n", __func__);
@@ -559,7 +559,7 @@ int free_limits_file(struct limit_file *file)
 			pr_debug("%s: Limit File was already freed!\n",
 			 __func__);
 		file->size = 0;
-		strlcpy(file->name, " ", MAX_LIMIT_FILE_NAME);
+		strscpy(file->name, " ", MAX_LIMIT_FILE_NAME);
 		return OK;
 	}
 	pr_err("%s: Passed a NULL argument! ERROR %08X\n",
