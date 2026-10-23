@@ -80,6 +80,8 @@ ddk_module(
         "//private/google-modules/aoc:__subpackages__",
     ],
     deps = [
+        "//private/google-modules/iommu/arm-smmu-v3",
+        "//private/google-modules/iommu/arm-smmu-v3:fault_headers",
         "//common:all_headers_aarch64",
         "//private/google-modules/aoc_ipc:ddk_headers",
         "//private/google-modules/soc/gs:gs_soc_module",

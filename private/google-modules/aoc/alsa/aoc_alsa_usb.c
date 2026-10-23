@@ -108,17 +108,18 @@ void usb_audio_offload_connect(struct snd_usb_audio *chip)
 {
 	int card_num;
 	struct xhci_sideband *sb;
-	struct usb_device *udev = chip->dev;
+	struct usb_interface *intf;
 
-	if (!chip)
+	if (!chip || !chip->num_interfaces)
 		return;
+	intf = chip->intf[chip->num_interfaces - 1];
 
 	card_num = chip->card->number;
 	if (card_num >= SNDRV_CARDS)
 		return;
 
 	if (!uadev[card_num].chip) {
-		sb = xhci_sideband_register(udev);
+		sb = xhci_sideband_register(intf, XHCI_SIDEBAND_VENDOR, NULL);
 		if (!sb) {
 			pr_err("xhci_sideband_register fail");
 			return;
@@ -198,7 +199,7 @@ int aoc_setup_event_ring(int card_num, int intr_num, bool enable)
 
 	if (enable) {
 		ret = xhci_sideband_create_interrupter(uadev[card_num].sb, 1,
-							   intr_num, false);
+							   false, 0, intr_num);
 		pr_info("%s IRQ create with ret %d", __func__, ret);
 	} else {
 		xhci_sideband_remove_interrupter(uadev[card_num].sb);

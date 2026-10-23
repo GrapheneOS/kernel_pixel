@@ -952,7 +952,7 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(codec_dai->component);
 
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(codec->dev, "Device can not be master\n");
 		return -EINVAL;
 	}
@@ -1232,15 +1232,13 @@ static int cs40l26_codec_driver_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int cs40l26_codec_driver_remove(struct platform_device *pdev)
+static void cs40l26_codec_driver_remove(struct platform_device *pdev)
 {
 	struct cs40l26_codec *codec = dev_get_drvdata(&pdev->dev);
 
 	pm_runtime_disable(codec->dev);
 
 	snd_soc_unregister_component(codec->dev);
-
-	return 0;
 }
 
 static struct platform_driver cs40l26_codec_driver = {
