@@ -722,4 +722,4 @@ module_exit(vs_drm_exit);
 
 MODULE_DESCRIPTION("VeriSilicon DRM Driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
