@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-load("@kleaf//build/kernel/kleaf:kernel.bzl", "kernel_module")
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_headers", "kernel_module")
 load("//private/devices/google/common/kleaf:checkpatch.bzl", "checkpatch_strict")
 
 checkpatch_strict(
@@ -16,6 +16,13 @@ filegroup(
         "//private/devices/google:__subpackages__",
         "//private/google-modules/soc/gs:__pkg__",
     ],
+)
+
+ddk_headers(
+    name = "fault_headers",
+    hdrs = ["include/arm-smmu-v3/pixel-iommu-fault.h"],
+    includes = ["include"],
+    visibility = ["//private/google-modules:__subpackages__"],
 )
 
 kernel_module(
@@ -39,6 +46,7 @@ kernel_module(
         "drivers/iommu/arm/arm-smmu-v3/pkvm/arm_smmu_v3.h",
         "drivers/iommu/arm/arm-smmu-v3/pkvm/hyp-arm-smmu-v3-common-telemetry.h",
         "drivers/iommu/arm/arm-smmu-v3/pkvm/io-pgtable-arm.c",
+        "drivers/iommu/pixel-iommu-fault.c",
         "drivers/iommu/io-pgtable.c",
         "drivers/iommu/io-pgtable-arm.c",
         "drivers/iommu/io-pgtable-arm-common.c",
@@ -47,6 +55,7 @@ kernel_module(
         "drivers/perf/arm_smmuv3_pmu.c",
         "include/arm-smmu-v3/arm-smmu-v3-regs.h",
         "include/arm-smmu-v3/arm-smmu-v3-telemetry-callbacks.h",
+        "include/arm-smmu-v3/pixel-iommu-fault.h",
         "include/arm-smmu-v3/io-pgtable.h",
         "include/arm-smmu-v3/io-pgtable-arm.h",
     ],
@@ -55,9 +64,11 @@ kernel_module(
         "arm_smmu_v3.ko",
         "arm_smmu_v3_kvm.ko",
         "io-pgtable-pixel.ko",
+        "pixel-iommu-fault.ko",
     ],
     kernel_build = "//private/devices/google/common:kernel",
     visibility = [
         "//private/devices/google:__subpackages__",
+        "//private/google-modules:__subpackages__",
     ],
 )
