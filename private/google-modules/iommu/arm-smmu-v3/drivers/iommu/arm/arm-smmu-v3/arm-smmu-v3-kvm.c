@@ -664,17 +664,13 @@ static void kvm_arm_smmu_consume_err(struct arm_smmu_device *smmu)
 	lockdep_assert_held(this_cpu_ptr(&err_lock));
 
 	if (err->type == HYP_ARM_SMMU_V3_ERR_CMDQ_TIMEOUT) {
-		int ret;
-
 		dev_err(smmu->dev, "cmdq time out: hw prod 0x%x hw cons 0x%x sw prod 0x%llx",
 		       err->cmdq_prod, err->cmdq_cons, err->cmdq_prod_sw);
 		err->type = HYP_ARM_SMMU_V3_ERR_NONE; /* Consumed */
-		ret = pm_runtime_resume_and_get(smmu->dev);
-		if (ret >= 0) {
+		/* Unmap can run in atomic context; only inspect an already active SMMU. */
+		if (pm_runtime_get_if_active(smmu->dev, true) > 0) {
 			arm_smmu_print_mmu700_status(smmu);
 			pm_runtime_put(smmu->dev);
-		} else if (ret < 0) {
-			dev_err(smmu->dev, "Failed to resume device: %d\n", ret);
 		}
 	}
 
