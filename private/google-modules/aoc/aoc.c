@@ -13,6 +13,7 @@
 
 #include "aoc.h"
 #include "aoc-interface.h"
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include <linux/atomic.h>
 #include <linux/dma-map-ops.h>
@@ -159,11 +160,10 @@ const static struct dev_pm_ops aoc_core_pm_ops = {
 	.resume = aoc_core_resume,
 };
 
-static int aoc_bus_match(struct device *dev, struct device_driver *drv);
+static int aoc_bus_match(struct device *dev, const struct device_driver *drv);
 static int aoc_bus_probe(struct device *dev);
 static void aoc_bus_remove(struct device *dev);
 
-static void aoc_configure_iommu_fault_handler(struct aoc_prvdata *p);
 static void aoc_configure_iommu(struct aoc_prvdata *p, const struct firmware *fw);
 
 static struct bus_type aoc_bus_type = {
@@ -236,9 +236,9 @@ bool aoc_fw_ready(void)
 	return aoc_control != NULL && aoc_control->magic == AOC_MAGIC;
 }
 
-static int driver_matches_service_by_name(struct device_driver *drv, void *name)
+static int driver_matches_service_by_name(const struct device_driver *drv, void *name)
 {
-	struct aoc_driver *aoc_drv = AOC_DRIVER(drv);
+	const struct aoc_driver *aoc_drv = AOC_DRIVER(drv);
 	const char *service_name = name;
 	const char *const *driver_names = aoc_drv->service_names;
 
@@ -252,10 +252,15 @@ static int driver_matches_service_by_name(struct device_driver *drv, void *name)
 	return 0;
 }
 
+static int match_driver_by_name(struct device_driver *drv, void *name)
+{
+	return driver_matches_service_by_name(drv, name);
+}
+
 static bool has_name_matching_driver(const char *service_name)
 {
 	return bus_for_each_drv(&aoc_bus_type, NULL, (char *)service_name,
-				driver_matches_service_by_name) != 0;
+				match_driver_by_name) != 0;
 }
 
 static struct aoc_service_dev *service_dev_by_name(struct aoc_prvdata *prv,
@@ -724,7 +729,6 @@ static void aoc_fw_callback(const struct firmware *fw, void *ctx)
 
 		dev_info(dev, "AOC secure booting enabled\n");
 		prvdata->protected_by_gsa = true;
-		aoc_configure_iommu_fault_handler(prvdata);
 		rc = aoc_fw_authenticate(prvdata, fw);
 		if (rc) {
 			dev_err(dev, "GSA: FW authentication failed: %d\n", rc);
@@ -1194,7 +1198,7 @@ static struct attribute *aoc_attrs[] = {
 ATTRIBUTE_GROUPS(aoc);
 
 static int aoc_platform_probe(struct platform_device *dev);
-static int aoc_platform_remove(struct platform_device *dev);
+static void aoc_platform_remove(struct platform_device *dev);
 static void aoc_platform_shutdown(struct platform_device *dev);
 
 static const struct of_device_id aoc_match[] = {
@@ -1217,9 +1221,9 @@ static struct platform_driver aoc_driver = {
 		},
 };
 
-static int aoc_bus_match(struct device *dev, struct device_driver *drv)
+static int aoc_bus_match(struct device *dev, const struct device_driver *drv)
 {
-	struct aoc_driver *driver = AOC_DRIVER(drv);
+	const struct aoc_driver *driver = AOC_DRIVER(drv);
 
 	const char *device_name = dev_name(dev);
 	bool driver_matches_by_name = (driver->service_names != NULL);
@@ -1360,27 +1364,13 @@ static struct aoc_service_dev *create_service_device(struct aoc_prvdata *prvdata
 	return dev;
 }
 
-static int aoc_iommu_fault_handler(struct iommu_fault *fault, void *token)
+static int aoc_iommu_fault_handler(struct device *dev, unsigned long iova, u32 pasid,
+				   int flags, void *token)
 {
-	struct device *dev = token;
-
-	dev_err(dev, "aoc iommu fault: fault->type = %u\n", fault->type);
-	dev_err(dev, "fault->event: reason = %u, flags = %#010x, addr = %#010llx\n",
-		fault->event.reason, fault->event.flags, fault->event.addr);
-	dev_err(dev, "fault->prm: flags = %#010x, addr = %#010llx\n",
-		fault->prm.flags, fault->prm.addr);
+	dev_err(dev, "aoc iommu fault: flags = %#x, addr = %#lx\n", flags, iova);
 
 	/* Tell the IOMMU driver that the fault is non-fatal. */
 	return -EAGAIN;
-}
-
-static void aoc_configure_iommu_fault_handler(struct aoc_prvdata *p)
-{
-	struct device *dev = p->dev;
-	int rc = iommu_register_device_fault_handler(dev, aoc_iommu_fault_handler, dev);
-
-	if (rc)
-		dev_err(dev, "iommu_register_device_fault_handler failed: rc = %d\n", rc);
 }
 
 static void aoc_configure_iommu(struct aoc_prvdata *p, const struct firmware *fw)
@@ -1391,8 +1381,6 @@ static void aoc_configure_iommu(struct aoc_prvdata *p, const struct firmware *fw
 	struct iommu_domain *domain = p->domain;
 	struct device *dev = p->dev;
 	u16 iommu_offset, iommu_size;
-
-	aoc_configure_iommu_fault_handler(p);
 
 	iommu_offset = _aoc_fw_iommu_offset(fw);
 	iommu_size = _aoc_fw_iommu_size(fw);
@@ -1438,8 +1426,6 @@ static void aoc_clear_iommu(struct aoc_prvdata *p)
 	struct iommu_domain *domain = p->domain;
 	size_t i, cnt;
 	struct device *dev = p->dev;
-
-	iommu_unregister_device_fault_handler(p->dev);
 
 	if (p->iommu != NULL && p->domain) {
 		cnt = p->iommu_size / sizeof(struct iommu_entry);
@@ -1872,7 +1858,7 @@ void trigger_aoc_ssr(bool ap_triggered_reset, char *reset_reason)
 		} else {
 			configure_crash_interrupts(prvdata, false);
 			if (ap_triggered_reset) {
-				strlcpy(prvdata->ap_reset_reason, reset_reason,
+				strscpy(prvdata->ap_reset_reason, reset_reason,
 					AP_RESET_REASON_LENGTH);
 				prvdata->ap_triggered_reset = true;
 			}
@@ -2987,6 +2973,12 @@ static int aoc_platform_probe(struct platform_device *pdev)
 		goto err_platform_specific_probe;
 	}
 
+	rc = pixel_iommu_register_fault_handler(dev, aoc_iommu_fault_handler, NULL);
+	if (rc) {
+		platform_specific_remove(pdev, prvdata);
+		goto err_platform_specific_probe;
+	}
+
 	if (aoc_autoload_firmware) {
 		ret = start_firmware_load(dev);
 		if (ret != 0)
@@ -3019,12 +3011,14 @@ err_platform_not_null:
 	return rc;
 }
 
-static int aoc_platform_remove(struct platform_device *pdev)
+static void aoc_platform_remove(struct platform_device *pdev)
 {
 	struct aoc_prvdata *prvdata;
 	int i;
 
 	pr_debug("platform_remove\n");
+
+	pixel_iommu_unregister_fault_handler(&pdev->dev);
 
 	dev_pm_domain_detach(&pdev->dev, true);
 
@@ -3043,8 +3037,6 @@ static int aoc_platform_remove(struct platform_device *pdev)
 	deinit_chardev(prvdata);
 	platform_set_drvdata(pdev, NULL);
 	aoc_platform_device = NULL;
-
-	return 0;
 }
 
 static void sscd_release(struct device *dev)
@@ -3110,4 +3102,6 @@ module_exit(aoc_exit);
 
 MODULE_DESCRIPTION("Google AOC platform driver");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
+
+MODULE_IMPORT_NS("DMA_BUF_HEAP");
