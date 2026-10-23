@@ -610,18 +610,23 @@ static void *smmu_take_pages(u64 phys, size_t size)
 	return hyp_phys_to_virt(phys);
 }
 
-static void smmu_share_pages(u64 phys, size_t size)
+static int smmu_share_pages(u64 phys, size_t size)
 {
 	size_t nr_pages;
 	u64 pfn;
+	int ret;
 
-	WARN_ON(!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size));
+	if (WARN_ON(!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size)))
+		return -EINVAL;
 	nr_pages = size >> PAGE_SHIFT;
 	pfn = phys >> PAGE_SHIFT;
 
 	while (nr_pages--) {
-		WARN_ON(__pkvm_host_share_hyp(pfn++));
+		ret = __pkvm_host_share_hyp(pfn++);
+		if (ret)
+			return ret;
 	}
+	return 0;
 }
 
 static int smmu_init_cmdq(struct hyp_arm_smmu_v3_device *smmu)
@@ -1080,15 +1085,20 @@ static int smmu_init(unsigned long init_arg)
 
 	kvm_hyp_arm_smmu_v3_smmus = kern_hyp_va(kvm_hyp_arm_smmu_v3_smmus);
 
-	WARN_ON(!smmu_take_pages(hyp_virt_to_phys(kvm_hyp_arm_smmu_v3_smmus), smmu_arr_size));
+	if (!smmu_take_pages(hyp_virt_to_phys(kvm_hyp_arm_smmu_v3_smmus), smmu_arr_size))
+		return -EINVAL;
 
 	kvm_hyp_smmu_last_err = kern_hyp_va(kvm_hyp_smmu_last_err);
-	smmu_share_pages(hyp_virt_to_phys(kvm_hyp_smmu_last_err),
-			 PAGE_ALIGN(NR_CPUS * sizeof(struct hyp_arm_smmu_v3_err)));
+	ret = smmu_share_pages(hyp_virt_to_phys(kvm_hyp_smmu_last_err),
+			       PAGE_ALIGN(NR_CPUS * sizeof(struct hyp_arm_smmu_v3_err)));
+	if (ret)
+		return ret;
 
 	kvm_hyp_shared_arm_smmu_telemetry = kern_hyp_va(kvm_hyp_shared_arm_smmu_telemetry);
-	smmu_share_pages(hyp_virt_to_phys(kvm_hyp_shared_arm_smmu_telemetry),
-			 PAGE_ALIGN(sizeof(*kvm_hyp_shared_arm_smmu_telemetry)));
+	ret = smmu_share_pages(hyp_virt_to_phys(kvm_hyp_shared_arm_smmu_telemetry),
+			       PAGE_ALIGN(sizeof(*kvm_hyp_shared_arm_smmu_telemetry)));
+	if (ret)
+		return ret;
 
 	hyp_spin_lock_init(&telemetry_lock);
 	arch_timer_rate = read_sysreg(cntfrq_el0);
