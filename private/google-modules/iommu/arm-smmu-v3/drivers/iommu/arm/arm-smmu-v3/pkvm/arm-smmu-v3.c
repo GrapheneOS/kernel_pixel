@@ -1431,8 +1431,6 @@ static int smmu_attach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_dom
 		}
 		iommu_node->iommu = iommu;
 		iommu_node->ref = 1;
-	} else {
-		smmu_get_ref_domain(smmu, smmu_domain);
 	}
 
 	/*
@@ -1499,6 +1497,8 @@ out_unlock:
 			hyp_free(iommu_node);
 		else
 			list_add_tail(&iommu_node->list, &smmu_domain->iommu_list);
+	} else if (!ret) {
+		smmu_get_ref_domain(smmu, smmu_domain);
 	}
 
 	kvm_iommu_unlock(iommu);
