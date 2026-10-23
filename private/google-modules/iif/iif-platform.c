@@ -137,7 +137,7 @@ MODULE_DEVICE_TABLE(of, iif_of_match);
 
 static struct platform_driver iif_platform_driver = {
 	.probe = iif_platform_probe,
-	.remove_new = iif_platform_remove,
+	.remove = iif_platform_remove,
 	.driver = {
 			.name = IIF_DRIVER_NAME,
 			.of_match_table = of_match_ptr(iif_of_match),

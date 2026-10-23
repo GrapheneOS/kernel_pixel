@@ -191,7 +191,7 @@ irqreturn_t edgetpu_mailbox_irq_handler(int irq, void *arg)
 	 * Else ensure device remains powered while we access its CSRs and handle responses.
 	 */
 
-	if (pm_runtime_get_if_active(mailbox->etdev->dev, false) <= 0)
+	if (pm_runtime_get_if_in_use(mailbox->etdev->dev) <= 0)
 		return IRQ_HANDLED;
 
 	if (!EDGETPU_MAILBOX_RESP_QUEUE_READ(mailbox, doorbell_status))
@@ -233,7 +233,7 @@ void edgetpu_mailbox_set_irq_handler(struct edgetpu_mailbox *mailbox,
 void edgetpu_mailbox_dump(struct edgetpu_mailbox *mailbox)
 {
 	/* Ensure the TPU block is powered. */
-	if (pm_runtime_get_if_active(mailbox->etdev->dev, false) <= 0)
+	if (pm_runtime_get_if_in_use(mailbox->etdev->dev) <= 0)
 		return;
 
 	etdev_info(mailbox->etdev, "mailbox id %u cmd head=%#x tail=%#x doorbell_status=%u",

@@ -335,7 +335,7 @@ static void gcip_telemetry_worker(struct work_struct *work)
 		 * head != tail.
 		 */
 		if (tel->ctx)
-			eventfd_signal(tel->ctx, 1);
+			eventfd_signal(tel->ctx);
 		else if (tel->fallback_fn)
 			tel->fallback_fn(tel);
 		else
