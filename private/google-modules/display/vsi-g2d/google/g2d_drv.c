@@ -302,4 +302,4 @@ module_exit(g2d_drm_exit);
 MODULE_DESCRIPTION("G2D DRM Driver");
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_AUTHOR("rushikesh@google.com");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");

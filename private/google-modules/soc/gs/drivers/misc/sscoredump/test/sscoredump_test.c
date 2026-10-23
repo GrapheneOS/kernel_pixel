@@ -172,5 +172,5 @@ static struct kunit_suite sscoredump_test_suite = {
 
 kunit_test_suite(sscoredump_test_suite);
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_LICENSE("GPL");
