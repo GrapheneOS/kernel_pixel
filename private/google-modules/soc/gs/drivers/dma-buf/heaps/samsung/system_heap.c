@@ -203,22 +203,8 @@ free_buffer:
 	return ERR_PTR(ret);
 }
 
-static long system_heap_get_pool_size(struct dma_heap *heap)
-{
-	/*
-	 * All system heaps share the same page pool. Return the size of the pool
-	 * only for *the* system heap (required by VTS). Otherwise, the heap pool
-	 * use will be overcalculated by the number of registered system heaps.
-	 */
-	if (strcmp(dma_heap_get_name(heap), "system"))
-		return 0;
-
-	return dma_heap_system_pool_pages() << PAGE_SHIFT;
-}
-
 static const struct dma_heap_ops system_heap_ops = {
 	.allocate = system_heap_allocate,
-	.get_pool_size = system_heap_get_pool_size,
 };
 
 static bool skip_deferred_free;
@@ -293,7 +279,7 @@ static struct meminfo dma_heap_pool_meminfo = {
 
 int __init system_dma_heap_init(void)
 {
-	int i;
+	int i, ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(order_flags) != NUM_ORDERS);
 	for (i = 0; i < NUM_ORDERS; i++) {
@@ -311,10 +297,23 @@ int __init system_dma_heap_init(void)
 	register_meminfo(&dma_heap_meminfo);
 	register_meminfo(&dma_heap_pool_meminfo);
 
-	return platform_driver_register(&system_heap_driver);
+	ret = platform_driver_register(&system_heap_driver);
+	if (ret) {
+		unregister_meminfo(&dma_heap_pool_meminfo);
+		unregister_meminfo(&dma_heap_meminfo);
+		for (i = 0; i < NUM_ORDERS; i++)
+			dmabuf_page_pool_destroy(pools[i]);
+	}
+	return ret;
 }
 
 void system_dma_heap_exit(void)
 {
+	int i;
+
 	platform_driver_unregister(&system_heap_driver);
+	unregister_meminfo(&dma_heap_pool_meminfo);
+	unregister_meminfo(&dma_heap_meminfo);
+	for (i = 0; i < NUM_ORDERS; i++)
+		dmabuf_page_pool_destroy(pools[i]);
 }
