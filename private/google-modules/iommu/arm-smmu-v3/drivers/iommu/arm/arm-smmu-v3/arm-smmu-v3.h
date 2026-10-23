@@ -396,7 +396,7 @@ int arm_smmu_update_gbpa(struct arm_smmu_device *smmu, u32 set, u32 clr);
 int arm_smmu_device_disable(struct arm_smmu_device *smmu);
 bool arm_smmu_capable(struct device *dev, enum iommu_cap cap);
 struct iommu_group *arm_smmu_device_group(struct device *dev);
-int arm_smmu_of_xlate(struct device *dev, struct of_phandle_args *args);
+int arm_smmu_of_xlate(struct device *dev, const struct of_phandle_args *args);
 void arm_smmu_get_resv_regions(struct device *dev, struct list_head *head);
 
 struct platform_device;
@@ -437,7 +437,7 @@ void arm_smmu_write_cd_entry(struct arm_smmu_master *master, int ssid,
 
 int arm_smmu_set_pasid(struct arm_smmu_master *master,
 		       struct arm_smmu_domain *smmu_domain, ioasid_t pasid,
-		       struct arm_smmu_cd *cd);
+		       struct arm_smmu_cd *cd, struct iommu_domain *old);
 
 void arm_smmu_tlb_inv_asid(struct arm_smmu_device *smmu, u16 asid);
 void arm_smmu_tlb_inv_range_asid(unsigned long iova, size_t size, int asid,

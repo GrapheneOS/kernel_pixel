@@ -34,7 +34,7 @@ void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp, struct io_pgtable_cfg *cfg)
 		WARN_ON(!addr);
 		cfg->telemetry_cb->atomic_pages_tel(size >> PAGE_SHIFT);
 	} else {
-		addr = kvm_iommu_donate_pages_request(get_order(size));
+		addr = kvm_iommu_donate_pages(get_order(size), 0);
 		if (addr)
 			cfg->telemetry_cb->s1_pages_tel(size >> PAGE_SHIFT);
 	}
@@ -61,7 +61,7 @@ void __arm_lpae_free_pages(void *addr, size_t size, struct io_pgtable_cfg *cfg)
 		kvm_flush_dcache_to_poc(addr, size);
 
 	if (data->idmapped) {
-		kvm_iommu_reclaim_pages_atomic(addr, order);
+		kvm_iommu_reclaim_pages_atomic(addr);
 		cfg->telemetry_cb->atomic_pages_tel(-(size >> PAGE_SHIFT));
 	} else {
 		kvm_iommu_reclaim_pages(addr, order);
@@ -96,7 +96,7 @@ int kvm_arm_io_pgtable_init(struct io_pgtable_cfg *cfg,
 }
 
 struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
-						  void *cookie,
+						  void *cookie, bool idmapped,
 						  int *out_ret)
 {
 	size_t pgd_size, alignment;
@@ -105,7 +105,7 @@ struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
 
 	data = hyp_alloc(sizeof(*data));
 	if (!data) {
-		*out_ret = hyp_alloc_errno();
+		*out_ret = kvm_iommu_request_hyp_alloc() ?: -ENOMEM;
 		return NULL;
 	}
 
@@ -113,6 +113,7 @@ struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
 	if (ret)
 		goto out_free;
 
+	data->idmapped = idmapped;
 	pgd_size = PAGE_ALIGN(ARM_LPAE_PGD_SIZE(data));
 	data->pgd = __arm_lpae_alloc_pages(pgd_size, 0, &data->iop.cfg);
 	if (!data->pgd) {
@@ -140,6 +141,26 @@ out_free:
 	return NULL;
 }
 
+/* The core detached every endpoint before freeing the domain. */
+static void arm_lpae_release_dma(struct arm_lpae_io_pgtable *data, int level,
+			       arm_lpae_iopte *ptep, size_t size)
+{
+	unsigned int i;
+
+	for (i = 0; i < size / sizeof(*ptep); i++) {
+		arm_lpae_iopte pte = ptep[i];
+
+		if (!pte)
+			continue;
+		if (iopte_leaf(pte, level, data->iop.fmt))
+			WARN_ON(iommu_pkvm_unuse_dma(iopte_to_paddr(pte, data),
+						   ARM_LPAE_BLOCK_SIZE(level, data)));
+		else
+			arm_lpae_release_dma(data, level + 1, iopte_deref(pte, data),
+					     ARM_LPAE_GRANULE(data));
+	}
+}
+
 int kvm_arm_io_pgtable_free_pixel(struct io_pgtable *iopt)
 {
 	struct arm_lpae_io_pgtable *data = io_pgtable_to_data(iopt);
@@ -148,6 +169,8 @@ int kvm_arm_io_pgtable_free_pixel(struct io_pgtable *iopt)
 	if (!data->iop.cfg.coherent_walk)
 		kvm_flush_dcache_to_poc(data->pgd, pgd_size);
 
+	if (!data->idmapped)
+		arm_lpae_release_dma(data, data->start_level, data->pgd, pgd_size);
 	__arm_lpae_free_pgtable(data, data->start_level, data->pgd);
 	hyp_free(data);
 	return 0;
