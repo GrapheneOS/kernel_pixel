@@ -429,7 +429,7 @@ static int dwc3_google_setup_role_switch(struct dwc3_google *gdwc3)
 	return 0;
 }
 
-int dwc3_google_parse_ots_clocks(struct dwc3_google *gdwc3)
+static int dwc3_google_parse_ots_clocks(struct dwc3_google *gdwc3)
 {
 	int i;
 
@@ -439,7 +439,7 @@ int dwc3_google_parse_ots_clocks(struct dwc3_google *gdwc3)
 	return devm_clk_bulk_get(gdwc3->dev, gdwc3->drv_data->num_ots_clks, gdwc3->ots_clocks);
 }
 
-int dwc3_google_parse_clocks(struct dwc3_google *gdwc3)
+static int dwc3_google_parse_clocks(struct dwc3_google *gdwc3)
 {
 	int i;
 
@@ -449,7 +449,7 @@ int dwc3_google_parse_clocks(struct dwc3_google *gdwc3)
 	return devm_clk_bulk_get(gdwc3->dev, gdwc3->drv_data->num_clks, gdwc3->clocks);
 }
 
-int dwc3_google_parse_ots_resets(struct dwc3_google *gdwc3)
+static int dwc3_google_parse_ots_resets(struct dwc3_google *gdwc3)
 {
 	int i;
 
@@ -460,7 +460,7 @@ int dwc3_google_parse_ots_resets(struct dwc3_google *gdwc3)
 		gdwc3->drv_data->num_ots_rsts, gdwc3->ots_resets);
 }
 
-int dwc3_google_parse_resets(struct dwc3_google *gdwc3)
+static int dwc3_google_parse_resets(struct dwc3_google *gdwc3)
 {
 	int i;
 
@@ -708,9 +708,7 @@ static int dwc3_google_psw_pd_on(struct dwc3_google *gdwc3)
 		dev_err(gdwc3->dev, "Failed to enable USB top power, err: %d\n", ret);
 		return ret;
 	}
-	ret = device_wakeup_disable(gdwc3->usb_top_pd);
-	if (ret)
-		dev_err(gdwc3->dev, "Failed to disable wakeup, err: %d\n", ret);
+	device_wakeup_disable(gdwc3->usb_top_pd);
 	pm_runtime_put_sync(gdwc3->usb_top_pd);
 	return 0;
 }
@@ -853,11 +851,6 @@ static void dwc3_google_set_bw_by_max_speed(struct dwc3_google *gdwc3)
 		gdwc3->peak_bw = USB_HS_GOOGLE_ICC_BW_MB;
 	}
 
-}
-
-static void xhci_full_reset_on_remove(void *unused, bool *full_reset)
-{
-	*full_reset = true;
 }
 
 static int dwc3_google_probe(struct platform_device *pdev)
@@ -1086,10 +1079,6 @@ static int dwc3_google_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = register_trace_android_vh_xhci_full_reset_on_remove(xhci_full_reset_on_remove, NULL);
-	if (ret)
-		dev_err(dev, "register xhci full reset on remove vh failed\n");
-
 	ret = dwc3_google_setup_role_switch(gdwc3);
 	if (ret)
 		goto platform_device_put;
@@ -1152,7 +1141,7 @@ detach_usb_pds:
 	return ret;
 }
 
-static int dwc3_google_remove(struct platform_device *pdev)
+static void dwc3_google_remove(struct platform_device *pdev)
 {
 	struct dwc3_google *gdwc3 = platform_get_drvdata(pdev);
 
@@ -1184,7 +1173,6 @@ static int dwc3_google_remove(struct platform_device *pdev)
 		device_init_wakeup(gdwc3->usb_top_pd, false);
 		dev_pm_domain_detach(gdwc3->usb_top_pd, true);
 	}
-	return 0;
 }
 
 
@@ -1281,7 +1269,8 @@ static int dwc3_google_pm_suspend(struct device *dev)
 	struct platform_device *xhci = dwc->xhci;
 	struct usb_device *udev;
 	struct usb_hcd	*hcd;
-	int ret, bypass = 0;
+	int ret;
+	bool bypass = false;
 
 	dev_dbg(dev, "pm_suspend. device may wakeup : %d\n", device_may_wakeup(dev));
 
@@ -1309,7 +1298,8 @@ static int dwc3_google_pm_resume(struct device *dev)
 	struct platform_device *xhci = dwc->xhci;
 	struct usb_device *udev;
 	struct usb_hcd	*hcd;
-	int ret, bypass = 0;
+	int ret;
+	bool bypass = false;
 
 	dev_dbg(dev, "pm_resume. device may wakeup : %d\n", device_may_wakeup(dev));
 
@@ -1318,11 +1308,7 @@ static int dwc3_google_pm_resume(struct device *dev)
 		udev = hcd->self.root_hub;
 		trace_android_vh_usb_dev_resume(udev, PMSG_RESUME, &bypass);
 		if (bypass) {
-			ret = device_wakeup_disable(gdwc3->usb_psw_pd);
-			if (ret) {
-				dev_err(gdwc3->dev, "Failed to disable wakeup, err: %d\n", ret);
-				return ret;
-			}
+			device_wakeup_disable(gdwc3->usb_psw_pd);
 		}
 	}
 

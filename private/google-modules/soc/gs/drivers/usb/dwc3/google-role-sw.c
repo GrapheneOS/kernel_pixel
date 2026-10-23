@@ -271,13 +271,13 @@ static int google_role_sw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_role_sw_remove(struct platform_device *pdev)
+static void google_role_sw_remove(struct platform_device *pdev)
 {
 	struct google_role_sw *grole_sw = platform_get_drvdata(pdev);
 
 	if (!grole_sw) {
 		dev_warn(&pdev->dev, "%s: the drvdata has already gone.\n", __func__);
-		return 0;
+		return;
 	}
 
 	cancel_delayed_work_sync(&grole_sw->init_role_sw_work);
@@ -285,7 +285,7 @@ static int google_role_sw_remove(struct platform_device *pdev)
 	gvotable_destroy_election(grole_sw->usb_data_role_votable);
 	grole_sw->usb_data_role_votable = NULL;
 
-	return 0;
+	return;
 }
 
 static const struct of_device_id google_role_sw_match[] = {

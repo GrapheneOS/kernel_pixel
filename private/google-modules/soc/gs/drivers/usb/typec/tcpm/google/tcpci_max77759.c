@@ -758,7 +758,7 @@ static void ovp_operation(struct max77759_plat *chip, int operation);
 #ifdef CONFIG_GPIOLIB
 static int ext_bst_en_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int ext_bst_en_gpio_get(struct gpio_chip *gpio, unsigned int offset)
@@ -774,7 +774,7 @@ static int ext_bst_en_gpio_get(struct gpio_chip *gpio, unsigned int offset)
 	return val & EXT_BST_EN;
 }
 
-static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int value)
+static int ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int value)
 {
 	struct max77759_plat *chip = gpiochip_get_data(gpio);
 	struct regmap *regmap = chip->data.regmap;
@@ -804,6 +804,7 @@ static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int
 
 		ovp_operation(chip, OVP_ON);
 	}
+	return ret;
 }
 
 static int ext_bst_en_gpio_init(struct max77759_plat *chip)
@@ -923,7 +924,7 @@ static void max77759_init_regs(struct max77759_plat *chip, bool setup)
 
 static int post_process_pd_message(struct max77759_plat *chip, struct pd_message msg)
 {
-	enum pd_ctrl_msg_type pd_type = pd_header_type_le(msg.header);
+	unsigned int pd_type = pd_header_type_le(msg.header);
 
 	if (pd_type == PD_DATA_VENDOR_DEF) {
 		u32 payload[2];
@@ -1030,7 +1031,7 @@ static int process_rx(struct max77759_plat *chip, u16 status)
 			return -EIO;
 	}
 
-	tcpm_pd_receive(chip->port, &msg);
+	tcpm_pd_receive(chip->port, &msg, TCPC_TX_SOP);
 
 	ret = post_process_pd_message(chip, msg);
 	if (ret < 0)
@@ -1039,7 +1040,7 @@ static int process_rx(struct max77759_plat *chip, u16 status)
 	return 0;
 }
 
-struct max77759_compliance_warnings *init_compliance_warnings(struct max77759_plat *chip)
+static struct max77759_compliance_warnings *init_compliance_warnings(struct max77759_plat *chip)
 {
 	struct max77759_compliance_warnings *compliance_warnings;
 
@@ -2971,9 +2972,9 @@ static int max77759_usb_set_role(struct usb_role_switch *sw, enum usb_role role)
 }
 
 #if IS_ENABLED(CONFIG_TCPCI_VENDOR_HOOKS)
-static void max77759_store_partner_src_caps(void *unused,
+static void max77759_store_partner_src_caps(void *unused, struct tcpm_port *port,
 					    unsigned int *nr_source_caps,
-					    u32 (*source_caps)[])
+					    u32 (*source_caps)[PDO_MAX_OBJECTS])
 {
 	int i;
 
@@ -3029,7 +3030,7 @@ void tcpm_put_partner_src_caps(u32 **src_pdo)
 }
 EXPORT_SYMBOL_GPL(tcpm_put_partner_src_caps);
 
-void max77759_bc12_is_running(struct max77759_plat *chip, bool running)
+static void max77759_bc12_is_running(struct max77759_plat *chip, bool running)
 {
 	if (chip) {
 		mutex_lock(&chip->data_path_lock);
@@ -3300,7 +3301,7 @@ static void reenable_auto_ultra_low_power_mode_work_item(struct kthread_work *wo
 	max777x9_disable_auto_ultra_low_power_mode(chip, false);
 }
 
-static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
+static void reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
 										ktime_t time)
 {
 	struct max77759_plat *chip = container_of(alarm, struct max77759_plat,
@@ -3316,7 +3317,7 @@ static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(
 	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 
 exit:
-	return ALARMTIMER_NORESTART;
+	return;
 }
 
 static void max_tcpci_check_contaminant(struct google_shim_tcpci *tcpci,
@@ -3610,7 +3611,7 @@ static void aicl_check_alarm_work_item(struct kthread_work *work)
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_INPUT_POWER_LIMITED, true);
 }
 
-static enum alarmtimer_restart aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
+static void aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct max77759_plat *chip = container_of(alarm, struct max77759_plat, aicl_check_alarm);
 
@@ -3618,7 +3619,6 @@ static enum alarmtimer_restart aicl_check_alarm_handler(struct alarm *alarm, kti
 	kthread_queue_work(chip->wq, &chip->aicl_check_alarm_work);
 	pm_wakeup_event(chip->dev, AICL_CHECK_MS);
 
-	return ALARMTIMER_NORESTART;
 }
 
 static int max77759_aicl_active_cb(struct gvotable_election *el, const char *reason, void *value)
@@ -4153,7 +4153,7 @@ typec_mux_put:
 }
 EXPORT_SYMBOL_GPL(max77759_register);
 
-void max77759_cancel_work(struct max77759_plat *plat)
+static void max77759_cancel_work(struct max77759_plat *plat)
 {
 	kthread_cancel_work_sync(&plat->reenable_auto_ultra_low_power_mode_work);
 	kthread_cancel_work_sync(&plat->aicl_check_alarm_work);
