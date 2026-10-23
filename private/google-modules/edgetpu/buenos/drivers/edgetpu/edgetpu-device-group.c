@@ -1463,7 +1463,7 @@ out:
 
 /*
  * Return the group with pasid @pasid for device @etdev, with a reference held on the group, or
- * NULL if no group with that pasid is found.
+ * NULL if no group with that pasid is found or the group list is busy.
  */
 static struct edgetpu_device_group *get_group_by_pasid(struct edgetpu_dev *etdev, uint pasid)
 {
@@ -1474,7 +1474,13 @@ static struct edgetpu_device_group *get_group_by_pasid(struct edgetpu_dev *etdev
 	if (pasid == IOMMU_PASID_INVALID || !pasid)
 		return NULL;
 
-	mutex_lock(&etdev->groups_lock);
+	/*
+	 * The fault handler holds an SMMU lock needed by attach/detach. Other
+	 * group lookups hold groups_lock while waiting for group->lock, which
+	 * attach/detach callers can hold. Skip optional diagnostics if busy.
+	 */
+	if (!mutex_trylock(&etdev->groups_lock))
+		return NULL;
 	etdev_for_each_group(etdev, g, tgroup) {
 		if (tgroup->etdomain && tgroup->etdomain->pasid == pasid) {
 			group = edgetpu_device_group_get(tgroup);
