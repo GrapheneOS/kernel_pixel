@@ -785,8 +785,10 @@ static int smfc_init_v4l2(struct device *dev, struct smfc_dev *smfc)
 	smfc->videodev->lock		= &smfc->video_device_mutex;
 	smfc->videodev->vfl_dir		= VFL_DIR_M2M;
 	smfc->videodev->v4l2_dev	= &smfc->v4l2_dev;
+	/* The V4L2 core enables queue ioctls only for streaming devices. */
 	smfc->videodev->device_caps = smfc->devdata->device_caps |
-		V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET;
+		V4L2_CAP_EXYNOS_JPEG_DMABUF_OFFSET |
+		V4L2_CAP_VIDEO_M2M_MPLANE | V4L2_CAP_STREAMING;
 
 	video_set_drvdata(smfc->videodev, smfc);
 
