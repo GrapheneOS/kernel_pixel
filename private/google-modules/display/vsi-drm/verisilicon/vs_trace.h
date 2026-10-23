@@ -386,7 +386,7 @@ TRACE_EVENT_CONDITION(disp_bus_err_irqs,
 		__field(long, data)
 	),
 	TP_fast_assign(
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->data = data;
 	),
 	TP_printk("%s: %#lx", __get_str(name), __entry->data)
@@ -537,7 +537,7 @@ DECLARE_EVENT_CLASS(disp_hw_layer_feature,
 	),
 	TP_fast_assign(
 			__entry->hw_id = hw_id;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 			__assign_vstr(vstr, fmt, va);
 	),
 	TP_printk("[Layer%d] %s: %s", __entry->hw_id, __get_str(prop),
@@ -563,7 +563,7 @@ DECLARE_EVENT_CLASS(disp_hw_out_ctrl_feature,
 	),
 	TP_fast_assign(
 			__entry->hw_id = hw_id;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 			__assign_vstr(vstr, fmt, va);
 	),
 	TP_printk("[Out_ctrl%d] %s: %s", __entry->hw_id, __get_str(prop),
@@ -589,7 +589,7 @@ DECLARE_EVENT_CLASS(disp_hw_wb_feature,
 	),
 	TP_fast_assign(
 			__entry->hw_id = hw_id;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 			__assign_vstr(vstr, fmt, va);
 	),
 	TP_printk("[Writeback%d] %s: %s", __entry->hw_id, __get_str(prop),
@@ -799,9 +799,9 @@ TRACE_EVENT_CONDITION(disp_hw_feature_data,
 	),
 	TP_fast_assign(
 			__entry->component = component;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 			__entry->hw_id = hw_id;
-			__assign_str(data_label, data_label);
+			__assign_str(data_label);
 			memcpy(__get_dynamic_array(data), data, data_len);
 	),
 	TP_printk("[%s%d] %s: %s=[%s]", show_trace_component(__entry->component),
@@ -843,7 +843,7 @@ DECLARE_EVENT_CLASS(disp_hw_feature_en_dirty,
 	TP_fast_assign(
 			__entry->component = component;
 			__entry->hw_id = hw_id;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 			__entry->en = en;
 			__entry->dirty = dirty;
 	),
@@ -895,7 +895,7 @@ DECLARE_EVENT_CLASS(disp_hw_feature_en,
 	TP_fast_assign(
 			__entry->component = component;
 			__entry->hw_id = hw_id;
-			__assign_str(prop, prop);
+			__assign_str(prop);
 			__entry->en = en;
 	),
 	TP_printk("[%s%d] %s: en:%d", show_trace_component(__entry->component),
@@ -941,7 +941,7 @@ DECLARE_EVENT_CLASS(disp_hw_reg_switch,
 			__field(bool, en)
 	),
 	TP_fast_assign(
-			__assign_str(name, name);
+			__assign_str(name);
 			__entry->hw_id = hw_id;
 			__entry->en = en;
 	),
@@ -999,8 +999,8 @@ TRACE_EVENT(disp_set_property,
 			__field(u64, val)
 	),
 	TP_fast_assign(
-			__assign_str(name, name);
-			__assign_str(prop, prop);
+			__assign_str(name);
+			__assign_str(prop);
 			__entry->val = val;
 	),
 	TP_printk("[%s] %s val:%llu", __get_str(name), __get_str(prop), __entry->val)

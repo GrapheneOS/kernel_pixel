@@ -30,7 +30,7 @@ TRACE_EVENT(gcip_map_dmabuf_attach,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->size = dmabuf->size;
 	),
 
@@ -50,7 +50,7 @@ TRACE_EVENT(gcip_map_dmabuf_map_attachment_start,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->size = dmabuf->size;
 	),
 
@@ -70,7 +70,7 @@ TRACE_EVENT(gcip_map_dmabuf_map_attachment_end,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->size = dmabuf->size;
 	),
 
@@ -92,7 +92,7 @@ TRACE_EVENT(gcip_iommu_map_sg_start,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->pasid = pasid;
 		__entry->iova = iova;
 		__entry->size = size;
@@ -116,7 +116,7 @@ TRACE_EVENT(gcip_iommu_map_sg_end,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->pasid = pasid;
 		__entry->iova = iova;
 		__entry->ret = ret;
@@ -139,7 +139,7 @@ TRACE_EVENT(gcip_sync_sg_start,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->iova = iova;
 		__entry->for_device = for_device;
 	),
@@ -160,7 +160,7 @@ TRACE_EVENT(gcip_sync_sg_end,
 	),
 
 	TP_fast_assign(
-		__assign_str(devname, dev_name(dev));
+		__assign_str(devname);
 		__entry->iova = iova;
 	),
 
