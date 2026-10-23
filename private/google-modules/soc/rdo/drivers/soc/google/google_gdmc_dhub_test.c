@@ -444,7 +444,7 @@ static struct kunit_suite google_gdmc_dhub_gen2_test_suite = {
 
 kunit_test_suite(google_gdmc_dhub_gen1_test_suite);
 kunit_test_suite(google_gdmc_dhub_gen2_test_suite);
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_AUTHOR("Mayank Rungta <mrungta@google.com>");
 MODULE_DESCRIPTION("Google DHUB KUnit test");
 MODULE_LICENSE("GPL");

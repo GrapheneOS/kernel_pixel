@@ -239,7 +239,7 @@ static struct kunit_suite towerci_irq_test_suite = {
 };
 
 kunit_test_suite(towerci_irq_test_suite);
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_AUTHOR("Mayank Rungta <mrungta@google.com>");
 MODULE_DESCRIPTION("Tower CI KUnit test");
 MODULE_LICENSE("GPL");
