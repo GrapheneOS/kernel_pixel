@@ -256,7 +256,7 @@ static struct kunit_suite gvdu_decode_suite = {
 
 kunit_test_suites(&gvdu_error_handling_suite, &gvdu_decode_suite);
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_AUTHOR("Kanstantsin Yarmash <kyarmash@google.com>");
 MODULE_DESCRIPTION("Google VDU KUnit test");
 MODULE_LICENSE("GPL");

@@ -166,5 +166,5 @@ const struct mock_gsa_recvd *gsa_mock_args_recvd(struct mock_gsa_mbox *mock_mbox
 	return &mock_mbox->mock_send_mbox.received;
 }
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_LICENSE("GPL v2");

@@ -141,5 +141,5 @@ static struct kunit_suite gsa_core_test_suite = {
 
 kunit_test_suites(&gsa_core_test_suite);
 
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);
+MODULE_IMPORT_NS("EXPORTED_FOR_KUNIT_TESTING");
 MODULE_LICENSE("GPL v2");
