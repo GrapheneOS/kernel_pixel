@@ -105,6 +105,8 @@ ddk_module(
     copts = _COMMON_COPTS,
     kernel_build = "//private/devices/google/common:kernel",
     deps = [
+        "//private/google-modules/iommu/arm-smmu-v3",
+        "//private/google-modules/iommu/arm-smmu-v3:fault_headers",
         ":common_headers",
         "//private/google-modules/perf:google_pm_qos",
         "//private/google-modules/soc/gs:gs_soc_module",

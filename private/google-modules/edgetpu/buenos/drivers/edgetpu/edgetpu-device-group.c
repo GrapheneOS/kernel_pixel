@@ -195,7 +195,7 @@ static void edgetpu_group_deactivate(struct edgetpu_device_group *group)
 static void edgetpu_device_group_kci_deactivate(struct edgetpu_device_group *group)
 {
 	edgetpu_kci_update_usage_async(group->etdev->etkci);
-	if (pm_runtime_get_if_active(group->etdev->dev, false) > 0) {
+	if (pm_runtime_get_if_in_use(group->etdev->dev) > 0) {
 		edgetpu_group_deactivate(group);
 		pm_runtime_put(group->etdev->dev);
 	}
@@ -371,7 +371,7 @@ void edgetpu_group_notify(struct edgetpu_device_group *group, uint event_id)
 
 	read_lock_irqsave(&group->events.lock, flags);
 	if (group->events.eventfds[event_id])
-		eventfd_signal(group->events.eventfds[event_id], 1);
+		eventfd_signal(group->events.eventfds[event_id]);
 	read_unlock_irqrestore(&group->events.lock, flags);
 }
 
@@ -1206,7 +1206,7 @@ void edgetpu_fatal_error_notify(struct edgetpu_dev *etdev, uint error_mask)
 	/*
 	 * Flushing ikv responses and reinitializing iif mailbox requires the TPU to be powered on.
 	 */
-	powered_on = pm_runtime_get_if_active(etdev->dev, false) > 0;
+	powered_on = pm_runtime_get_if_in_use(etdev->dev) > 0;
 
 	/* Consume all arrived responses first before each group cancels pending commands. */
 	if (powered_on && edgetpu_firmware_is_not_responding(error_mask))

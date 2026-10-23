@@ -250,7 +250,7 @@ void edgetpu_soc_pm_dump_block_state(struct edgetpu_dev *etdev)
 
 	if (!etdev->soc_data->lpcm_lpm_csrs)
 		return;
-	if (pm_runtime_get_if_active(etdev->dev, false) <= 0) {
+	if (pm_runtime_get_if_in_use(etdev->dev) <= 0) {
 		etdev_info(etdev, "pm_runtime not active, skip PSM state dump.");
 		return;
 	}

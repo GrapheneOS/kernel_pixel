@@ -85,6 +85,8 @@ ddk_module(
         "//private/google-modules/soc/gs:__pkg__",
     ],
     deps = [
+        "//private/google-modules/iommu/arm-smmu-v3",
+        "//private/google-modules/iommu/arm-smmu-v3:fault_headers",
         "//common:all_headers_aarch64",
         "//private/google-modules/iif",
         "//private/google-modules/iif:iif_headers",

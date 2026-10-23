@@ -332,7 +332,7 @@ void edgetpu_debug_dump_cpu_regs(struct edgetpu_dev *etdev)
 		return;
 
 	/* Ensure the TPU block and control cluster are powered. */
-	if (pm_runtime_get_if_active(etdev->dev, false) <= 0) {
+	if (pm_runtime_get_if_in_use(etdev->dev) <= 0) {
 		etdev_info(etdev, "pm_runtime not active, skip CPU registers dump.");
 		return;
 	}

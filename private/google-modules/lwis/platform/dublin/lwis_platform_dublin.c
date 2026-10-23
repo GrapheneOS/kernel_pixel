@@ -7,6 +7,7 @@
  */
 
 #include "lwis_platform_dublin.h"
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include "lwis_commands.h"
 #include "lwis_device.h"
@@ -248,29 +249,15 @@ devlink_err:
 	return ret;
 }
 
-static int iommu_fault_handler(struct iommu_fault *fault, void *param)
+static int iommu_fault_handler(struct device *dev, unsigned long iova, u32 pasid,
+			       int flags, void *param)
 {
 	struct lwis_device *lwis_dev = (struct lwis_device *)param;
 	struct lwis_mem_page_fault_event_payload event_payload;
 
 	pr_err("############ LWIS IOMMU PAGE FAULT ############\n");
 	pr_err("\n");
-	if (fault->type == IOMMU_FAULT_PAGE_REQ) {
-		dev_warn(lwis_dev->dev, "IOMMU page request fault!\n");
-		dev_warn(lwis_dev->dev, "flags = 0x%08X\n", fault->prm.flags);
-		dev_warn(lwis_dev->dev, "pasid = 0x%08X\n", fault->prm.pasid);
-		dev_warn(lwis_dev->dev, "grpid = 0x%08X\n", fault->prm.grpid);
-		dev_warn(lwis_dev->dev, "perms = 0x%08X\n", fault->prm.perm);
-		dev_warn(lwis_dev->dev, "addr = 0x%llX\n", fault->prm.addr);
-	} else if (fault->type == IOMMU_FAULT_DMA_UNRECOV) {
-		dev_warn(lwis_dev->dev, "Unrecoverable IOMMU fault!\n");
-		dev_warn(lwis_dev->dev, "Reason = 0x%08X\n", fault->event.reason);
-		dev_warn(lwis_dev->dev, "flags = 0x%08X\n", fault->event.flags);
-		dev_warn(lwis_dev->dev, "pasid = 0x%08X\n", fault->event.pasid);
-		dev_warn(lwis_dev->dev, "perms = 0x%08X\n", fault->event.perm);
-		dev_warn(lwis_dev->dev, "addr = 0x%llX\n", fault->event.addr);
-		dev_warn(lwis_dev->dev, "fetch_addr = 0x%llX\n", fault->event.fetch_addr);
-	}
+	dev_warn(lwis_dev->dev, "IOMMU fault: address=%#lx access=%#x\n", iova, flags);
 	pr_err("\n");
 	lwis_debug_print_transaction_info(lwis_dev);
 	pr_err("\n");
@@ -282,8 +269,9 @@ static int iommu_fault_handler(struct iommu_fault *fault, void *param)
 	pr_err("\n");
 	pr_err("###############################################\n");
 
-	event_payload.fault_address = fault->event.addr;
-	event_payload.fault_flags = fault->event.flags;
+	event_payload.fault_address = iova;
+	/* Preserve the legacy event ABI: bit 1 means the address is valid. */
+	event_payload.fault_flags = LWIS_MEM_PAGE_FAULT_ADDRESS_VALID;
 	lwis_device_error_event_emit(lwis_dev, LWIS_ERROR_EVENT_ID_MEMORY_PAGE_FAULT,
 				     &event_payload, sizeof(event_payload));
 
@@ -679,14 +667,11 @@ int lwis_platform_device_enable(struct lwis_device *lwis_dev)
 		invalidate_clock_cache(lwis_dev);
 
 	if (of_find_property(lwis_dev->k_dev->of_node, "iommus", &iommus_len) && iommus_len) {
-		/* Activate IOMMU for the platform device */
-		ret = iommu_register_device_fault_handler(lwis_dev->k_dev, iommu_fault_handler,
-							  lwis_dev);
-		if (ret < 0) {
-			dev_err(lwis_dev->dev,
-				"Failed to register fault handler for the device: %d\n", ret);
+		ret = pixel_iommu_register_fault_handler(lwis_dev->k_dev, iommu_fault_handler,
+						       lwis_dev);
+		/* The caller powers down the device on enable failure. */
+		if (ret)
 			return ret;
-		}
 	}
 
 	/* TODO(b/380000691): The following functionality will be ready while the
@@ -748,16 +733,10 @@ int lwis_platform_device_disable(struct lwis_device *lwis_dev)
 	if (device_support_mem_qos(lwis_dev) && lwis_dev->mem_qos_scenario_name)
 		google_mem_qos_scenario_unvote(lwis_dev->mem_qos_scenario);
 
-	/* We can't remove fault handlers, so there's no call corresponding
-	 * to the iommu_register_device_fault_handler above
-	 */
-
 	lwis_platform_remove_qos(lwis_dev);
 
-	if (of_find_property(lwis_dev->k_dev->of_node, "iommus", &iommus_len) && iommus_len) {
-		/* Deactivate IOMMU */
-		iommu_unregister_device_fault_handler(lwis_dev->k_dev);
-	}
+	if (of_find_property(lwis_dev->k_dev->of_node, "iommus", &iommus_len) && iommus_len)
+		pixel_iommu_unregister_fault_handler(lwis_dev->k_dev);
 
 	ret = pm_runtime_put_sync(lwis_dev->k_dev);
 	if (ret < 0) {

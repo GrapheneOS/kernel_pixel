@@ -610,7 +610,7 @@ static int edgetpu_mailbox_external_disable_free(struct edgetpu_client *client)
 
 void edgetpu_mailbox_external_disable_free_locked(struct edgetpu_device_group *group)
 {
-	if (pm_runtime_get_if_active(group->etdev->dev, false) > 0) {
+	if (pm_runtime_get_if_in_use(group->etdev->dev) > 0) {
 		int ret;
 
 		ret = edgetpu_mailbox_deactivate_external_mailbox(group);

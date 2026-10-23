@@ -370,7 +370,7 @@ static int lwis_slc_device_probe(struct platform_device *plat_dev)
 	return 0;
 }
 
-static int lwis_slc_device_remove(struct platform_device *plat_dev)
+static void lwis_slc_device_remove(struct platform_device *plat_dev)
 {
 	struct lwis_device *lwis_dev = container_of(&plat_dev, struct lwis_device, plat_dev);
 	struct lwis_ioreg_device *ioreg_dev =
@@ -380,7 +380,6 @@ static int lwis_slc_device_remove(struct platform_device *plat_dev)
 	if (slc_dev->partition_handle)
 		pt_client_unregister(slc_dev->partition_handle);
 
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)

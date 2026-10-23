@@ -31,7 +31,7 @@ MODULE_DEVICE_TABLE(of, buenos_of_match);
 
 static struct platform_driver buenos_driver = {
 	.probe = edgetpu_mobile_platform_probe,
-	.remove_new = edgetpu_mobile_platform_remove,
+	.remove = edgetpu_mobile_platform_remove,
 	.driver = {
 			.name = "edgetpu_buenos",
 			.of_match_table = buenos_of_match,
