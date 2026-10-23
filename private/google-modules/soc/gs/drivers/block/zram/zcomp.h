@@ -6,6 +6,7 @@
 #include <linux/local_lock.h>
 
 struct zcomp;
+struct zcomp_input;
 struct bio;
 
 #define ZCOMP_ALGO_NAME_MAX 64
@@ -40,6 +41,7 @@ struct zcomp_operation {
 /* dynamic per-device compression frontend */
 struct zcomp {
 	struct zram *zram;
+	struct zcomp_input __percpu *input;
 	void *private;
 	u32 prio;
 	const struct zcomp_operation *op;
@@ -56,6 +58,8 @@ bool zcomp_available_algorithm(const char *comp);
 struct zcomp *zcomp_create(const char *comp, struct zcomp_params *params,
 			   struct zram *zram, u32 prio);
 void zcomp_destroy(struct zcomp *comp);
+void *zcomp_read_begin(struct zcomp *comp, unsigned long handle);
+void zcomp_read_end(struct zcomp *comp, unsigned long handle, void *src);
 
 int zcomp_compress(struct zcomp *comp, u32 index, struct page *page,
 			struct bio *bio);

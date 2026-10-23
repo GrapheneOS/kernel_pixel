@@ -1375,7 +1375,7 @@ static void eh_setup_dcmd(struct eh_device *eh_dev, unsigned int index,
 	 * 4096B aligned, max 4096B of data
 	 */
 	alignment = 1UL << __ffs((unsigned long)src);
-	if (alignment < 64 || slen > alignment) {
+	if (!virt_addr_valid(src) || alignment < 64 || slen > alignment) {
 		src_vaddr = (void *)(*per_cpu_ptr(eh_dev->bounce_buffer, index));
 		memcpy(src_vaddr, src, slen);
 		src_paddr = virt_to_phys(src_vaddr);

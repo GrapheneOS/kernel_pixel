@@ -19,6 +19,25 @@
  */
 static size_t huge_class_size = 0;
 
+/* Scratch space for zsmalloc objects spanning two physical pages. */
+struct zcomp_input {
+	local_lock_t lock;
+	u8 buffer[PAGE_SIZE];
+};
+
+void *zcomp_read_begin(struct zcomp *comp, unsigned long handle)
+{
+	local_lock(&comp->input->lock);
+	return zs_obj_read_begin(comp->zram->mem_pool, handle,
+				this_cpu_ptr(comp->input)->buffer);
+}
+
+void zcomp_read_end(struct zcomp *comp, unsigned long handle, void *src)
+{
+	zs_obj_read_end(comp->zram->mem_pool, handle, src);
+	local_unlock(&comp->input->lock);
+}
+
 struct zcomp_backend {
 	const char algo_name[ZCOMP_ALGO_NAME_MAX];
 	struct zcomp_operation *op;
@@ -213,11 +232,11 @@ int zcomp_decompress(struct zcomp *comp, u32 index, struct page *page)
 
 	handle = zram_get_handle(zram, index);
 	src_len = zram_get_obj_size(zram, index);
-	src = zs_map_object(zram->mem_pool, handle, ZS_MM_RO);
+	src = zcomp_read_begin(comp, handle);
 
 	ret = zcomp_decompress_buf(comp, index, src, src_len, page);
 
-	zs_unmap_object(zram->mem_pool, handle);
+	zcomp_read_end(comp, handle, src);
 	return ret;
 }
 
@@ -245,7 +264,11 @@ int zcomp_recompress(struct zcomp *comp, u32 index, struct page *page,
 
 void zcomp_destroy(struct zcomp *comp)
 {
+	struct zcomp_input __percpu *input = comp->input;
+
+	/* destroy() drops the backend module reference and may release comp. */
 	comp->op->destroy(comp);
+	free_percpu(input);
 }
 
 /*
@@ -260,7 +283,7 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 			   struct zram *zram, u32 prio)
 {
 	struct zcomp *comp;
-	int error;
+	int error, cpu;
 
 	down_read(&zcomp_rwsem);
 	comp = find_zcomp(algo_name);
@@ -273,8 +296,17 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 	comp->params = params;
 	comp->prio = prio;
 
+	comp->input = alloc_percpu(struct zcomp_input);
+	if (!comp->input) {
+		up_read(&zcomp_rwsem);
+		return ERR_PTR(-ENOMEM);
+	}
+	for_each_possible_cpu(cpu)
+		local_lock_init(&per_cpu_ptr(comp->input, cpu)->lock);
+
 	error = comp->op->create(comp, algo_name);
 	if (error) {
+		free_percpu(comp->input);
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(error);
 	}
@@ -301,7 +333,6 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 int zcomp_copy_buffer(void *buffer, int comp_len, struct zram *zram,
 		      struct page *page, u32 index, u32 prio)
 {
-	void *dst_addr;
 	unsigned long handle;
 
 	if (comp_len >= huge_class_size)
@@ -312,21 +343,19 @@ int zcomp_copy_buffer(void *buffer, int comp_len, struct zram *zram,
 			__GFP_NOWARN |
 			__GFP_HIGHMEM |
 			__GFP_MOVABLE |
-			__GFP_CMA);
+			__GFP_CMA, NUMA_NO_NODE);
 	if (IS_ERR((void *)handle)) {
 		return PTR_ERR((void *)handle);
 	}
 
-	dst_addr = zs_map_object(zram->mem_pool, handle, ZS_MM_WO);
 	if (comp_len == PAGE_SIZE) {
 		void *src = kmap_local_page(page);
 
-		memcpy(dst_addr, src, comp_len);
+		zs_obj_write(zram->mem_pool, handle, src, comp_len);
 		kunmap_local(src);
 	} else {
-		memcpy(dst_addr, buffer, comp_len);
+		zs_obj_write(zram->mem_pool, handle, buffer, comp_len);
 	}
-	zs_unmap_object(zram->mem_pool, handle);
 	zram_slot_update(zram, index, handle, comp_len, prio);
 
 	return 0;
@@ -359,7 +388,6 @@ int zcomp_recompress_copy_buffer(void *buffer, int comp_len_new,
 	unsigned int class_index_old;
 	unsigned int class_index_new;
 	unsigned long handle_new;
-	void *dst;
 
 	comp_len_old = zram_get_obj_size(zram, index);
 	class_index_old = zs_lookup_class_index(zram->mem_pool, comp_len_old);
@@ -381,13 +409,11 @@ int zcomp_recompress_copy_buffer(void *buffer, int comp_len_new,
 			       __GFP_KSWAPD_RECLAIM |
 			       __GFP_NOWARN |
 			       __GFP_HIGHMEM |
-			       __GFP_MOVABLE);
+			       __GFP_MOVABLE, NUMA_NO_NODE);
 	if (IS_ERR_VALUE(handle_new))
 		return PTR_ERR((void *)handle_new);
 
-	dst = zs_map_object(zram->mem_pool, handle_new, ZS_MM_WO);
-	memcpy(dst, buffer, comp_len_new);
-	zs_unmap_object(zram->mem_pool, handle_new);
+	zs_obj_write(zram->mem_pool, handle_new, buffer, comp_len_new);
 
 	zram_recompress_slot_update(zram, index, handle_new, comp_len_new,
 				    prio);
