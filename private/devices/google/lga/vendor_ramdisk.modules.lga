@@ -185,7 +185,6 @@ vh_preemptirq_long.ko
 vh_sched.ko
 vs_drm.ko
 xhci-goog-dma.ko
-xhci-sideband.ko
 zcomp_cpu.ko
 zcomp_eh.ko
 zram_gs.ko

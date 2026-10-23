@@ -5,6 +5,7 @@ Merges the UAPI headers from merged_kernel_uapi_headers and ddk_uapi_headers.
 """
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("@rules_python//python:py_runtime_info.bzl", "PyRuntimeInfo")
 load("@kernel_toolchain_info//:dict.bzl", "CLANG_VERSION")
 load("@kleaf//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_toolchain")
 

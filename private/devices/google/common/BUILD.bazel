@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag")
 load("@kleaf//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_genrule")
 load("@kleaf//build/kernel/kleaf:kernel.bzl", "checkpatch")
-load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_LIST")
+load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_BASENAMES")
 load("//private/devices/google/common/kleaf:extracted_system_dlkm.bzl", "extracted_system_dlkm")
 
 package(
@@ -122,6 +121,6 @@ filegroup(
 
 extracted_system_dlkm(
     name = "kernel_gki_modules",
-    gki_modules = [paths.basename(m) for m in PIXEL_GKI_MODULES_LIST],
+    gki_modules = PIXEL_GKI_MODULES_BASENAMES,
     images = "//common:kernel_aarch64_images",
 )
