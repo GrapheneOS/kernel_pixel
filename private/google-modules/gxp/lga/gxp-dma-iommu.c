@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include <gcip/gcip-domain-pool.h>
 #include <gcip/gcip-iommu.h>
@@ -34,23 +35,14 @@ struct gxp_dma_iommu_manager {
 
 /* Fault handler */
 
-static int iommu_fault_handler(struct iommu_fault *fault, void *token)
+static int iommu_fault_handler(struct device *dev, unsigned long iova, u32 pasid,
+			       int flags, void *token)
 {
-	struct device *dev = token;
-
-	if (fault->type == IOMMU_FAULT_DMA_UNRECOV) {
-		dev_err(dev, "Unrecoverable IOMMU fault!\n");
-		dev_err(dev, "reason = %08X\n", fault->event.reason);
-		dev_err(dev, "flags = %08X\n", fault->event.flags);
-		dev_err(dev, "pasid = %08X\n", fault->event.pasid);
-		dev_err(dev, "perm = %08X\n", fault->event.perm);
-		dev_err(dev, "addr = %llX\n", fault->event.addr);
-		dev_err(dev, "fetch_addr = %llX\n", fault->event.fetch_addr);
-	} else {
-		dev_err(dev, "Unexpected IOMMU fault type (%d)\n", fault->type);
+	if (pasid) {
+		dev_dbg(dev, "IOMMU fault on address %08lX. flags = %08X", iova, flags);
+		return 0;
 	}
-
-	/* Tells the IOMMU driver to carry on. */
+	dev_err(dev, "IOMMU fault: address=%#lx access=%#x\n", iova, flags);
 	return -EAGAIN;
 }
 
@@ -118,21 +110,14 @@ int gxp_dma_init(struct gxp_dev *gxp)
 		return PTR_ERR(mgr->default_domain);
 	}
 
-	if (iommu_register_device_fault_handler(gxp->dev, iommu_fault_handler, gxp->dev)) {
-		dev_err(gxp->dev, "Failed to register iommu fault handler\n");
-		return -EIO;
-	}
-
 	gxp->dma_mgr = &(mgr->dma_mgr);
 
-	return 0;
+	return pixel_iommu_register_fault_handler(gxp->dev, iommu_fault_handler, NULL);
 }
 
 void gxp_dma_exit(struct gxp_dev *gxp)
 {
-	if (iommu_unregister_device_fault_handler(gxp->dev))
-		dev_err(gxp->dev,
-			"Failed to unregister IOMMU fault handler\n");
+	pixel_iommu_unregister_fault_handler(gxp->dev);
 }
 
 #define EXT_TPU_MBX_SIZE 0x2000
@@ -523,12 +508,4 @@ u64 gxp_dma_encode_gcip_map_flags(uint gxp_dma_flags, unsigned long dma_attrs)
 #endif
 
 	return gcip_iommu_encode_gcip_map_flags(dir, coherent, dma_attrs, restrict_iova, mmio);
-}
-
-int gxp_iommu_fault_handler(struct iommu_domain *domain, struct device *dev, unsigned long iova,
-			    int flags, void *token)
-{
-	dev_dbg(dev, "IOMMU fault on address %08lX. flags = %08X", iova, flags);
-	/* Tell the IOMMU driver we are OK with this fault. */
-	return 0;
 }
