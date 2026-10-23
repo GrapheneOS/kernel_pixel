@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <soc/google/gcma.h>
+#include <linux/gcma.h>
 #include "gcma_heap.h"
 
 #include "gcma_arbitrator.h"

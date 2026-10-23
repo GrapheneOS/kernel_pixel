@@ -37,7 +37,6 @@ obj-$(CONFIG_EXYNOS_GNSS_IF_SPI) += gnssif_spi/
 obj-y				    	+= debug/
 
 # GCMA
-obj-$(CONFIG_GCMA) += gcma/
 
 # Proactive Kill
 obj-$(CONFIG_PROACTIVE_KILL) += pa_kill/

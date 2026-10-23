@@ -37,7 +37,6 @@ eh.ko
 fwtp_cpm_module.ko
 fwtp_lib.ko
 gcdd.ko
-gcma.ko
 goog-chip-info.ko
 goog-mba-aggr.ko
 goog-mba-cpm-iface-test.ko

@@ -18,6 +18,8 @@
 #include <linux/of.h>
 
 #include "samsung-dma-heap.h"
+#include <heaps/deferred-free-helper.h>
+#include <heaps/page_pool.h>
 
 #define CREATE_TRACE_POINTS
 #include "dmabuf_heap_trace.h"
@@ -166,7 +168,7 @@ static struct samsung_dma_heap *__samsung_heap_add(struct device *dev, void *pri
 	}
 
 	of_property_read_u32(dev->of_node, "dma-heap,alignment", &alignment);
-	order = min_t(unsigned int, get_order(alignment), MAX_ORDER);
+	order = min_t(unsigned int, get_order(alignment), MAX_PAGE_ORDER);
 
 	heap = devm_kzalloc(dev, sizeof(*heap), GFP_KERNEL);
 	if (!heap)
@@ -369,7 +371,7 @@ u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
 EXPORT_SYMBOL_GPL(trusty_dma_buf_get_ffa_tag);
 #endif
 
-void trusty_register_dma_buf_callbacks(void)
+static void trusty_register_dma_buf_callbacks(void)
 {
 #if IS_ENABLED(CONFIG_TRUSTY_DMA_BUF_FFA_TAG)
 	trusty_register_func_for_dma_buf(trusty_dma_buf_get_ffa_tag,
@@ -385,10 +387,16 @@ static int __init samsung_dma_heap_init(void)
 	int ret;
 
 	trusty_register_dma_buf_callbacks();
+	ret = deferred_freelist_init();
+	if (ret)
+		goto err_deferred;
+	ret = dmabuf_page_pool_init_shrinker();
+	if (ret)
+		goto err_pool;
 
 	ret = chunk_dma_heap_init();
 	if (ret)
-		return ret;
+		goto err_chunk;
 
 	ret = cma_dma_heap_init();
 	if (ret)
@@ -415,7 +423,11 @@ err_carveout:
 	cma_dma_heap_exit();
 err_cma:
 	chunk_dma_heap_exit();
-
+err_chunk:
+	dmabuf_page_pool_exit_shrinker();
+err_pool:
+	deferred_freelist_exit();
+err_deferred:
 	trusty_register_func_for_dma_buf(NULL, NULL);
 
 	return ret;
@@ -423,15 +435,19 @@ err_cma:
 
 static void __exit samsung_dma_heap_exit(void)
 {
+	deferred_freelist_exit();
 	system_dma_heap_exit();
+	gcma_dma_heap_exit();
 	carveout_dma_heap_exit();
 	cma_dma_heap_exit();
 	chunk_dma_heap_exit();
+	dmabuf_page_pool_exit_shrinker();
 	trusty_register_func_for_dma_buf(NULL, NULL);
 }
 
 module_init(samsung_dma_heap_init);
 module_exit(samsung_dma_heap_exit);
 MODULE_DESCRIPTION("DMA-BUF Samsung Heap");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
+MODULE_IMPORT_NS("DMA_BUF_HEAP");
 MODULE_LICENSE("GPL v2");

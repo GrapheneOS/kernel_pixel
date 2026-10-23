@@ -7,7 +7,7 @@ ccflags-y += -I$(ROOT_DIR)/private/google-modules/trusty/include
 CFLAGS_samsung_heap.o = -I$(srctree)/$(src)
 
 obj-$(CONFIG_DMABUF_SAMSUNG_HEAPS) += samsung_dma_heap.o
-samsung_dma_heap-y += heap_dma_buf.o samsung_heap.o
+samsung_dma_heap-y += deferred-free-helper.o heap_dma_buf.o page_pool.o samsung_heap.o
 samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CHUNK) += chunk_heap.o
 samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CMA) += cma_heap.o
 samsung_dma_heap-$(CONFIG_DMABUF_HEAPS_SAMSUNG_CARVEOUT) += carveout_heap.o
