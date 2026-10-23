@@ -82,7 +82,7 @@ TRACE_EVENT(dsi_label_scope,
 			__field(bool, begin)
 		),
 	TP_fast_assign(
-			__assign_str(name, name);
+			__assign_str(name);
 			__entry->begin = begin;
 		),
 	TP_printk("%s %s", __get_str(name), __entry->begin ? "begin" : "end")
@@ -98,7 +98,7 @@ TRACE_EVENT(reg_dump_header, TP_PROTO(const char *desc, u32 offset, u32 size),
 			__field(u32, size)
 		),
 	TP_fast_assign(
-			__assign_str(desc, desc);
+			__assign_str(desc);
 			__entry->offset = offset;
 			__entry->size = size;
 		),
@@ -114,7 +114,7 @@ TRACE_EVENT(reg_dump_line,
 	),
 	TP_fast_assign(
 		__entry->offset = offset;
-		__assign_str(line_buf, line_buf);
+		__assign_str(line_buf);
 	),
 	TP_printk("%08X: %s", __entry->offset, __get_str(line_buf))
 );
