@@ -207,7 +207,7 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 
 	ret = check_default_domain(etdev, etiommu);
 	if (ret)
-		goto err_destroy_pool;
+		goto err_put_group;
 
 	ret = iommu_register_device_fault_handler(etdev->dev, edgetpu_iommu_dev_fault_handler,
 						  etdev);
@@ -219,6 +219,9 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 	etdev->mmu_cookie = etiommu;
 	return 0;
 
+err_put_group:
+	if (etiommu->iommu_group)
+		iommu_group_put(etiommu->iommu_group);
 err_destroy_pool:
 	gcip_domain_pool_exit(&etiommu->domain_pool);
 err_free_etiommu:
