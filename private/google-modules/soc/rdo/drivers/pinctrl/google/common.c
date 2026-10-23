@@ -191,7 +191,7 @@ static void google_gpio_wake_up_irq_mask_update(struct google_pinctrl *gctl,
  *
  * Returns zero on success else returns a negative error code.
  */
-int google_pinctrl_suspend(struct device *dev)
+static int google_pinctrl_suspend(struct device *dev)
 {
 	struct google_pinctrl *gctl = dev_get_drvdata(dev);
 	struct generic_ixr_t imr_reg = {0};
@@ -220,7 +220,7 @@ int google_pinctrl_suspend(struct device *dev)
  *
  * Returns zero on success else returns a negative error code.
  */
-int google_pinctrl_resume(struct device *dev)
+static int google_pinctrl_resume(struct device *dev)
 {
 	struct google_pinctrl *gctl = dev_get_drvdata(dev);
 	struct generic_ixr_t imr_reg = {0};
@@ -250,7 +250,7 @@ int google_pinctrl_resume(struct device *dev)
  *
  * Returns zero on success else returns a negative error code.
  */
-int google_pinctrl_runtime_suspend(struct device *dev)
+static int google_pinctrl_runtime_suspend(struct device *dev)
 {
 	struct google_pinctrl *gctl = dev_get_drvdata(dev);
 
@@ -270,7 +270,7 @@ int google_pinctrl_runtime_suspend(struct device *dev)
  *
  * Returns zero on success else returns a negative error code.
  */
-int google_pinctrl_runtime_resume(struct device *dev)
+static int google_pinctrl_runtime_resume(struct device *dev)
 {
 	struct google_pinctrl *gctl = dev_get_drvdata(dev);
 	ktime_t now, delta;
@@ -545,7 +545,7 @@ static int google_gpio_get(struct gpio_chip *chip, unsigned int group_selector)
 	return (val & BIT(GPIO_PAD_BIT));
 }
 
-static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
+static int google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 			    int value)
 {
 	const struct google_pingroup *g;
@@ -558,7 +558,7 @@ static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 
 	if (group_selector >= gctl->info->num_groups) {
 		dev_err(gctl->dev, "Invalid group selector\n");
-		return;
+		return -EINVAL;
 	}
 	g = &gctl->info->groups[group_selector];
 
@@ -566,7 +566,7 @@ static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 
 	ret = google_pinctrl_get_csr_pd(gctl);
 	if (ret < 0)
-		return;
+		return ret;
 
 	ret = google_pinctrl_trylock(gctl,
 				     &flags,
@@ -580,6 +580,8 @@ static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 	}
 
 	google_pinctrl_put_csr_pd(gctl);
+
+	return ret;
 }
 
 static int google_gpio_set_config(struct gpio_chip *chip,
@@ -863,7 +865,7 @@ static int google_pinconf_group_get(struct pinctrl_dev *pctldev,
 		if (!arg)
 			return -EINVAL;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		arg = tx_reg.layout.oe;
 		/* Pin is not output */
 		if (!arg)
@@ -1017,7 +1019,7 @@ static int google_pinconf_group_set(struct pinctrl_dev *pctldev,
 		 * Set output value as 0 - DT Property: output-low
 		 * Set output values as 1 - DT Property: output-high
 		 */
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			tx_reg.layout.oe = 1;
 			tx_reg.layout.dout = arg;
 			break;
@@ -1861,7 +1863,7 @@ detach_pd:
 	return ret;
 }
 
-int google_pinctrl_remove(struct platform_device *pdev)
+void google_pinctrl_remove(struct platform_device *pdev)
 {
 	struct google_pinctrl *gctl = platform_get_drvdata(pdev);
 
@@ -1869,7 +1871,6 @@ int google_pinctrl_remove(struct platform_device *pdev)
 
 	clk_bulk_disable_unprepare(gctl->nr_clks, gctl->clks);
 	google_pinctrl_detach_power_domain(gctl);
-	return 0;
 }
 
 /*

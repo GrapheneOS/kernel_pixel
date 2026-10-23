@@ -530,7 +530,7 @@ void google_8250_trace_init(struct platform_device *pdev)
 {
 	struct trace_array *trace_instance;
 
-	trace_instance = trace_array_get_by_name_ext("google_8250", "uart");
+	trace_instance = trace_array_get_by_name("google_8250", "uart");
 	if (!trace_instance) {
 		dev_err(&pdev->dev, "google_8250 trace instance creation/retrieve did not succeed\n");
 		return;
@@ -735,7 +735,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw8250_remove(struct platform_device *pdev)
+static void dw8250_remove(struct platform_device *pdev)
 {
 	struct dw8250_data *data = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -757,8 +757,6 @@ static int dw8250_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
-
-	return 0;
 }
 
 static int dw8250_enable_cli(struct device *dev)
@@ -792,7 +790,7 @@ static int dw8250_suspend(struct device *dev)
 	google_serial8250_suspend_port(data->data.line);
 
 	if (uart_console(&up->port))
-		console_stop(up->port.cons);
+		console_suspend(up->port.cons);
 
 	return pm_runtime_force_suspend(dev);
 }
@@ -812,7 +810,7 @@ static int dw8250_resume(struct device *dev)
 	google_serial8250_resume_port(data->data.line);
 
 	if (uart_console(&up->port))
-		console_start(up->port.cons);
+		console_resume(up->port.cons);
 
 	return 0;
 }

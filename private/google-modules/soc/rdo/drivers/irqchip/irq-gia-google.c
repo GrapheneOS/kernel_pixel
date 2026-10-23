@@ -211,15 +211,13 @@ static int irq_gia_google_probe(struct platform_device *pdev)
 	return gia_init(gdd);
 }
 
-static int irq_gia_google_remove(struct platform_device *pdev)
+static void irq_gia_google_remove(struct platform_device *pdev)
 {
 	struct gia_device_data *gdd = dev_get_drvdata(&pdev->dev);
 
 	gia_exit(gdd);
 	for (int i = 0; i < gdd->nr_out_irq; i++)
 		irq_dispose_mapping(gdd->virqs[i]);
-
-	return 0;
 }
 
 static struct platform_driver irq_gia_google_driver = {

@@ -26,7 +26,7 @@ static const struct file_operations __fops ## _fops = {	\
 	.release = pinctrl_string_attr_release,	\
 	.read = pinctrl_debugfs_string_attr_read,	\
 	.write = pinctrl_debugfs_string_attr_write,	\
-	.llseek = no_llseek,	\
+	.llseek = NULL,	\
 }
 
 struct pinctrl_debugfs_attr_file {

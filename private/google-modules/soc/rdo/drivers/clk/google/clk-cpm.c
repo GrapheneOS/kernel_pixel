@@ -21,6 +21,7 @@
 #include <dt-bindings/lpcm/clock.h>
 
 #include <soc/google/goog_mba_cpm_iface.h>
+#include <clk/clk-cpm.h>
 
 #define MAILBOX_TIMEOUT_EMULATION_MULTIPLIER 10
 /* TODO(b/247493415): determine the right timeout value */
@@ -263,7 +264,7 @@ static int goog_cpm_clk_send_mbox_msg_recalc_rate(struct goog_cpm_clk *cpm_clk)
 	return goog_cpm_clk_send_mba_mail(cpm_clk, RECALC_RATE_OP_ID, NULL);
 }
 
-int goog_cpm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+static int goog_cpm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 			  unsigned long parent_rate)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
@@ -273,7 +274,7 @@ int goog_cpm_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 	return goog_cpm_clk_send_mbox_msg_set_rate(cpm_clk, rate);
 }
 
-unsigned long goog_cpm_clk_recacl_rate(struct clk_hw *hw,
+static unsigned long goog_cpm_clk_recacl_rate(struct clk_hw *hw,
 				       unsigned long parent_rate)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
@@ -283,7 +284,7 @@ unsigned long goog_cpm_clk_recacl_rate(struct clk_hw *hw,
 	return goog_cpm_clk_send_mbox_msg_recalc_rate(cpm_clk);
 }
 
-long goog_cpm_clk_round_rate(struct clk_hw *hw, unsigned long rate,
+static long goog_cpm_clk_round_rate(struct clk_hw *hw, unsigned long rate,
 			     unsigned long *parent_rate)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
@@ -315,7 +316,7 @@ static inline unsigned long lpcm_smc(struct clk_hw *hw, bool enable)
 		return 0;
 }
 
-int goog_cpm_clk_prepare(struct clk_hw *hw)
+static int goog_cpm_clk_prepare(struct clk_hw *hw)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
 
@@ -328,7 +329,7 @@ int goog_cpm_clk_prepare(struct clk_hw *hw)
 		return goog_cpm_clk_send_mbox_msg_set_gate(cpm_clk, true);
 }
 
-void goog_cpm_clk_unprepare(struct clk_hw *hw)
+static void goog_cpm_clk_unprepare(struct clk_hw *hw)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
 
@@ -340,7 +341,7 @@ void goog_cpm_clk_unprepare(struct clk_hw *hw)
 		goog_cpm_clk_send_mbox_msg_set_gate(cpm_clk, false);
 }
 
-int goog_cpm_clk_enable(struct clk_hw *hw)
+static int goog_cpm_clk_enable(struct clk_hw *hw)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
 
@@ -353,7 +354,7 @@ int goog_cpm_clk_enable(struct clk_hw *hw)
 	return -EINVAL;
 }
 
-void goog_cpm_clk_disable(struct clk_hw *hw)
+static void goog_cpm_clk_disable(struct clk_hw *hw)
 {
 	struct goog_cpm_clk *cpm_clk = to_goog_cpm_clk(hw);
 
@@ -473,7 +474,7 @@ static inline void goog_cpm_clk_mbox_free(struct goog_cpm_clk_mbox *mbox)
 	cpm_iface_free_client(mbox->client);
 }
 
-static int goog_cpm_clk_controller_remove(struct platform_device *pdev)
+static void goog_cpm_clk_controller_remove(struct platform_device *pdev)
 {
 	struct goog_cpm_clk_dev_data *dev_data = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -483,7 +484,6 @@ static int goog_cpm_clk_controller_remove(struct platform_device *pdev)
 	for_each_available_child_of_node(node, child_node)
 		of_clk_del_provider(child_node);
 	detach_power_domains(dev_data, dev_data->num_pds);
-	return 0;
 }
 
 int goog_cpm_clk_toggle_auto_gate(struct clk *clk, bool enable)

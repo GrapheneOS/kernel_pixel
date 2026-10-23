@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-COMMON_INCLUDE_DIR = $(srctree)/$(src)/include
+COMMON_INCLUDE_DIR = $(src)/include
 
 subdir-ccflags-y += -Wall -Werror
 subdir-ccflags-y += -I$(COMMON_INCLUDE_DIR)

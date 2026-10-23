@@ -248,7 +248,7 @@ static inline void goog_cpm_rst_mbox_free(struct goog_cpm_rst_mbox *mbox)
 	cpm_iface_free_client(mbox->client);
 }
 
-static int goog_cpm_rst_remove(struct platform_device *pdev)
+static void goog_cpm_rst_remove(struct platform_device *pdev)
 {
 	struct goog_cpm_rst_controller *rc = platform_get_drvdata(pdev);
 
@@ -256,8 +256,6 @@ static int goog_cpm_rst_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(rc->debugfs_root);
 #endif
 	goog_cpm_rst_mbox_free(&rc->cpm_mbox);
-
-	return 0;
 }
 
 static const struct of_device_id goog_cpm_rst_of_match_table[] = {

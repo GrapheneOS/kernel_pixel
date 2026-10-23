@@ -272,7 +272,7 @@ static inline void google_cpmlog_mbox_free(struct google_cpmlog *cpmlog)
 		cpm_iface_free_client(cpmlog->cpm_client);
 }
 
-static int google_cpm_log_remove(struct platform_device *pdev)
+static void google_cpm_log_remove(struct platform_device *pdev)
 {
 	struct google_cpmlog *cpmlog = platform_get_drvdata(pdev);
 
@@ -281,7 +281,6 @@ static int google_cpm_log_remove(struct platform_device *pdev)
 	of_reserved_mem_device_release(cpmlog->dev);
 	google_cpmlog_mbox_free(cpmlog);
 	debugfs_remove_recursive(cpmlog->debugfs_root);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

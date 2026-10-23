@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 
@@ -446,13 +447,11 @@ static int gia_test_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gia_test_remove(struct platform_device *pdev)
+static void gia_test_remove(struct platform_device *pdev)
 {
 	gia_test_remove_debugfs(pdev);
 
 	pm_runtime_set_suspended(&pdev->dev);
-
-	return 0;
 }
 
 static int gia_test_runtime_suspend(struct device *dev)

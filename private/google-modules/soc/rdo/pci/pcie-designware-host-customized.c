@@ -35,7 +35,7 @@ static int goog_pci_check_if_need_retrigger(int msi_ctrl, struct dw_pcie_rp *pp)
 	irq_type = irq_get_trigger_type(virq);
 	if (!(irq_type & IRQ_TYPE_EDGE_BOTH))
 		goto unlock;
-	if (pm_runtime_get_if_active(pci->dev, true) <= 0)
+	if (pm_runtime_get_if_active(pci->dev) <= 0)
 		goto unlock;
 	status = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
 					   (msi_ctrl * MSI_REG_CTRL_BLOCK_SIZE));

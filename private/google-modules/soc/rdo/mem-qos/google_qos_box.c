@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <mem-qos/google_qos_box_reg_api.h>
 #include <linux/bitfield.h>
 #include <linux/bits.h>
 #include <linux/delay.h>
@@ -567,7 +568,7 @@ out:
 	return ret;
 }
 
-static int google_qos_box_platform_remove(struct platform_device *pdev)
+static void google_qos_box_platform_remove(struct platform_device *pdev)
 {
 	struct qos_box_dev *qos_box_dev = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -579,8 +580,6 @@ static int google_qos_box_platform_remove(struct platform_device *pdev)
 
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 struct qos_box_desc rdo_qos_box_desc = {

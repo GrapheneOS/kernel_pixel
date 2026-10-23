@@ -8,6 +8,7 @@
 
 #include <linux/pcie_google_if.h>
 #include "pcie-google.h"
+#include "pcie-google-shim.h"
 
 void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 {

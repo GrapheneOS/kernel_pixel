@@ -326,7 +326,7 @@ static struct clk_hw *register_lpcm_clk_hw(struct device *dev,
 	return &pf_state_clk->hw;
 }
 
-static int pf_state_cpm_remove(struct platform_device *pdev)
+static void pf_state_cpm_remove(struct platform_device *pdev)
 {
 	struct pf_state_cpm *pf_state_cpm = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -336,7 +336,6 @@ static int pf_state_cpm_remove(struct platform_device *pdev)
 	for_each_available_child_of_node(np, child_node) {
 		of_clk_del_provider(child_node);
 	}
-	return 0;
 }
 
 static int pf_state_cpm_probe(struct platform_device *pdev)

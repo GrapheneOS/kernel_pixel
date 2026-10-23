@@ -185,7 +185,7 @@ struct pmic_device {
 /*
  * Get / Set helpers for regulator control.
  */
-int pmic_reg_mb_get_value(struct regulator_dev *rdev, u16 reg_id, u8 cmd,
+static int pmic_reg_mb_get_value(struct regulator_dev *rdev, u16 reg_id, u8 cmd,
 			  u32 *read_value)
 {
 	struct pmic_device *drvdata = rdev_get_drvdata(rdev);
@@ -211,7 +211,7 @@ int pmic_reg_mb_get_value(struct regulator_dev *rdev, u16 reg_id, u8 cmd,
 	return ret;
 }
 
-int pmic_reg_mb_set_value(struct regulator_dev *rdev, u16 reg_id, u8 cmd,
+static int pmic_reg_mb_set_value(struct regulator_dev *rdev, u16 reg_id, u8 cmd,
 			  u32 value)
 {
 	struct pmic_device *drvdata = rdev_get_drvdata(rdev);
@@ -1304,12 +1304,12 @@ free_mbox:
 	return ret;
 }
 
-static int da9188_regulator_remove(struct platform_device *pdev)
+static void da9188_regulator_remove(struct platform_device *pdev)
 {
 	struct pmic_device *pmic_dev = platform_get_drvdata(pdev);
 
 	if (IS_ERR_OR_NULL(pmic_dev))
-		return 0;
+		return;
 
 	da9188_mfd_mbox_release(&pmic_dev->mbox);
 #if defined(CONFIG_DEBUG_FS) && \
@@ -1317,7 +1317,6 @@ static int da9188_regulator_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(pmic_dev->debugfs_root);
 #endif
 
-	return 0;
 }
 
 static const struct platform_device_id da9188_regulator_id[] = {

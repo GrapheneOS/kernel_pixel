@@ -869,7 +869,7 @@ static int cpu_lpm_stats_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_cpu_lpm_stats_remove(struct platform_device *pdev)
+static void google_cpu_lpm_stats_remove(struct platform_device *pdev)
 {
 	struct cpu_lpm_data *lat, *tmp;
 
@@ -893,7 +893,6 @@ static int google_cpu_lpm_stats_remove(struct platform_device *pdev)
 		kfree(lat);
 	}
 
-	return 0;
 }
 
 static const struct of_device_id cpu_lpm_stats_match_table[] = {

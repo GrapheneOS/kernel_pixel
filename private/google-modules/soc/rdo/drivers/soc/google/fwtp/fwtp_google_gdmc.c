@@ -85,7 +85,7 @@ static fwtp_error_code_t fwtp_google_gdmc_send_message(struct fwtp_if *fwtp_if,
 						       u16 tx_msg_data_size,
 						       u16 *rx_msg_data_size);
 static int fwtp_google_gdmc_probe(struct platform_device *pdev);
-static int fwtp_google_gdmc_remove(struct platform_device *pdev);
+static void fwtp_google_gdmc_remove(struct platform_device *pdev);
 
 /*******************************************************************************
  * Firmware tracepoint interface functions.
@@ -450,7 +450,7 @@ out:
  *
  * @pdev: The platform device to remove.
  */
-static int fwtp_google_gdmc_remove(struct platform_device *pdev)
+static void fwtp_google_gdmc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fwtp_google_gdmc_dev *fwtp_google_gdmc_dev;
@@ -461,7 +461,7 @@ static int fwtp_google_gdmc_remove(struct platform_device *pdev)
 	 */
 	fwtp_google_gdmc_dev = platform_get_drvdata(pdev);
 	if (!fwtp_google_gdmc_dev)
-		return 0;
+		return;
 	platform_set_drvdata(pdev, NULL);
 
 	debugfs_remove_recursive(fwtp_google_gdmc_dev->debugfs_root);
@@ -491,8 +491,6 @@ static int fwtp_google_gdmc_remove(struct platform_device *pdev)
 
 	/* Log removal. */
 	dev_dbg(dev, "Removed Google GDMC firmware tracepoint device.\n");
-
-	return 0;
 }
 
 /*******************************************************************************

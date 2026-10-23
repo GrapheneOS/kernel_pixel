@@ -2005,7 +2005,7 @@ cleanup_gdmc_iface:
 	return ret;
 }
 
-static int google_gem_client_remove(struct platform_device *pdev)
+static void google_gem_client_remove(struct platform_device *pdev)
 {
 	struct gem_drvdata *gem_drvdata = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -2013,7 +2013,6 @@ static int google_gem_client_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(gem_drvdata->debugfs_dir);
 	of_reserved_mem_device_release(dev);
 	gdmc_iface_put(gem_drvdata->gdmc_iface);
-	return 0;
 }
 
 static const struct of_device_id google_gem_of_match_table[] = {

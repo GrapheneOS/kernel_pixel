@@ -36,7 +36,7 @@ struct gdmc_iface_test_info *gdmc_iface_test_gdata;
 #define DEBUG_ATTRIBUTE(name, fn_read, fn_write) \
 static const struct file_operations name = {    \
 	.open   = simple_open,                  \
-	.llseek = no_llseek,                    \
+	.llseek = NULL,                    \
 	.read   = fn_read,                      \
 	.write  = fn_write,                     \
 }
@@ -571,13 +571,11 @@ put_gdmc_iface:
 	return ret;
 }
 
-static int gdmc_iface_test_remove(struct platform_device *pdev)
+static void gdmc_iface_test_remove(struct platform_device *pdev)
 {
 	struct gdmc_iface_test_info *test_info = platform_get_drvdata(pdev);
 
 	gdmc_iface_put(test_info->iface);
-
-	return 0;
 }
 
 static const struct of_device_id gdmc_test_of_match_table[] = {

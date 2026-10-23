@@ -514,7 +514,7 @@ static int goog_mba_aggr_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int goog_mba_aggr_remove(struct platform_device *pdev)
+static void goog_mba_aggr_remove(struct platform_device *pdev)
 {
 	struct goog_mba_aggr_service *gservice;
 	int i;
@@ -524,8 +524,6 @@ static int goog_mba_aggr_remove(struct platform_device *pdev)
 		mbox_free_channel(gservice->client_tx_chans[i].chan);
 	for (i = 0; i < gservice->nr_host_tx_chans; i++)
 		mbox_free_channel(gservice->host_tx_chans[i].chan);
-
-	return 0;
 }
 
 static const struct of_device_id goog_mba_aggr_of_match_table[] = {

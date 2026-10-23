@@ -15,7 +15,7 @@
 
 #define DOMAIN_TRACE_STR_LEN (MAX_DVFS_NAME_LEN + sizeof("_freq"))
 
-enum tracepoint_handle domain_freq_handler(const char *tp_string, u32 payload,
+static enum tracepoint_handle domain_freq_handler(const char *tp_string, u32 payload,
 					  u64 timestamp)
 {
 	u16 domain_id;

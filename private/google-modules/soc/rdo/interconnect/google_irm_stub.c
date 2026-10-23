@@ -32,9 +32,8 @@ static int google_irm_stub_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_irm_stub_platform_remove(struct platform_device *pdev)
+static void google_irm_stub_platform_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct of_device_id google_irm_stub_of_match_table[] = {

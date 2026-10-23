@@ -496,7 +496,7 @@ static const struct attribute_group *cdd_sysfs_groups[] = {
 	NULL,
 };
 
-struct platform_device *google_cdd_get_pdev_handle(struct device *dev,
+static struct platform_device *google_cdd_get_pdev_handle(struct device *dev,
 						   const char *name, int index)
 {
 	struct device_node *np;

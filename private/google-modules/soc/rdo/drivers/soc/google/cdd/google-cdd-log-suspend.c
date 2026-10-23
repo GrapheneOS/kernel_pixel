@@ -153,7 +153,7 @@ crash:
 	      delta_time / NSEC_PER_SEC, (delta_time % NSEC_PER_SEC) / USEC_PER_SEC);
 }
 
-void google_cdd_suspend_diag_suspend_resume(void *google_cdd_log, const char *action,
+static void google_cdd_suspend_diag_suspend_resume(void *google_cdd_log, const char *action,
 		bool start, uint64_t curr_index)
 {
 	google_cdd_suspend_diag_inst.curr_index = curr_index;
@@ -172,7 +172,7 @@ backup:
 	google_cdd_suspend_diag_inst.last_index = google_cdd_suspend_diag_inst.curr_index;
 }
 
-bool google_cdd_suspend_diag_dev_pm_cb_end(void *google_cdd_log, uint64_t first_log_idx,
+static bool google_cdd_suspend_diag_dev_pm_cb_end(void *google_cdd_log, uint64_t first_log_idx,
 		uint64_t last_log_idx, struct device *dev)
 {
 	uint64_t i;
