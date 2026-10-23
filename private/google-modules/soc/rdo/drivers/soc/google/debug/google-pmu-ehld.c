@@ -515,8 +515,7 @@ static int google_ehld_start_cpu(unsigned int cpu)
 	u64 interval = ehld_main.interval * NSEC_PER_MSEC;
 
 	dev_dbg(ehld_dev.dev, "@%s: cpu%u ehld running with hrtimer\n", __func__, cpu);
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer->function = ehld_value_raw_hrtimer_fn;
+	hrtimer_setup(hrtimer, ehld_value_raw_hrtimer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	if (ehld_main.suspending && cpu == 0)
 		smp_call_function_single(0, google_ehld_start_cpu_hrtimer, hrtimer, 0);
