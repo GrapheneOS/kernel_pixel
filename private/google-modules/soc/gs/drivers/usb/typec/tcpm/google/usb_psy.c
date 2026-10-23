@@ -1149,11 +1149,17 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 			       "usb_psy: Unable to create sysfs attr groups, ret=%d",
 			       retval);
 		ret = ERR_PTR(retval);
-		goto unreg_dead_battery_el;
+		goto destroy_wq;
 	}
 
 	return usb;
 
+destroy_wq:
+	/* The default vote can queue a current-limit retry before setup fails. */
+	kthread_cancel_delayed_work_sync(&usb->sdp_icl_work);
+	kthread_cancel_delayed_work_sync(&usb->bc_icl_work);
+	kthread_cancel_delayed_work_sync(&usb->icl_work);
+	kthread_destroy_worker(usb->wq);
 unreg_dead_battery_el:
 	gvotable_destroy_election(usb->dead_battery_el);
 unreg_icl_proto_el:
