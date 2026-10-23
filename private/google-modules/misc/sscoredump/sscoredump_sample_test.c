@@ -31,7 +31,6 @@ static struct sscd_info test_info;
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -103,6 +102,7 @@ static void sscd_sample_test_release(struct device *dev)
 static int sscd_sample_test_init(void)
 {
 	struct sscd_info *info = &test_info;
+	int ret;
 
 	info->name = DEVICE_NAME;
 	info->seg_count = 5;
@@ -111,8 +111,25 @@ static int sscd_sample_test_init(void)
 	/*
 	 * register SSCD platform device
 	 */
-	platform_device_register(&sscd_dev);
-	return sysfs_create_group(&sscd_dev.dev.kobj, &sscd_test_group);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (ret)
+		goto err_put;
+	ret = platform_device_add(&sscd_dev);
+	if (ret)
+		goto err_put;
+	ret = sysfs_create_group(&sscd_dev.dev.kobj, &sscd_test_group);
+	if (ret) {
+		platform_device_unregister(&sscd_dev);
+		goto err_free;
+	}
+	return 0;
+
+err_put:
+	platform_device_put(&sscd_dev);
+err_free:
+	test_client_free_segments(info);
+	return ret;
 }
 
 static void sscd_sample_test_exit(void)

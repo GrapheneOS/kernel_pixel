@@ -81,7 +81,7 @@ ssize_t sdev_enabled_store(struct device *dev,
 			   struct device_attribute *attr,
 			   const char *buf, size_t count);
 int sscoredump_probe(struct platform_device *pdev);
-int sscoredump_remove(struct platform_device *pdev);
+void sscoredump_remove(struct platform_device *pdev);
 #endif
 
 #endif /* __SSCOREDUMP_H__ */

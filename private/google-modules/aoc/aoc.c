@@ -97,7 +97,6 @@ static void sscd_release(struct device *dev);
 static struct sscd_info sscd_info;
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = { .name = "aoc",
-					   .driver_override = SSCD_NAME,
 					   .id = -1,
 					   .dev = {
 						   .platform_data = &sscd_pdata,
@@ -3063,6 +3062,8 @@ static void aoc_platform_shutdown(struct platform_device *pdev)
 /* Module methods */
 static int __init aoc_init(void)
 {
+	int ret;
+
 	pr_debug("system driver init\n");
 
 	if (bus_register(&aoc_bus_type) != 0) {
@@ -3075,7 +3076,12 @@ static int __init aoc_init(void)
 		goto err_aoc_driver;
 	}
 
-	if (platform_device_register(&sscd_dev) != 0) {
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
+	if (ret) {
+		platform_device_put(&sscd_dev);
 		pr_err("failed to register AoC coredump device\n");
 		goto err_aoc_coredump;
 	}
