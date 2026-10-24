@@ -3922,6 +3922,12 @@ int exynos_pcie_rc_poweron(int ch_num)
 			pci_lock_rescan_remove();
 			pci_rescan_bus(exynos_pcie->pci_dev->bus);
 			pci_unlock_rescan_remove();
+			exynos_pcie->ep_pci_dev = exynos_pcie_get_pci_dev(&pci->pp);
+			if (!exynos_pcie->ep_pci_dev) {
+				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
+					       "No enumerated endpoint on PCIe channel %d", ch_num);
+				goto poweron_fail;
+			}
 			if (exynos_pcie->use_msi) {
 				ret = exynos_pcie_rc_msi_init(pp);
 				if (ret) {
@@ -3931,8 +3937,6 @@ int exynos_pcie_rc_poweron(int ch_num)
 					return ret;
 				}
 			}
-
-			exynos_pcie->ep_pci_dev = exynos_pcie_get_pci_dev(&pci->pp);
 
 #if IS_ENABLED(CONFIG_GS_S2MPU) || IS_ENABLED(CONFIG_EXYNOS_PCIE_IOMMU)
 			exynos_pcie_mem_copy_epdev(exynos_pcie);
@@ -4208,7 +4212,7 @@ EXPORT_SYMBOL(exynos_pcie_rc_set_cpl_timeout_state);
 /* get EP pci_dev structure of BUS */
 static struct pci_dev *exynos_pcie_get_pci_dev(struct dw_pcie_rp *pp)
 {
-	int domain_num;
+	int domain_num, ret;
 	struct pci_bus *ep_pci_bus;
 	struct pci_dev *ep_pci_dev;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -4221,10 +4225,23 @@ static struct pci_dev *exynos_pcie_get_pci_dev(struct dw_pcie_rp *pp)
 	/* Get EP vendor/device ID to get pci_dev structure */
 	domain_num = exynos_pcie->pci_dev->bus->domain_nr;
 	ep_pci_bus = pci_find_bus(domain_num, 1);
+	if (!ep_pci_bus) {
+		dev_err(pci->dev, "Endpoint bus %04x:01 is missing\n", domain_num);
+		return NULL;
+	}
 
-	exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, PCI_VENDOR_ID, 4, &val);
+	ret = exynos_pcie_rc_rd_other_conf(pp, ep_pci_bus, 0, PCI_VENDOR_ID, 4, &val);
+	if (ret != PCIBIOS_SUCCESSFUL) {
+		dev_err(pci->dev, "Endpoint ID read on %04x:01:00.0 failed: %d\n",
+			domain_num, ret);
+		return NULL;
+	}
 
 	ep_pci_dev = pci_get_device(val & ID_MASK, (val >> 16) & ID_MASK, NULL);
+	if (!ep_pci_dev)
+		dev_err(pci->dev,
+			"Endpoint %04x:01:00.0 ID %#08x is not enumerated (root power state %d)\n",
+			domain_num, val, exynos_pcie->pci_dev->current_state);
 
 	return ep_pci_dev;
 }
