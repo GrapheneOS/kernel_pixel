@@ -5404,6 +5404,7 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct dw_pcie_
 	int ret, i, sep_irq;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct pci_dev *root_port;
 
 	pp->irq = platform_get_irq(pdev, 0);
 	if (!pp->irq) {
@@ -5501,6 +5502,17 @@ skip_sep_request_irq:
 			exynos_pcie->msi_parent_ops.required_flags &= ~MSI_FLAG_PCI_MSI_MASK_PARENT;
 		pp->irq_domain->msi_parent_ops = &exynos_pcie->msi_parent_ops;
 	}
+
+	root_port = pci_get_slot(pp->bridge->bus, PCI_DEVFN(0, 0));
+	if (!root_port) {
+		dev_err(&pdev->dev, "Failed to find PCIe root port\n");
+		dw_pcie_host_deinit(pp);
+		return -ENODEV;
+	}
+
+	/* The controller sequences root-port power and PHY isolation itself. */
+	pm_runtime_forbid(&root_port->dev);
+	pci_dev_put(root_port);
 
 	return 0;
 }
