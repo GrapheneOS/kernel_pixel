@@ -1522,9 +1522,12 @@ EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_outbound_atu);
 static int exynos_pcie_rc_rd_other_conf(struct dw_pcie_rp *pp, struct pci_bus *bus, u32 devfn,
 					int where, int size, u32 *val)
 {
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	u32 busdev, cfg_size;
 	u64 cpu_addr;
 	void __iomem *va_cfg_base;
+	int ret;
 
 	busdev = EXYNOS_PCIE_ATU_BUS(bus->number) | EXYNOS_PCIE_ATU_DEV(PCI_SLOT(devfn)) |
 		 EXYNOS_PCIE_ATU_FUNC(PCI_FUNC(devfn));
@@ -1535,7 +1538,13 @@ static int exynos_pcie_rc_rd_other_conf(struct dw_pcie_rp *pp, struct pci_bus *b
 	/* setup ATU for cfg/mem outbound */
 	exynos_pcie_rc_prog_viewport_cfg0(pp, busdev);
 
-	return dw_pcie_read(va_cfg_base + where, size, val);
+	ret = dw_pcie_read(va_cfg_base + where, size, val);
+	/* Classless modem endpoints still need native PCI BAR allocation. */
+	if (ret == PCIBIOS_SUCCESSFUL && exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM &&
+	    where == PCI_CLASS_REVISION && size == sizeof(*val) && !(*val >> 8))
+		*val |= PCI_CLASS_NETWORK_OTHER << 16;
+
+	return ret;
 }
 
 static int exynos_pcie_rc_wr_other_conf(struct dw_pcie_rp *pp, struct pci_bus *bus, u32 devfn,
