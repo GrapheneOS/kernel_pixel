@@ -3,3 +3,8 @@ out/
 
 device.bazelrc
 
+/.repo/
+/build/
+/common/
+/external/
+/prebuilts/
