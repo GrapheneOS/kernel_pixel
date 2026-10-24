@@ -21,10 +21,10 @@ load(
     "kernel_unstripped_modules_archive",
     "merged_kernel_uapi_headers",
 )
-load("@rules_pkg//pkg:mappings.bzl", "pkg_files")
+load("@rules_pkg//pkg:install.bzl", "pkg_install")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 load("@rules_pkg//pkg:pkg.bzl", "pkg_zip")
 load("//build/kernel/kleaf:constants.bzl", "COMMON_KCFLAGS")
-load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
 load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_PATHS")
 load("//private/devices/google/common/kleaf:create_file.bzl", "create_file")
 load("//private/devices/google/common/kleaf:image_props.bzl", "image_props")
@@ -549,18 +549,17 @@ def device_build(
         "//conditions:default": [],
     })
 
-    native.filegroup(
+    pkg_files(
         name = target_dist_files,
         srcs = dist_targets,
+        strip_prefix = strip_prefix.files_only(),
         visibility = ["//visibility:private"],
     )
 
-    copy_to_dist_dir(
+    pkg_install(
         name = target_dist,
-        data = [target_dist_files],
-        dist_dir = "out/{}/dist".format(name),
-        flat = True,
-        log = "info",
+        srcs = [target_dist_files],
+        destdir = "out/{}/dist".format(name),
         visibility = ["//visibility:private"],
     )
 

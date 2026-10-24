@@ -5,7 +5,8 @@ load(
     "kernel_build",
     "kernel_build_config",
 )
-load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load("@rules_pkg//pkg:install.bzl", "pkg_install")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
 
 package(
     default_visibility = [
@@ -52,13 +53,17 @@ kernel_build(
     strip_modules = True,
 )
 
-copy_to_dist_dir(
-    name = "dist",
-    data = [
+pkg_files(
+    name = "dist_files",
+    srcs = [
         ":etm",
         "//common:kernel_aarch64",
     ],
-    dist_dir = "out/etm/dist",
-    flat = True,
-    log = "info",
+    strip_prefix = strip_prefix.files_only(),
+)
+
+pkg_install(
+    name = "dist",
+    srcs = [":dist_files"],
+    destdir = "out/etm/dist",
 )
