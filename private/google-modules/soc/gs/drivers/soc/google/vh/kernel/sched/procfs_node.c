@@ -829,7 +829,7 @@ static inline struct task_struct *get_next_task(int group, struct list_head *hea
 
 		cur = cur->next;
 		vp = list_entry(cur, struct vendor_task_struct, node);
-		p = __container_of(vp, struct task_struct, android_vendor_data1);
+		p = get_task_struct_from_vendor(vp);
 	} while ((!task_on_rq_queued(p) || p->flags & PF_EXITING));
 
 	get_task_struct(p);
