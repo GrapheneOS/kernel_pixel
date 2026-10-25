@@ -262,6 +262,8 @@ int google_icc_platform_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
+	data->num_nodes = num_nodes;
+
 	provider = &gp->provider;
 	provider->dev = dev;
 	provider->inter_set = true;
@@ -303,8 +305,6 @@ int google_icc_platform_probe(struct platform_device *pdev)
 
 		data->nodes[i] = node;
 	}
-
-	data->num_nodes = num_nodes;
 
 	platform_set_drvdata(pdev, gp);
 
