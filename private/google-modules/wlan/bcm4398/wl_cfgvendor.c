@@ -8015,10 +8015,11 @@ static int wl_cfgvendor_get_cca_stats(struct bcm_cfg80211 *cfg,
 	int bandmask, int cur_band, uint8* no_of_entries, int *rem_len)
 {
 	int err = 0;
-	uint8 num_channels = 0;
+	uint16 num_channels = 0;
 	cca_congest_ext_channel_req_v4_t all_chan_req;
 	uint8 *iovresp = NULL;
 	cca_congest_ext_channel_req_v4_t *chan_results;
+	const cca_congest_ext_channel_req_v2_t *per_chan_stats;
 	wifi_channel_stat *all_chan_stats = NULL;
 	uint chan_stat_size = 0;
 	struct net_device *inet_ndev = wdev_to_ndev(wdev);
@@ -8051,6 +8052,17 @@ static int wl_cfgvendor_get_cca_stats(struct bcm_cfg80211 *cfg,
 			((dtoh16(chan_results->ver) == WL_CCA_EXT_REQ_VER_V4) ||
 			(dtoh16(chan_results->ver) == WL_CCA_EXT_REQ_VER_V3))) {
 		num_channels = dtoh16(chan_results->num_of_entries);
+		if (num_channels > (WLC_IOCTL_MAXLEN -
+				offsetof(cca_congest_ext_channel_req_v4_t, per_chan_stats)) /
+				sizeof(*per_chan_stats)) {
+			WL_ERR(("Invalid CCA channel count %u\n", num_channels));
+			err = BCME_BADLEN;
+			goto exit;
+		}
+		/* The wire struct has a one-entry placeholder for a variable-length reply. */
+		per_chan_stats = (const cca_congest_ext_channel_req_v2_t *)
+			(iovresp + offsetof(cca_congest_ext_channel_req_v4_t,
+				per_chan_stats));
 		*no_of_entries = num_channels;
 		chan_stat_size = num_channels*sizeof(wifi_channel_stat);
 
@@ -8066,25 +8078,25 @@ static int wl_cfgvendor_get_cca_stats(struct bcm_cfg80211 *cfg,
 
 		all_chan_stats = *chan_stats;
 		for (i = 0; i < num_channels; i++, all_chan_stats++) {
-			if (chan_results->per_chan_stats[i].num_secs != 1) {
+			if (per_chan_stats[i].num_secs != 1) {
 				WL_ERR(("Bogus num of seconds returned %d\n",
-						chan_results->per_chan_stats[i].num_secs));
+						per_chan_stats[i].num_secs));
 				goto exit;
 			}
 
-			fill_chanspec_to_channel_info(chan_results->per_chan_stats[i].chanspec,
+			fill_chanspec_to_channel_info(per_chan_stats[i].chanspec,
 				&all_chan_stats->channel, &cur_band);
 
 			all_chan_stats->on_time =
-				chan_results->per_chan_stats[i].secs[0].radio_on_time;
+				per_chan_stats[i].secs[0].radio_on_time;
 			all_chan_stats->cca_busy_time =
-				chan_results->per_chan_stats[i].secs[0].cca_busy_time;
+				per_chan_stats[i].secs[0].cca_busy_time;
 
 			WL_TRACE(("chanspec %x num_sec %d radio_on_time %d cca_busytime %d \n",
-					chan_results->per_chan_stats[i].chanspec,
-					chan_results->per_chan_stats[i].num_secs,
-					chan_results->per_chan_stats[i].secs[0].radio_on_time,
-					chan_results->per_chan_stats[i].secs[0].cca_busy_time));
+					per_chan_stats[i].chanspec,
+					per_chan_stats[i].num_secs,
+					per_chan_stats[i].secs[0].radio_on_time,
+					per_chan_stats[i].secs[0].cca_busy_time));
 		}
 		*chan_stats = all_chan_stats;
 		*rem_len -= chan_stat_size;
