@@ -293,19 +293,6 @@ static void vh_swap_writepage(void *data,
 	*sis_flag &= ~SWP_SYNCHRONOUS_IO;
 }
 
-/*
- * For allocations larger than a page, skip direct reclaim to prevent potential
- * latency spikes unless the caller specifies __GFP_RETRY_MAYFAIL. This aligns
- * with the upstream kernel's behavior. See:
- * https://source.corp.google.com/h/android/kernel/common/+/46459154f9979387486fb5f50e4aa425e33a306c
- */
-static void vh_kvmalloc_high_order_skip_direct_reclaim(void *data,
-		size_t size, gfp_t *gfp_flags, bool *use_vmalloc)
-{
-	if (size > PAGE_SIZE && !(*gfp_flags & __GFP_RETRY_MAYFAIL))
-		*gfp_flags &= ~__GFP_DIRECT_RECLAIM;
-}
-
 static void rvh_gup_longterm_locked(void *data,
 				    long rc,
 				    long nr_pinned_pages,
@@ -470,11 +457,6 @@ static int vh_mm_init(void)
 
 	ret = register_trace_android_vh_swap_writepage(
 		vh_swap_writepage, NULL);
-	if (ret)
-		goto out_err;
-
-	ret = register_trace_android_vh_kvmalloc_node_use_vmalloc(
-		vh_kvmalloc_high_order_skip_direct_reclaim, NULL);
 	if (ret)
 		goto out_err;
 
