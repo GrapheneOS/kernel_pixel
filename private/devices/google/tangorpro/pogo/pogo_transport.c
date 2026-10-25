@@ -2899,12 +2899,21 @@ static int init_acc_gpio(struct pogo_transport *pogo_transport)
 
 static int init_hub_gpio(struct pogo_transport *pogo_transport)
 {
+	int ret;
+
 	pogo_transport->pogo_hub_sel_gpio = of_get_named_gpio(pogo_transport->dev->of_node,
 							      "pogo-hub-sel", 0);
 	if (pogo_transport->pogo_hub_sel_gpio < 0) {
 		dev_err(pogo_transport->dev, "Pogo hub sel gpio not found ret:%d\n",
 			pogo_transport->pogo_hub_sel_gpio);
 		return pogo_transport->pogo_hub_sel_gpio;
+	}
+	ret = devm_gpio_request_one(pogo_transport->dev, pogo_transport->pogo_hub_sel_gpio,
+				    GPIOF_OUT_INIT_LOW, "pogo-hub-sel");
+	if (ret) {
+		dev_err(pogo_transport->dev, "failed to request pogo-hub-sel gpio, ret:%d\n",
+			ret);
+		return ret;
 	}
 
 	pogo_transport->pogo_hub_reset_gpio = of_get_named_gpio(pogo_transport->dev->of_node,
