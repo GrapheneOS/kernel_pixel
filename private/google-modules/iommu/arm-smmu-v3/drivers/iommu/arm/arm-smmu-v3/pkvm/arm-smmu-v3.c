@@ -657,7 +657,8 @@ static int smmu_share_pages(u64 phys, size_t size)
 		if (ret)
 			return ret;
 	}
-	return 0;
+	/* Sharing changes ownership; pinning installs the EL2 mappings. */
+	return hyp_pin_shared_mem(hyp_phys_to_virt(phys), hyp_phys_to_virt(phys + size));
 }
 
 static int smmu_init_cmdq(struct hyp_arm_smmu_v3_device *smmu)
