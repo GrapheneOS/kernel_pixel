@@ -908,7 +908,7 @@ static inline void init_vendor_task_struct(struct vendor_task_struct *v_tsk)
 	if (!v_tsk->mp_stats) {
 		struct task_struct *p;
 
-		p = __container_of(v_tsk, struct task_struct, android_vendor_data1);
+		p = get_task_struct_from_vendor(v_tsk);
 		pr_err("Failed to alloc mem_pressure_stats for %s[%d]\n", p->comm, p->pid);
 	}
 }
