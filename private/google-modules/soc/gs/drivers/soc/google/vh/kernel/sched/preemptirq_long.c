@@ -138,7 +138,6 @@ static struct ctl_table preemptirq_long_table[] = {
 		.extra1		= &one_million,
 		.extra2		= &one_hundred_million,
 	},
-	{ }
 };
 
 int preemptirq_long_init(void)
