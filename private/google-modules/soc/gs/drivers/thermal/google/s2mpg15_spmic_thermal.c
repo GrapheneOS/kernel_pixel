@@ -1092,7 +1092,7 @@ static int s2mpg15_spmic_thermal_probe(struct platform_device *pdev)
 		chip->sensor[i].tr_handle = tr_stats_handle;
 #endif
 	}
-	chip->wq = kthread_create_worker(0, "spmic-init");
+	chip->wq = kthread_run_worker(0, "spmic-init");
 	if (IS_ERR_OR_NULL(chip->wq)) {
 		ret = PTR_ERR(chip->wq);
 		goto free_irq_tz;
