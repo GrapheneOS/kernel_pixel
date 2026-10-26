@@ -113,7 +113,7 @@ static enum hrtimer_restart ptick(struct hrtimer *timer)
 	rq_lock(rq, &rf);
 	/* Update stats first */
 	update_rq_clock(rq);
-	rq->curr->sched_class->task_tick(rq, rq->curr, 1);
+	rq->donor->sched_class->task_tick(rq, rq->donor, 1);
 	vh_scheduler_tick_pixel_mod_locked(rq);
 
 	/* Then check if we need to push any tasks */
