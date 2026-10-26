@@ -2773,6 +2773,8 @@ void rvh_set_user_nice_locked_pixel_mod(void *data, struct task_struct *p, long 
 			p->prio = NICE_TO_PRIO(MIN_NICE);
 			prio_changed(p, vp->orig_prio, p->prio);
 		}
+		/* The nice update is complete; preserve the boosted priority. */
+		*allowed = false;
 	}
 }
 
