@@ -720,7 +720,7 @@ static bool i2c_dw_wait_for_xfer_completion(struct dw_i2c_dev *dev, bool busy_wa
 
 static void irq_state_show(struct dw_i2c_dev *dev)
 {
-	struct irq_desc *desc = container_of(&dev->dev->kobj, struct irq_desc, kobj);
+	struct irq_desc *desc = irq_to_desc(dev->irq);
 	ssize_t ret_masked, ret_active, ret_pending;
 	bool masked, active, pending;
 
@@ -733,7 +733,7 @@ static void irq_state_show(struct dw_i2c_dev *dev)
 		ret_masked ? "NA" : (masked ? "MASKED" : "UNMASKED"),
 		ret_active ? "NA" : (active ? "ACTIVE" : "INACTIVE"),
 		ret_pending ? "NA" : (pending ? "PENDING" : "CLEARED"),
-		desc->depth);
+		desc ? (int)READ_ONCE(desc->depth) : -1);
 }
 
 /*
