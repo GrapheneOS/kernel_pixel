@@ -801,7 +801,7 @@ static int s2mpg13_spmic_thermal_probe(struct platform_device *pdev)
 #endif
 	}
 
-	chip->wq = kthread_create_worker(0, "spmic-init");
+	chip->wq = kthread_run_worker(0, "spmic-init");
 	if (IS_ERR_OR_NULL(chip->wq)) {
 		ret = PTR_ERR(chip->wq);
 		goto free_irq_tz;
