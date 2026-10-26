@@ -35,9 +35,6 @@
 #include <trace/define_trace.h>
 #include <interconnect/google_icc_helper.h>
 
-#include "dwc3-google.h"
-#include "xhci-goog-dma.h"
-
 #define DWC3_GOOGLE_MAX_CLOCKS 10
 // One time setup clocks are always on while USB top is on
 #define DWC3_GOOGLE_MAX_OTS_CLOCKS 6
@@ -138,7 +135,6 @@ struct dwc3_google {
 	struct regulator *vdd1p2;
 	int force_speed;
 	int usb_vc;
-	struct xhci_goog_dma_coherent_mem	**mem;
 	struct google_icc_path *icc_path;
 	u32 avg_bw;
 	u32 peak_bw;
@@ -798,41 +794,6 @@ static irqreturn_t dwc3_google_resume_interrupt(int irq, void *_gdwc3)
 	return IRQ_HANDLED;
 }
 
-struct xhci_goog_dma_coherent_mem **dwc3_google_get_dma_coherent_mem(struct device *dev)
-{
-	struct xhci_goog_dma_coherent_mem **dma_mem = NULL;
-	struct device *dwc3_google = dev->parent;
-	struct dwc3_google *gdwc3 = dev_get_drvdata(dwc3_google);
-
-	if (gdwc3) {
-		if (!gdwc3->mem) {
-			gdwc3->mem = devm_kzalloc(dev,
-				XHCI_GOOG_DMA_RMEM_MAX*sizeof(struct xhci_goog_dma_coherent_mem *),
-				GFP_KERNEL);
-		}
-
-		dma_mem = gdwc3->mem;
-	}
-
-	return dma_mem;
-}
-
-void dwc3_google_put_dma_coherent_mem(struct device *dev)
-{
-	struct device *dwc3_google = dev->parent;
-	struct dwc3_google *gdwc3 = dev_get_drvdata(dwc3_google);
-
-	if (gdwc3) {
-		if (gdwc3->mem) {
-			dev_dbg(dev, "Free the DMA memory\n");
-			gdwc3->mem[XHCI_GOOG_DMA_RMEM_SRAM] = NULL;
-			gdwc3->mem[XHCI_GOOG_DMA_RMEM_DRAM] = NULL;
-			devm_kfree(dev, gdwc3->mem);
-			gdwc3->mem = NULL;
-		}
-	}
-}
-
 /* assigning bandwidths based on 'maximum-speed' property from dwc3 dt node */
 static void dwc3_google_set_bw_by_max_speed(struct dwc3_google *gdwc3)
 {
@@ -1038,11 +999,6 @@ static int dwc3_google_probe(struct platform_device *pdev)
 	}
 	pm_runtime_forbid(dev);
 
-	if (IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)) {
-		xhci_goog_register_get_cb(dwc3_google_get_dma_coherent_mem);
-		xhci_goog_register_put_cb(dwc3_google_put_dma_coherent_mem);
-	}
-
 	if (of_platform_populate(node, NULL, NULL, dev)) {
 		dev_err(dev, "failed to add dwc3 core\n");
 		ret = -ENODEV;
@@ -1154,10 +1110,6 @@ static void dwc3_google_remove(struct platform_device *pdev)
 	device_init_wakeup(&gdwc3->dwc3->dev, false);
 	pm_runtime_disable(&pdev->dev);
 	of_platform_depopulate(&pdev->dev);
-	if (IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)) {
-		xhci_goog_unregister_get_cb();
-		xhci_goog_unregister_put_cb();
-	}
 
 	if (!pm_runtime_status_suspended(&pdev->dev)) {
 		google_unconfigure_glue(gdwc3);

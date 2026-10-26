@@ -183,7 +183,7 @@ void usb_offload_rmem_unmap(struct device *sysdev)
 	struct device_node	*np;
 	int i, count, ret;
 
-	xhci_goog_restore_dma_ops(sysdev);
+	xhci_goog_release_dma_pool(sysdev);
 
 	domain = iommu_get_domain_for_dev(sysdev);
 	count = of_property_count_elems_of_size(sysdev->of_node, "memory-region",
@@ -200,6 +200,7 @@ void usb_offload_rmem_unmap(struct device *sysdev)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(sysdev, "rmem lookup failed.\n");
 			continue;
@@ -228,8 +229,8 @@ static void usb_audio_offload_cleanup(struct usb_hcd *hcd)
 
 	if (IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA))
 		usb_offload_rmem_unmap(sysdev);
-
-	of_reserved_mem_device_release(sysdev);
+	else
+		of_reserved_mem_device_release(sysdev);
 
 	/* Notification for xhci driver removing */
 	usb_host_mode_state_notify(USB_DISCONNECTED);
@@ -259,21 +260,15 @@ int usb_offload_rmem_init(struct device *sysdev)
 	if (!domain) {
 		dev_err(sysdev, "iommu domain not found.\n");
 		ret = -ENOMEM;
-		goto release_rmem;
-	}
-
-	xhci_goog_rmem_setup_latecall(sysdev);
-
-	for (i = 0; i < XHCI_GOOG_DMA_RMEM_MAX; i++) {
-		ret = of_reserved_mem_device_init_by_idx(sysdev, sysdev->of_node, i);
-		if (ret) {
-			dev_err(sysdev, "Could not get reserved memory index %d\n", i);
-			goto release_rmem;
-		}
+		goto out;
 	}
 
 	count = of_property_count_elems_of_size(sysdev->of_node, "memory-region",
 						sizeof(u32));
+	if (count < XHCI_GOOG_DMA_RMEM_MAX) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	for (i = 0; i < count; i++) {
 		np = of_parse_phandle(sysdev->of_node, "memory-region", i);
@@ -284,6 +279,7 @@ int usb_offload_rmem_init(struct device *sysdev)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(sysdev, "rmem lookup failed.\n");
 			ret = -ENOMEM;
@@ -298,28 +294,28 @@ int usb_offload_rmem_init(struct device *sysdev)
 		}
 	}
 
-	xhci_goog_setup_dma_ops(sysdev);
+	ret = xhci_goog_setup_dma_pool(sysdev);
+	if (ret)
+		goto unmap_iommu;
 
 	return 0;
 
 unmap_iommu:
-	if (i > 0) {
-		for (i = 0; i < count - 1; i++) {
-			np = of_parse_phandle(sysdev->of_node, "memory-region", i);
-			if (!np)
-				continue;
+	count = i;
+	for (i = 0; i < count; i++) {
+		np = of_parse_phandle(sysdev->of_node, "memory-region", i);
+		if (!np)
+			continue;
 
-			rmem = of_reserved_mem_lookup(np);
-			if (!rmem)
-				continue;
+		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
+		if (!rmem)
+			continue;
 
-			iommu_unmap(domain, rmem->base, rmem->size);
-		}
+		iommu_unmap(domain, rmem->base, rmem->size);
 	}
 
-release_rmem:
-	of_reserved_mem_device_release(sysdev);
-
+out:
 	return ret;
 }
 
