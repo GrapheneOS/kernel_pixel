@@ -2850,7 +2850,7 @@ static int be_bind(struct device *dev, struct device *master, void *data)
 			struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 
 			init_waitqueue_head(&crtc->fboost_wait_q);
-			crtc->fboost_worker = kthread_create_worker(0, "crtc%d_boost_freq", i);
+			crtc->fboost_worker = kthread_run_worker(0, "crtc%d_boost_freq", i);
 			if (IS_ERR(crtc->fboost_worker)) {
 				dev_err(dev, "Failed to create fboost worker (%pe)\n",
 					crtc->fboost_worker);

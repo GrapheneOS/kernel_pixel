@@ -491,7 +491,7 @@ static int pogo_transport_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, pogo_transport);
 
-	pogo_transport->wq = kthread_create_worker(0, "wq-pogo-transport");
+	pogo_transport->wq = kthread_run_worker(0, "wq-pogo-transport");
 	if (IS_ERR_OR_NULL(pogo_transport->wq)) {
 		ret = PTR_ERR(pogo_transport->wq);
 		goto unreg_logbuffer;
