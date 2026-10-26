@@ -274,8 +274,8 @@ static int google_lpcm_probe(struct platform_device *pdev)
 	if (!data)
 		return -ENOMEM;
 
-	data->hws[PCIE_CLK] = &g_lpcm->pcie_clk_hw;
 	data->num = MAX_CLKS;
+	data->hws[PCIE_CLK] = &g_lpcm->pcie_clk_hw;
 
 	ret = devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, data);
 	if (ret)
