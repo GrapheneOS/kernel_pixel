@@ -1046,7 +1046,7 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 	usb->update_sdp_enum_timeout = false;
 	usb->disable_sdp_enum_timeout = false;
 
-	usb->usb_type_wq = kthread_create_worker(0, "wq-tcpm-usb-psy-usb-type");
+	usb->usb_type_wq = kthread_run_worker(0, "wq-tcpm-usb-psy-usb-type");
 	if (IS_ERR_OR_NULL(usb->usb_type_wq)) {
 		dev_err(dev, "wq-tcpm-usb-psy-usb-type failed to create\n");
 		return usb->usb_type_wq;
@@ -1150,7 +1150,7 @@ void *usb_psy_setup(struct device *dev, struct logbuffer *log,
 	gvotable_set_vote2str(usb->dead_battery_el, gvotable_v2s_uint);
 	gvotable_set_default(usb->dead_battery_el, (void *)1);
 
-	usb->wq = kthread_create_worker(0, "wq-tcpm-usb-psy");
+	usb->wq = kthread_run_worker(0, "wq-tcpm-usb-psy");
 	if (IS_ERR_OR_NULL(usb->wq)) {
 		ret = usb->wq;
 		goto unreg_dead_battery_el;
