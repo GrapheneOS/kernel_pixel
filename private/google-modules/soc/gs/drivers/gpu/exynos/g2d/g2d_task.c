@@ -525,13 +525,13 @@ int g2d_create_tasks(struct g2d_device *g2d_dev)
 	struct g2d_task *task;
 	unsigned int i;
 
-	g2d_dev->completion_workq = kthread_create_worker(0, "g2d_completion");
+	g2d_dev->completion_workq = kthread_run_worker(0, "g2d_completion");
 	if (IS_ERR(g2d_dev->completion_workq))
 		return PTR_ERR(g2d_dev->completion_workq);
 
 	sched_setscheduler_nocheck(g2d_dev->completion_workq->task, SCHED_FIFO, &param[0]);
 
-	g2d_dev->schedule_workq = kthread_create_worker(0, "g2d_scheduler");
+	g2d_dev->schedule_workq = kthread_run_worker(0, "g2d_scheduler");
 	if (IS_ERR(g2d_dev->schedule_workq))
 		return PTR_ERR(g2d_dev->schedule_workq);
 
