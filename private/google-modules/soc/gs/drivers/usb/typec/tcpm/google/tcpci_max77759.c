@@ -3983,19 +3983,19 @@ int max77759_register(struct max777x9_desc *desc, enable_otg_direct client_otg_c
 		chip->frs = true;
 	}
 
-	chip->wq = kthread_create_worker(0, "wq-tcpm-tcpc");
+	chip->wq = kthread_run_worker(0, "wq-tcpm-tcpc");
 	if (IS_ERR_OR_NULL(chip->wq)) {
 		ret = PTR_ERR(chip->wq);
 		goto teardown_data;
 	}
 
-	chip->dp_notification_wq = kthread_create_worker(0, "wq-tcpc-dp-notification");
+	chip->dp_notification_wq = kthread_run_worker(0, "wq-tcpc-dp-notification");
 	if (IS_ERR_OR_NULL(chip->dp_notification_wq)) {
 		ret = PTR_ERR(chip->dp_notification_wq);
 		goto destroy_worker;
 	}
 	if (of_property_read_bool(dn, "bcl-usb-voting")) {
-		chip->bcl_usb_wq = kthread_create_worker(0, "wq-bcl-usb");
+		chip->bcl_usb_wq = kthread_run_worker(0, "wq-bcl-usb");
 		if (IS_ERR_OR_NULL(chip->bcl_usb_wq)) {
 			ret = PTR_ERR(chip->bcl_usb_wq);
 			goto destroy_dp_worker;

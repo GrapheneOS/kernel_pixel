@@ -1968,13 +1968,13 @@ struct vs_crtc *vs_crtc_create(const struct dc_hw_display *display, struct drm_d
 
 	drm_crtc_helper_add(&crtc->base, &vs_crtc_helper_funcs);
 
-	crtc->commit_worker = kthread_create_worker(0, "dpu_kthread%u", index);
+	crtc->commit_worker = kthread_run_worker(0, "dpu_kthread%u", index);
 	if (IS_ERR(crtc->commit_worker)) {
 		ret = PTR_ERR(crtc->commit_worker);
 		goto err_free_crtc;
 	}
 
-	crtc->vblank_worker = kthread_create_worker(0, "crtc_vblank%u", index);
+	crtc->vblank_worker = kthread_run_worker(0, "crtc_vblank%u", index);
 	if (IS_ERR(crtc->vblank_worker)) {
 		ret = PTR_ERR(crtc->vblank_worker);
 		goto err_free_crtc;
