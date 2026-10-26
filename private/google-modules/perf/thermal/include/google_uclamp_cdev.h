@@ -7,9 +7,13 @@
 #ifndef _GOOGLE_UCLAMP_CDEV_H_
 #define _GOOGLE_UCLAMP_CDEV_H_
 
+#include <linux/mutex.h>
+
 extern struct pixel_em_profile **vendor_sched_pixel_em_profile;
 
 struct thermal_uclamp_cdev {
+	/* Serializes current-state reads and frequency-cap updates. */
+	struct mutex state_lock;
 	unsigned int cpu;
 	unsigned int cur_state;
 	unsigned int max_state;
