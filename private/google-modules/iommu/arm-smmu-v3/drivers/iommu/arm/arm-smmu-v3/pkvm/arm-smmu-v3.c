@@ -148,7 +148,7 @@ static void smmu_poll_delay(void)
 								\
 	while (!(_cond)) {					\
 		if (pkvm_time_get() > __end) {		\
-			__ret = -ETIMEDOUT;			\
+			__ret = (_cond) ? 0 : -ETIMEDOUT;	\
 			break;					\
 		}						\
 		smmu_poll_delay();				\
