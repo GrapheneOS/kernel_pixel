@@ -1807,6 +1807,11 @@ dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+#if IS_ENABLED(CONFIG_SOC_LGA)
+	/* The driver restores the link after the PCI core's noirq resume. */
+	pci_d3cold_disable(pdev);
+#endif
+
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
 	/*
 	Since MSM PCIe RC dev usage conunt already incremented +2 even
