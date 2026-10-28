@@ -2160,6 +2160,7 @@ static int ufs_google_config_multi_interrupt(struct ufs_hba *hba)
 	struct platform_device *pdev = to_platform_device(hba->dev);
 	u32 nr_irqs, maxq, set, legacy_irq;
 	irq_handler_t ufshcd_intr = NULL;
+	irq_handler_t ufshcd_threaded_intr = NULL;
 	int ret, i;
 
 	if (device_property_read_bool(hba->dev, "google,skip-mcq-multi-intr"))
@@ -2202,6 +2203,7 @@ static int ufs_google_config_multi_interrupt(struct ufs_hba *hba)
 	struct irq_desc *desc = irq_to_desc(legacy_irq);
 	if (desc && desc->action) {
 		ufshcd_intr = desc->action->handler;
+		ufshcd_threaded_intr = desc->action->thread_fn;
 		devm_free_irq(hba->dev, legacy_irq, hba);
 	}
 
@@ -2220,8 +2222,9 @@ static int ufs_google_config_multi_interrupt(struct ufs_hba *hba)
 		 * is a duplicate of code in the UFS core driver and must be
 		 * kept in sync with the UFS core driver.
 		 */
-		err = devm_request_irq(hba->dev, legacy_irq, ufshcd_intr,
-				       IRQF_SHARED, UFSHCD, hba);
+		err = devm_request_threaded_irq(hba->dev, legacy_irq, ufshcd_intr,
+						ufshcd_threaded_intr,
+						IRQF_ONESHOT | IRQF_SHARED, UFSHCD, hba);
 		if (err) {
 			pr_crit("devm_request_irq() failed: %d\n", err);
 			BUG();
