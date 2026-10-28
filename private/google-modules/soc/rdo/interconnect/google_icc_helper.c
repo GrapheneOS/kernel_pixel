@@ -33,6 +33,11 @@ struct google_icc_path *google_devm_of_icc_get(struct device *dev, const char *n
 	struct icc_path *path;
 	u32 num_vc = google_icc_get_num_vc();
 
+	/* Release the ICC path before freeing the vote referenced by its requests. */
+	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
+	if (!p)
+		return ERR_PTR(-ENOMEM);
+
 	path = devm_of_icc_get(dev, name);
 	if (IS_ERR(path)) {
 		errno = PTR_ERR(path);
@@ -42,12 +47,6 @@ struct google_icc_path *google_devm_of_icc_get(struct device *dev, const char *n
 	} else if (!path) {
 		err_ret = NULL;
 		goto err;
-	}
-
-	p = devm_kzalloc(dev, sizeof(*p), GFP_KERNEL);
-	if (!p) {
-		err_ret = ERR_PTR(-ENOMEM);
-		goto err_icc_put;
 	}
 
 	p->path = path;
@@ -70,10 +69,8 @@ struct google_icc_path *google_devm_of_icc_get(struct device *dev, const char *n
 
 	return p;
 
-	devm_kfree(dev, p);
-err_icc_put:
-	icc_put(path);
 err:
+	devm_kfree(dev, p);
 	return err_ret;
 }
 EXPORT_SYMBOL_GPL(google_devm_of_icc_get);
