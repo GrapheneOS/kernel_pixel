@@ -545,6 +545,8 @@ static int google_pcie_host_init(struct pcie_port *pp)
 	}
 
 	google_pcie_set_l1ss_capabilities(gpcie);
+	/* CLKREQ# is wired and the L1SS timing is configured above. */
+	pci->l1ss_support = true;
 
 	return 0;
 }
