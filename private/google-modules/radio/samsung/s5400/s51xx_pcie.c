@@ -888,6 +888,9 @@ static int s51xx_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *en
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
 		mif_err("pci_enable_device() failed, rc:%d\n", ret);
+	} else if (IS_ENABLED(CONFIG_SOC_LGA)) {
+		/* CPIF manages link power, including suspend during voice calls. */
+		pci_d3cold_disable(pdev);
 	}
 
 	pci_set_master(pdev);
