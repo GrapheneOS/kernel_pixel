@@ -9,6 +9,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/msi.h>
 #include <linux/reset.h>
 #include <linux/debugfs.h>
 #include <linux/gpio/consumer.h>
@@ -66,6 +67,7 @@ enum link_duration_opcodes {
 struct google_pcie {
 	struct device *dev;
 	struct dw_pcie *pci;
+	struct msi_parent_ops msi_parent_ops;
 	void __iomem *top_base;
 	void __iomem *phy_sram_base;
 	void __iomem *sii_base;
