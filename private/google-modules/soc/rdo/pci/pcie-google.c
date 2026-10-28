@@ -2796,6 +2796,10 @@ static int google_pcie_probe(struct platform_device *pdev)
 	pp->irq_domain->ops = &google_pcie_msi_domain_ops;
 	pp->msi_irq_chip->irq_set_affinity = google_pci_msi_set_affinity;
 	pp->msi_irq_chip->irq_unmask = goog_pci_bottom_unmask;
+	/* Allow endpoint MSI domains to forward affinity changes to our IRQ chip. */
+	gpcie->msi_parent_ops = *pp->irq_domain->msi_parent_ops;
+	gpcie->msi_parent_ops.required_flags &= ~MSI_FLAG_NO_AFFINITY;
+	pp->irq_domain->msi_parent_ops = &gpcie->msi_parent_ops;
 	goog_setup_chained_irq_handler(pp);
 
 	power_stats_init(gpcie);
