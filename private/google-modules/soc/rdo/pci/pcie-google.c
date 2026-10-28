@@ -542,6 +542,8 @@ static int google_pcie_host_init(struct pcie_port *pp)
 	}
 
 	google_pcie_set_l1ss_capabilities(gpcie);
+	/* CLKREQ is wired on LGA, so retain the hardware L1SS capabilities. */
+	pci->l1ss_support = true;
 	google_pcie_set_l1_entrance_latency(gpcie);
 
 	return 0;
