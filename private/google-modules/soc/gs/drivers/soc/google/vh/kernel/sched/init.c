@@ -23,6 +23,10 @@
 #include "sched_priv.h"
 #include "topology.h"
 
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+#include <trace/hooks/rust_binder.h>
+#endif
+
 #if IS_ENABLED(CONFIG_CAL_IF) || IS_ENABLED(CONFIG_GS_DOMAIN_IDLE)
 extern void register_set_cluster_enabled_cb(void (*func)(int, int));
 #endif
@@ -410,6 +414,11 @@ static int vh_sched_init(void)
 	REGISTER_TRACE_VH(binder_set_priority, vh_binder_set_priority_pixel_mod);
 	REGISTER_TRACE_VH(binder_restore_priority, vh_binder_restore_priority_pixel_mod);
 	REGISTER_TRACE_VH(binder_proc_transaction_finish, vh_binder_proc_transaction_finish);
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+	REGISTER_TRACE_VH(rust_binder_set_priority, vh_rust_binder_set_priority_pixel_mod);
+	REGISTER_TRACE_VH(rust_binder_restore_priority, vh_rust_binder_restore_priority_pixel_mod);
+	REGISTER_TRACE_VH(rust_binder_looper_entry, vh_rust_binder_looper_entry_pixel_mod);
+#endif
 	REGISTER_TRACE_VH(use_amu_fie, android_vh_use_amu_fie_pixel_mod);
 	REGISTER_TRACE_RVH(set_user_nice_locked, rvh_set_user_nice_locked_pixel_mod);
 	REGISTER_TRACE_RVH(setscheduler_prio, rvh_setscheduler_prio_pixel_mod);
