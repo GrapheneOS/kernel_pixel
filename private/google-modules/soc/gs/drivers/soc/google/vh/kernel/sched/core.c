@@ -582,6 +582,50 @@ void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
 		proc->default_priority.prio = NICE_TO_PRIO(0);
 }
 
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+void vh_rust_binder_set_priority_pixel_mod(void *data, rust_binder_transaction t,
+					 struct task_struct *to_task)
+{
+	rust_binder_thread from_thread = rust_binder_transaction_from_thread(t);
+	struct task_struct *from_task;
+
+	if (rust_binder_transaction_flags(t) & TF_ONE_WAY)
+		return;
+
+	/* The hook can run in the receiver, so current need not be the sender. */
+	rcu_read_lock();
+	from_task = rust_binder_thread_task(from_thread);
+	if (from_task)
+		from_task = tryget_task_struct(from_task);
+	rcu_read_unlock();
+
+	set_performance_inheritance(to_task, from_task, VI_BINDER);
+	if (from_task)
+		put_task_struct(from_task);
+}
+
+void vh_rust_binder_restore_priority_pixel_mod(void *data, struct task_struct *task)
+{
+	set_performance_inheritance(task, NULL, VI_BINDER);
+}
+
+void vh_rust_binder_looper_entry_pixel_mod(void *data, rust_binder_thread thread,
+					 unsigned int looper_flags)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+	task = rust_binder_thread_task(thread);
+	if (task) {
+		if (looper_flags & RB_LOOPER_EXITED)
+			get_vendor_task_struct(task)->is_binder_task = false;
+		else if (looper_flags & (RB_LOOPER_REGISTERED | RB_LOOPER_ENTERED))
+			get_vendor_task_struct(task)->is_binder_task = true;
+	}
+	rcu_read_unlock();
+}
+#endif
+
 void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
 	struct task_struct *pi_task)
 {

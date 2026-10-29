@@ -5,6 +5,10 @@
 #include "binder_internal.h"
 #include <asm/atomic.h>
 
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+#include "drivers/android/binder/rust_binder.h"
+#endif
+
 #define UCLAMP_STATS_SLOTS  21
 #define UCLAMP_STATS_STEP   (100 / (UCLAMP_STATS_SLOTS - 1))
 #define DEF_UTIL_THRESHOLD  1280
@@ -1373,6 +1377,13 @@ void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction 
 void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
 		struct binder_transaction *t, struct task_struct *binder_th_task,
 		bool pending_async, bool sync);
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+void vh_rust_binder_set_priority_pixel_mod(void *data, rust_binder_transaction t,
+					 struct task_struct *task);
+void vh_rust_binder_restore_priority_pixel_mod(void *data, struct task_struct *task);
+void vh_rust_binder_looper_entry_pixel_mod(void *data, rust_binder_thread thread,
+					 unsigned int looper_flags);
+#endif
 void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
 	struct task_struct *pi_task);
 void rvh_try_to_wake_up_success_pixel_mod(void *data, struct task_struct *p);
