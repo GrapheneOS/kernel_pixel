@@ -17,6 +17,7 @@
 #include <linux/mailbox_client.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
+#include <linux/spinlock.h>
 #include <linux/timer.h>
 #include <soc/google/debug-snapshot.h>
 #include "aoc_ipc_core.h"
@@ -49,6 +50,8 @@
 
 #define DT_PROPERTY_NOT_FOUND 0xffffffff
 
+#define AOC_RAMDUMP_MBOX_CHANNEL 15
+
 struct aoc_service_dev;
 typedef void (*aoc_service_dev_handler)(struct aoc_service_dev *d);
 
@@ -63,6 +66,7 @@ enum AOC_FW_STATE {
 struct mbox_slot {
 	struct mbox_client client;
 	struct mbox_chan *channel;
+	spinlock_t tx_lock;
 	void *prvdata;
 	int index;
 };

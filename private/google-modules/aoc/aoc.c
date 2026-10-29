@@ -2620,10 +2620,12 @@ static int aoc_platform_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < prvdata->aoc_mbox_channels; i++) {
+		spin_lock_init(&prvdata->mbox_channels[i].tx_lock);
 		prvdata->mbox_channels[i].client.dev = dev;
 		prvdata->mbox_channels[i].client.tx_block = false;
 		prvdata->mbox_channels[i].client.tx_tout = 100; /* 100ms timeout for tx */
-		prvdata->mbox_channels[i].client.knows_txdone = false;
+		/* Only the ramdump channel needs to wait for a register payload to be consumed. */
+		prvdata->mbox_channels[i].client.knows_txdone = i != AOC_RAMDUMP_MBOX_CHANNEL;
 		prvdata->mbox_channels[i].client.rx_callback = aoc_mbox_rx_callback;
 		prvdata->mbox_channels[i].client.tx_done = aoc_mbox_tx_done;
 		prvdata->mbox_channels[i].client.tx_prepare = aoc_mbox_tx_prepare;
