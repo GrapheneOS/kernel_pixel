@@ -252,7 +252,7 @@ EXPORT_SYMBOL_GPL(aoc_configure_hardware);
 
 void trigger_aoc_ramdump(struct aoc_prvdata *prvdata)
 {
-	struct mbox_chan *channel = prvdata->mbox_channels[15].channel;
+	struct mbox_chan *channel = prvdata->mbox_channels[AOC_RAMDUMP_MBOX_CHANNEL].channel;
 	static const uint32_t command[] = { 0, 0, 0, 0, 0x0deada0c, 0, 0, 0 };
 
 	dev_notice(prvdata->dev, "Attempting to force AoC coredump\n");

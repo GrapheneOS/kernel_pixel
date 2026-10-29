@@ -14,6 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mailbox_client.h>
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -243,6 +244,12 @@ static bool wc_mbox_last_tx_done(struct mbox_chan *chan)
 	struct wc_mbox_prvdata *prvdata = dev_get_drvdata(chan->mbox->dev);
 	u32 status;
 	int index;
+
+	/* The controller-wide poll timer also visits channels completed by clients. */
+	scoped_guard(spinlock_irqsave, &chan->lock) {
+		if (!chan->cl || chan->cl->knows_txdone)
+			return false;
+	}
 
 	index = wc_mbox_channel_index(chan);
 	if (index < 0)
