@@ -242,8 +242,13 @@ static bool wc_mbox_last_tx_done(struct mbox_chan *chan)
 {
 	struct wc_mbox_prvdata *prvdata = dev_get_drvdata(chan->mbox->dev);
 	u32 status;
+	int index;
 
-	status = ioread32(prvdata->base + MB_INTSR0);
+	index = wc_mbox_channel_index(chan);
+	if (index < 0)
+		return false;
+
+	status = ioread32(prvdata->base + MB_INTSR0) & BIT(index);
 	if (status != 0)
 		pr_debug("Pending status %x\n", status);
 
