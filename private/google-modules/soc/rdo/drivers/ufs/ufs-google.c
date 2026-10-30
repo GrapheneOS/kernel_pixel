@@ -649,11 +649,6 @@ static int ufs_google_init(struct ufs_hba *hba)
 	host->hba = hba;
 	ufshcd_set_variant(hba, host);
 
-	/* a number higher than google_cdd_restart_handler() priority */
-	host->restart_nb.priority = 140;
-	host->restart_nb.notifier_call = ufs_google_restart_handler;
-	register_restart_handler(&host->restart_nb);
-
 #if IS_ENABLED(CONFIG_GOOGLE_MBA_CPM_INTERFACE)
 	err = ufs_google_init_cpm(hba);
 	if (err) {
@@ -2380,6 +2375,7 @@ static int ufs_google_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct of_device_id *match;
 	struct ufs_hba *hba;
+	struct ufs_google_host *host;
 
 	match = of_match_node(ufs_google_of_match, dev->of_node);
 	err = ufshcd_pltfrm_init(pdev, match->data);
@@ -2394,6 +2390,13 @@ static int ufs_google_probe(struct platform_device *pdev)
 
 	/* TODO(b/294685860): check requirement for lazy irq disable */
 	irq_set_status_flags(hba->irq, IRQ_DISABLE_UNLAZY);
+
+	/* Register only after probe can no longer fail and release the host. */
+	host = ufshcd_get_variant(hba);
+	/* a number higher than google_cdd_restart_handler() priority */
+	host->restart_nb.priority = 140;
+	host->restart_nb.notifier_call = ufs_google_restart_handler;
+	register_restart_handler(&host->restart_nb);
 
 	return 0;
 }
