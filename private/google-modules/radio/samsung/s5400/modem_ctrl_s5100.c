@@ -3438,7 +3438,7 @@ err_dev_create_file:
 	sysfs_remove_group(&pdev->dev.kobj, &modem_group);
 	sysfs_remove_group(&pdev->dev.kobj, &sim_group);
 	sysfs_remove_group(&pdev->dev.kobj, &dynamic_pcie_spd_group);
-	unregister_modem_voice_call_event_notifier(&mc->force_crash_nb);
+	unregister_modem_force_crash_handler(&mc->force_crash_nb);
 err_force_crash_notifier:
 #if IS_ENABLED(CONFIG_CPIF_AP_SUSPEND_DURING_VOICE_CALL)
 	unregister_modem_voice_call_event_notifier(&mc->call_state_nb);
@@ -3469,7 +3469,7 @@ void s5100_uninit_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata
 	sysfs_remove_group(&dev->kobj, &modem_group);
 	sysfs_remove_group(&dev->kobj, &sim_group);
 	sysfs_remove_group(&dev->kobj, &dynamic_pcie_spd_group);
-	unregister_modem_voice_call_event_notifier(&mc->force_crash_nb);
+	unregister_modem_force_crash_handler(&mc->force_crash_nb);
 #if IS_ENABLED(CONFIG_CPIF_AP_SUSPEND_DURING_VOICE_CALL)
 	unregister_modem_voice_call_event_notifier(&mc->call_state_nb);
 #endif
