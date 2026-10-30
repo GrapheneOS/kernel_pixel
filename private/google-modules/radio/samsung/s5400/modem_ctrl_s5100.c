@@ -1243,6 +1243,8 @@ static int register_pcie(struct link_device *ld)
 		ret = request_pcie_int(ld, pdev);
 		if (ret < 0) {
 			mif_err("request_pcie_int fail.\n");
+			if (mc->irq_offset >= 0)
+				s51xx_pci_free_irq(ld);
 			return ret;
 		}
 		first_save_s51xx_status(mc->s51xx_pdev);
@@ -2033,8 +2035,6 @@ status_error:
 			debug_cp_rom_boot_img(mld);
 		if (cpif_wake_lock_active(mc->ws))
 			cpif_wake_unlock(mc->ws);
-		if (mc->irq_offset >= 0)
-			s51xx_pci_free_irq(ld);
 
 		return ret;
 	}
@@ -2173,8 +2173,6 @@ status_error:
 			debug_cp_rom_boot_img(mld);
 		if (cpif_wake_lock_active(mc->ws))
 			cpif_wake_unlock(mc->ws);
-		if (mc->irq_offset >= 0)
-			s51xx_pci_free_irq(ld);
 
 		return ret;
 	}
@@ -2403,8 +2401,6 @@ status_error:
 		mif_err("ERR! check_cp_status fail (err %d)\n", err);
 		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
 			debug_cp_rom_boot_img(mld);
-		if (mc->irq_offset >= 0)
-			s51xx_pci_free_irq(ld);
 		return err;
 	}
 
@@ -2471,8 +2467,6 @@ status_error:
 		mif_err("ERR! check_cp_status fail (err %d)\n", ret);
 		if (mld->attrs & LINK_ATTR_XMIT_BTDLR_PCIE)
 			debug_cp_rom_boot_img(mld);
-		if (mc->irq_offset >= 0)
-			s51xx_pci_free_irq(ld);
 		return ret;
 	}
 error:
