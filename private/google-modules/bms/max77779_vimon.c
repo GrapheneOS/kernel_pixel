@@ -1309,12 +1309,6 @@ int max77779_vimon_init(struct max77779_vimon_data *data)
 	if (ret < 0)
 		dev_warn(dev, "Failed to initialize debug fs (%d)\n", ret);
 
-	/* turn off vimon on reboot */
-	data->reboot_notifier.notifier_call = max77779_vimon_reboot_notifier;
-	ret = register_reboot_notifier(&data->reboot_notifier);
-	if (ret)
-		dev_err(data->dev, "Failed to register reboot notifier (%d)\n", ret);
-
 	ret = max77779_vimon_reg_write(data, MAX77779_BVIM_MASK, 0);
 	if (ret)
 		dev_err(data->dev, "Failed to unmask INT (%d).\n", ret);
@@ -1347,6 +1341,12 @@ int max77779_vimon_init(struct max77779_vimon_data *data)
 		goto free_locks;
 	}
 
+	/* turn off vimon on reboot */
+	data->reboot_notifier.notifier_call = max77779_vimon_reboot_notifier;
+	ret = register_reboot_notifier(&data->reboot_notifier);
+	if (ret)
+		dev_err(data->dev, "Failed to register reboot notifier (%d)\n", ret);
+
 	return 0;
 
 free_locks:
@@ -1361,6 +1361,8 @@ void max77779_vimon_remove(struct max77779_vimon_data *data)
 {
 	unsigned int running;
 	struct vimon_client_info *client, *temp_node;
+
+	unregister_reboot_notifier(&data->reboot_notifier);
 
 	mutex_lock(&data->vimon_lock);
 
