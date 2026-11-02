@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/cpufreq.h>
 #include <linux/sched/clock.h>
 #include <linux/mmap_lock.h>
 #include <linux/mm.h>
@@ -508,7 +509,7 @@ static inline int util_fits_cpu(unsigned long util,
 				unsigned long uclamp_max,
 				int cpu)
 {
-	unsigned long capacity_orig, capacity_orig_thermal;
+	unsigned long capacity_orig, capacity_actual;
 	unsigned long capacity = capacity_of(cpu);
 	bool fits, uclamp_max_fits;
 
@@ -531,8 +532,8 @@ static inline int util_fits_cpu(unsigned long util,
 	 * Similarly if a task is capped to arch_scale_cpu_capacity(little_cpu), it
 	 * should fit a little cpu even if there's some pressure.
 	 *
-	 * Only exception is for thermal pressure since it has a direct impact
-	 * on available OPP of the system.
+	 * The exceptions are hardware and cpufreq pressure, which directly limit
+	 * the available CPU performance.
 	 *
 	 * We honour it for uclamp_min only as a drop in performance level
 	 * could result in not getting the requested minimum performance level.
@@ -545,7 +546,8 @@ static inline int util_fits_cpu(unsigned long util,
 	 * the time.
 	 */
 	capacity_orig = arch_scale_cpu_capacity(cpu);
-	capacity_orig_thermal = capacity_orig - arch_scale_hw_pressure(cpu);
+	capacity_actual = capacity_orig - max(arch_scale_hw_pressure(cpu),
+					     cpufreq_get_pressure(cpu));
 
 	/*
 	 * We want to force a task to fit a cpu as implied by uclamp_max.
@@ -623,7 +625,7 @@ static inline int util_fits_cpu(unsigned long util,
 	 */
 	uclamp_min = min(uclamp_min, uclamp_max);
 	if (util < uclamp_min && capacity_orig != SCHED_CAPACITY_SCALE)
-		fits = fits && (uclamp_min <= capacity_orig_thermal);
+		fits = fits && (uclamp_min <= capacity_actual);
 
 	return fits;
 }
