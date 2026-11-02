@@ -756,6 +756,11 @@ static inline int chg_reset_state(struct chg_drv *chg_drv)
 /* definitions from FOREACH_CHG_EV_ADAPTER() in google_bms.h */
 static int info_usb_ad_type(int usb_type, int usbc_type)
 {
+	if (usbc_type == POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS)
+		usbc_type = POWER_SUPPLY_USB_TYPE_PD_PPS;
+	else if (usbc_type == POWER_SUPPLY_USB_TYPE_PD_SPR_AVS)
+		usbc_type = POWER_SUPPLY_USB_TYPE_PD;
+
 	switch (usb_type) {
 	case POWER_SUPPLY_USB_TYPE_SDP:
 		return (usbc_type == POWER_SUPPLY_USB_TYPE_PD_PPS) ?
