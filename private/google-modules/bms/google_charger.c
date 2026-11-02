@@ -532,12 +532,24 @@ static char *psy_usb_type_str[] = {
 	[POWER_SUPPLY_USB_TYPE_PD] = "USB_PD",
 	[POWER_SUPPLY_USB_TYPE_PD_DRP] = "USB_PD_DRP",
 	[POWER_SUPPLY_USB_TYPE_PD_PPS] = "PPS",
+	[POWER_SUPPLY_USB_TYPE_PD_SPR_AVS] = "PD_SPR_AVS",
+	[POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS] = "PD_PPS_SPR_AVS",
 	[POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID] = "BrickID",
 };
 
 static char *psy_usbc_type_str[] = {
-	"Unknown", "SDP", "DCP", "CDP", "ACA", "C",
-	"PD", "PD_DRP", "PD_PPS", "BrickID"
+	[POWER_SUPPLY_USB_TYPE_UNKNOWN] = "Unknown",
+	[POWER_SUPPLY_USB_TYPE_SDP] = "SDP",
+	[POWER_SUPPLY_USB_TYPE_DCP] = "DCP",
+	[POWER_SUPPLY_USB_TYPE_CDP] = "CDP",
+	[POWER_SUPPLY_USB_TYPE_ACA] = "ACA",
+	[POWER_SUPPLY_USB_TYPE_C] = "C",
+	[POWER_SUPPLY_USB_TYPE_PD] = "PD",
+	[POWER_SUPPLY_USB_TYPE_PD_DRP] = "PD_DRP",
+	[POWER_SUPPLY_USB_TYPE_PD_PPS] = "PD_PPS",
+	[POWER_SUPPLY_USB_TYPE_PD_SPR_AVS] = "PD_SPR_AVS",
+	[POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS] = "PD_PPS_SPR_AVS",
+	[POWER_SUPPLY_USB_TYPE_APPLE_BRICK_ID] = "BrickID",
 };
 
 static int chg_work_read_soc(struct power_supply *bat_psy, int *soc);
@@ -807,6 +819,7 @@ static int info_usb_state(union gbms_ce_adapter_details *ad,
 			  struct power_supply *tcpm_psy)
 {
 	const char *usb_type_str = psy_usb_type_str[0];
+	const char *usbc_type_str = psy_usbc_type_str[0];
 	int usb_type, voltage_max = -1, amperage_max = -1;
 	int ad_type, usbc_type = POWER_SUPPLY_USB_TYPE_UNKNOWN;
 
@@ -855,11 +868,12 @@ static int info_usb_state(union gbms_ce_adapter_details *ad,
 
 		if (usb_type < ARRAY_SIZE(psy_usb_type_str))
 			usb_type_str = psy_usb_type_str[usb_type];
-
+		if (usbc_type < ARRAY_SIZE(psy_usbc_type_str))
+			usbc_type_str = psy_usbc_type_str[usbc_type];
 
 		pr_info("usbchg=%s typec=%s usbv=%d usbc=%d usbMv=%d usbMc=%d usbOc=%d\n",
 			usb_type_str,
-			tcpm_psy ? psy_usbc_type_str[usbc_type] : "null",
+			tcpm_psy ? usbc_type_str : "null",
 			voltage_now < 0 ? voltage_now : voltage_now / 1000,
 			current_input / 1000,
 			voltage_max < 0 ? voltage_max : voltage_max / 1000,
