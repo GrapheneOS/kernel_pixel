@@ -1238,6 +1238,11 @@ static int gcpm_pps_timeout(struct gcpm_drv *gcpm)
 {
 	struct pd_pps_data *wlc_pps_data = &gcpm->wlc_pps_data;
 
+	/* There is nothing left to negotiate when both sources lack PPS. */
+	if (gcpm->tcpm_pps_data.stage == PPS_NOTSUPP &&
+	    gcpm->wlc_pps_data.stage == PPS_NOTSUPP)
+		return 0;
+
 	return (wlc_pps_data->stage != PPS_NOTSUPP && wlc_pps_data->pd_online)
 		? PPS_ACTIVE_WLC_TIMEOUT_S : PPS_ACTIVE_USB_TIMEOUT_S;
 }
