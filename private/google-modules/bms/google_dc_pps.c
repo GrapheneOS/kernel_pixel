@@ -96,7 +96,8 @@ static int pps_check_type(struct pd_pps_data *pps_data,
 	ret = power_supply_get_property(pps_psy, POWER_SUPPLY_PROP_USB_TYPE, &pval);
 	pr_debug("%s: name=%s type=%d ret=%d\n", __func__, pps_name(pps_psy),
 		 pval.intval, ret);
-	if (ret == 0 && pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS)
+	if (ret == 0 && (pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS ||
+			pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS))
 		return true;
 	if (ret == 0 && pval.intval == POWER_SUPPLY_USB_TYPE_PD)
 		return true;
@@ -116,6 +117,8 @@ struct tcpm_port *chg_get_tcpm_port(struct power_supply *tcpm_psy)
 	/* port is valid for a tcpm power supply but not for gcpm */
 	ret = power_supply_get_property(tcpm_psy, POWER_SUPPLY_PROP_USB_TYPE, &pval);
 	if (ret == 0 && (pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS ||
+			 pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS ||
+			 pval.intval == POWER_SUPPLY_USB_TYPE_PD_SPR_AVS ||
 			 pval.intval == POWER_SUPPLY_USB_TYPE_PD ||
 			 pval.intval == POWER_SUPPLY_USB_TYPE_C))
 		port = power_supply_get_drvdata(tcpm_psy);
@@ -627,7 +630,7 @@ int pps_work(struct pd_pps_data *pps, struct power_supply *pps_psy)
 	/*
 	 * no need to retry (error) when I cannot read POWER_SUPPLY_PROP_ONLINE.
 	 * The prop is set to PPS_PSY_PROG_ONLINE (from PPS_PSY_FIXED_ONLINE)
-	 * when usbc_type is POWER_SUPPLY_USB_TYPE_PD_PPS.
+	 * for sources supporting PPS, including those also advertising SPR AVS.
 	 */
 	pd_online = PSY_GET_PROP(pps_psy, POWER_SUPPLY_PROP_ONLINE);
 	if (pd_online < 0)
