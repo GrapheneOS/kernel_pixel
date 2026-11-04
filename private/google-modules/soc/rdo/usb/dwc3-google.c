@@ -27,8 +27,7 @@
 #include <dwc3/io.h>
 #include <dwc3/trace.h>
 
-#include "gadget.h"
-#include "core.h"
+#include "drivers/usb/dwc3/gadget.h"
 
 #define CREATE_TRACE_POINTS
 #include "usb_trace.h"
