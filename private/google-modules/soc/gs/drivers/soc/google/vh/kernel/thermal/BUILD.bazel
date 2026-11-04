@@ -20,7 +20,6 @@ ddk_module(
             True: [
                 "init.c",
                 "thermal_genl.c",
-                "thermal_trip_flag.c",
             ],
         },
     },
