@@ -34,7 +34,7 @@ MODULE_DEVICE_TABLE(of, thermal_uclamp_of_match);
 
 static struct platform_driver thermal_uclamp_driver = {
 	.probe = thermal_uclamp_probe,
-	.remove_new = thermal_uclamp_remove,
+	.remove = thermal_uclamp_remove,
 	.driver = {
 		.name = "google_thermal_uclamp",
 		.of_match_table = of_match_ptr(thermal_uclamp_of_match),

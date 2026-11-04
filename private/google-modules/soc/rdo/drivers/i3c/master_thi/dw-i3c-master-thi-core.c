@@ -987,7 +987,7 @@ MODULE_DEVICE_TABLE(of, dw_i3c_master_of_match);
 
 static struct platform_driver dw_i3c_driver = {
 	.probe = dw_i3c_probe,
-	.remove_new = dw_i3c_remove,
+	.remove = dw_i3c_remove,
 	.driver = {
 		.name = "dw-i3c-master-thi",
 		.of_match_table = dw_i3c_master_of_match,
