@@ -2238,7 +2238,7 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
 
 	pgtbl_cfg = (struct io_pgtable_cfg) {
-
+		.pgsize_bitmap	= smmu->pgsize_bitmap,
 		.coherent_walk	= smmu->features & ARM_SMMU_FEAT_COHERENCY,
 		.defer_sync_pte	= true,
 		.tlb		= &arm_smmu_flush_ops,
