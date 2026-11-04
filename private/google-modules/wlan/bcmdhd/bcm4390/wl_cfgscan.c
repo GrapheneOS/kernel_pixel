@@ -5009,13 +5009,13 @@ wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 #elif defined(WL_CFG80211_P2P_DEV_IF)
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
-	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie)
+	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie, const u8 *rx_addr)
 #else
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 	struct ieee80211_channel *channel,
 	enum nl80211_channel_type channel_type,
-	unsigned int duration, u64 *cookie)
+	unsigned int duration, u64 *cookie, const u8 *rx_addr)
 #endif /* WL_PMSR_BKPORT */
 {
 	s32 target_channel;
