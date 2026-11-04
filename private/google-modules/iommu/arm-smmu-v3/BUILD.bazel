@@ -27,5 +27,5 @@ ddk_headers(
     name = "headers",
     hdrs = glob(["include/**/*.h"]),
     includes = ["include"],
-    visibility = [":__subpackages__"],
+    visibility = ["//private/google-modules:__subpackages__"],
 )

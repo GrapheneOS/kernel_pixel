@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <arm-smmu-v3/io-pgtable.h>
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 #include <linux/module.h>
 #include <linux/msi.h>
 #include <linux/pci-ats.h>
@@ -1571,7 +1572,9 @@ static int arm_smmu_handle_event(struct arm_smmu_device *smmu,
 	}
 
 	if (!event->stall)
-		return -EOPNOTSUPP;
+		return pixel_iommu_report_fault(NULL, event->dev, event->iova,
+					       event->ssv ? event->ssid : 0,
+					       event->read ? IOMMU_FAULT_READ : IOMMU_FAULT_WRITE);
 
 	if (event->read)
 		perm |= IOMMU_FAULT_PERM_READ;
@@ -2150,31 +2153,6 @@ struct arm_smmu_domain *arm_smmu_domain_alloc(void)
 	return smmu_domain;
 }
 
-static struct iommu_domain *arm_smmu_domain_alloc_paging(struct device *dev)
-{
-	struct arm_smmu_domain *smmu_domain;
-
-	/*
-	 * Allocate the domain and initialise some of its data structures.
-	 * We can't really do anything meaningful until we've added a
-	 * master.
-	 */
-	smmu_domain = arm_smmu_domain_alloc();
-	if (IS_ERR(smmu_domain))
-		return ERR_CAST(smmu_domain);
-
-	if (dev) {
-		struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-		int ret;
-
-		ret = arm_smmu_domain_finalise(smmu_domain, master, 0);
-		if (ret) {
-			kfree(smmu_domain);
-			return ERR_PTR(ret);
-		}
-	}
-	return &smmu_domain->domain;
-}
 
 static void arm_smmu_domain_free_paging(struct iommu_domain *domain)
 {
@@ -2260,7 +2238,7 @@ static int arm_smmu_domain_finalise(struct arm_smmu_domain *smmu_domain,
 		smmu_domain->stage = ARM_SMMU_DOMAIN_S1;
 
 	pgtbl_cfg = (struct io_pgtable_cfg) {
-		.pgsize_bitmap	= smmu->pgsize_bitmap,
+
 		.coherent_walk	= smmu->features & ARM_SMMU_FEAT_COHERENCY,
 		.defer_sync_pte	= true,
 		.tlb		= &arm_smmu_flush_ops,
@@ -2716,7 +2694,8 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 }
 
 static int arm_smmu_s1_set_dev_pasid(struct iommu_domain *domain,
-				      struct device *dev, ioasid_t id)
+				      struct device *dev, ioasid_t id,
+				      struct iommu_domain *old)
 {
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
@@ -2742,7 +2721,7 @@ static int arm_smmu_s1_set_dev_pasid(struct iommu_domain *domain,
 	 */
 	arm_smmu_make_s1_cd(&target_cd, master, smmu_domain);
 	return arm_smmu_set_pasid(master, to_smmu_domain(domain), id,
-				  &target_cd);
+				  &target_cd, old);
 }
 
 static void arm_smmu_update_ste(struct arm_smmu_master *master,
@@ -2772,16 +2751,13 @@ static void arm_smmu_update_ste(struct arm_smmu_master *master,
 
 int arm_smmu_set_pasid(struct arm_smmu_master *master,
 		       struct arm_smmu_domain *smmu_domain, ioasid_t pasid,
-		       struct arm_smmu_cd *cd)
+		       struct arm_smmu_cd *cd, struct iommu_domain *old)
 {
 	struct arm_smmu_device *smmu = master->smmu;
 	struct iommu_domain *sid_domain = iommu_get_domain_for_dev(master->dev);
 	struct arm_smmu_attach_state state = {
 		.master = master,
-		/*
-		 * For now the core code prevents calling this when a domain is
-		 * already attached, no need to set old_domain.
-		 */
+		.old_domain = old,
 		.ssid = pasid,
 	};
 	struct arm_smmu_cd *cdptr;
@@ -2832,7 +2808,8 @@ out_rpm_put:
 	return ret;
 }
 
-static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
+static int arm_smmu_blocking_set_dev_pasid(struct iommu_domain *new_domain,
+					 struct device *dev, ioasid_t pasid,
 				      struct iommu_domain *domain)
 {
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
@@ -2840,11 +2817,14 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
 	struct arm_smmu_domain *smmu_domain;
 	int ret;
 
+	if (!domain || domain->type == IOMMU_DOMAIN_BLOCKED)
+		return 0;
+
 	smmu_domain = to_smmu_domain(domain);
 
 	ret = arm_smmu_rpm_get(smmu);
 	if (ret < 0)
-		return;
+		return ret;
 
 	mutex_lock(&arm_smmu_asid_lock);
 	arm_smmu_clear_cd(master, pasid);
@@ -2866,6 +2846,7 @@ static void arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
 			sid_domain->ops->attach_dev(sid_domain, dev);
 	}
 	arm_smmu_rpm_put(smmu);
+	return 0;
 }
 
 static void arm_smmu_attach_dev_ste(struct iommu_domain *domain,
@@ -2955,6 +2936,7 @@ static int arm_smmu_attach_dev_blocked(struct iommu_domain *domain,
 }
 
 static const struct iommu_domain_ops arm_smmu_blocked_ops = {
+	.set_dev_pasid = arm_smmu_blocking_set_dev_pasid,
 	.attach_dev = arm_smmu_attach_dev_blocked,
 };
 
@@ -2964,8 +2946,7 @@ static struct iommu_domain arm_smmu_blocked_domain = {
 };
 
 static struct iommu_domain *
-arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
-			   struct iommu_domain *parent,
+arm_smmu_domain_alloc_paging_flags(struct device *dev, u32 flags,
 			   const struct iommu_user_data *user_data)
 {
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
@@ -2975,7 +2956,7 @@ arm_smmu_domain_alloc_user(struct device *dev, u32 flags,
 
 	if (flags & ~PAGING_FLAGS)
 		return ERR_PTR(-EOPNOTSUPP);
-	if (parent || user_data)
+	if (user_data)
 		return ERR_PTR(-EOPNOTSUPP);
 
 	smmu_domain = arm_smmu_domain_alloc();
@@ -3019,8 +3000,7 @@ static int arm_smmu_iotlb_sync_map(struct iommu_domain *domain,
 	if (!ops || !ops->iotlb_sync_map)
 		return 0;
 
-	ops->iotlb_sync_map(ops, iova, size);
-	return 0;
+	return ops->iotlb_sync_map(ops, iova, size);
 }
 
 static size_t arm_smmu_unmap_pages(struct iommu_domain *domain, unsigned long iova,
@@ -3291,72 +3271,6 @@ static int arm_smmu_set_dirty_tracking(struct iommu_domain *domain,
 	return 0;
 }
 
-static int arm_smmu_enable_nesting(struct iommu_domain *domain)
-{
-	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	int ret = 0;
-
-	mutex_lock(&smmu_domain->init_mutex);
-	if (smmu_domain->smmu)
-		ret = -EPERM;
-	else
-		smmu_domain->stage = ARM_SMMU_DOMAIN_S2;
-	mutex_unlock(&smmu_domain->init_mutex);
-
-	return ret;
-}
-
-static int arm_smmu_dev_enable_feature(struct device *dev,
-				       enum iommu_dev_features feat)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-
-	if (!master)
-		return -ENODEV;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-		if (!arm_smmu_master_iopf_supported(master))
-			return -EINVAL;
-		if (master->iopf_enabled)
-			return -EBUSY;
-		master->iopf_enabled = true;
-		return 0;
-	case IOMMU_DEV_FEAT_SVA:
-		if (!arm_smmu_master_sva_supported(master))
-			return -EINVAL;
-		if (arm_smmu_master_sva_enabled(master))
-			return -EBUSY;
-		return arm_smmu_master_enable_sva(master);
-	default:
-		return -EINVAL;
-	}
-}
-
-static int arm_smmu_dev_disable_feature(struct device *dev,
-					enum iommu_dev_features feat)
-{
-	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
-
-	if (!master)
-		return -EINVAL;
-
-	switch (feat) {
-	case IOMMU_DEV_FEAT_IOPF:
-		if (!master->iopf_enabled)
-			return -EINVAL;
-		if (master->sva_enabled)
-			return -EBUSY;
-		master->iopf_enabled = false;
-		return 0;
-	case IOMMU_DEV_FEAT_SVA:
-		if (!arm_smmu_master_sva_enabled(master))
-			return -EINVAL;
-		return arm_smmu_master_disable_sva(master);
-	default:
-		return -EINVAL;
-	}
-}
 
 /*
  * HiSilicon PCIe tune and trace device can be used to trace TLP headers on the
@@ -3393,20 +3307,20 @@ static struct iommu_ops arm_smmu_ops = {
 	.identity_domain	= &arm_smmu_identity_domain,
 	.blocked_domain		= &arm_smmu_blocked_domain,
 	.capable		= arm_smmu_capable,
-	.domain_alloc_paging    = arm_smmu_domain_alloc_paging,
+
 	.domain_alloc_sva       = arm_smmu_sva_domain_alloc,
-	.domain_alloc_user	= arm_smmu_domain_alloc_user,
+	.domain_alloc_paging_flags = arm_smmu_domain_alloc_paging_flags,
 	.probe_device		= arm_smmu_probe_device,
 	.release_device		= arm_smmu_release_device,
 	.device_group		= arm_smmu_device_group,
 	.of_xlate		= arm_smmu_of_xlate,
 	.get_resv_regions	= arm_smmu_get_resv_regions,
-	.remove_dev_pasid	= arm_smmu_remove_dev_pasid,
-	.dev_enable_feat	= arm_smmu_dev_enable_feature,
-	.dev_disable_feat	= arm_smmu_dev_disable_feature,
+
+
+
 	.page_response		= arm_smmu_page_response,
 	.def_domain_type	= arm_smmu_def_domain_type,
-	.pgsize_bitmap		= -1UL, /* Restricted during device attach */
+
 	.owner			= THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev		= arm_smmu_attach_dev,
@@ -3417,7 +3331,7 @@ static struct iommu_ops arm_smmu_ops = {
 		.iotlb_sync_map		= arm_smmu_iotlb_sync_map,
 		.iotlb_sync		= arm_smmu_iotlb_sync,
 		.iova_to_phys		= arm_smmu_iova_to_phys,
-		.enable_nesting		= arm_smmu_enable_nesting,
+
 		.free			= arm_smmu_domain_free_paging,
 	}
 };
@@ -3814,11 +3728,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 
 	if (disable_msipolling)
 		smmu->options &= ~ARM_SMMU_OPT_MSIPOLL;
-
-	if (arm_smmu_ops.pgsize_bitmap == -1UL)
-		arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
-	else
-		arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
 
 	/* Initialise in-memory data structures */
 	ret = arm_smmu_init_structures(smmu);

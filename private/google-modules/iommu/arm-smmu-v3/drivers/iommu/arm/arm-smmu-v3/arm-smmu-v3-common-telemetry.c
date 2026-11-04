@@ -2,12 +2,13 @@
 
 #define pr_fmt(fmt) "smmu-v3-telemetry: " fmt
 
-#include <kvm/iommu.h>
+#include <asm/kvm_host.h>
 #include <linux/of_address.h>
 #include <asm/kvm_pkvm_module.h>
 #include "arm-smmu-v3.h"
 #include "arm-smmu-v3-common-telemetry.h"
 #include "pkvm/hyp-arm-smmu-v3-common-telemetry.h"
+#include "pkvm/arm_smmu_v3.h"
 
 /* Registered HVC number for page table walks, used to trigger EL2 walks */
 int ptw_hvc_num = -1;
@@ -46,7 +47,8 @@ static int arm_smmu_run_ptw(int domain_id)
 	do {
 		u64 prev_iova = next_iova;
 
-		res = pkvm_el2_mod_call_smccc(ptw_hvc_num, domain_id, next_iova);
+		arm_smccc_1_1_hvc(KVM_HOST_SMCCC_ID(ptw_hvc_num),
+				  domain_id, next_iova, &res);
 		ret = (int)res.a0;
 		next_iova = res.a1;
 		status = (int)res.a2;
@@ -851,7 +853,7 @@ static ssize_t num_s2_##size##_mapping_show(struct kobject *kobj,				\
 		return -ENODEV;									\
 												\
 	mutex_lock(&s2_ptw_lock);								\
-	ret = arm_smmu_run_ptw(KVM_IOMMU_DOMAIN_IDMAP_ID);					\
+	ret = arm_smmu_run_ptw(PIXEL_SMMU_IDMAP_ID);					\
 	if (ret) {										\
 		mutex_unlock(&s2_ptw_lock);							\
 		return ret;									\
@@ -1067,9 +1069,9 @@ void arm_smmu_dom_tlm_rec_domain_id(struct arm_smmu_domain_telemetry_common *asd
 	case PKVM_MODE_DRIVER:
 		asdtc->data.kasdt.domain_id = domain_id;
 
-		if (domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID)
+		if (domain_id == PIXEL_SMMU_IDMAP_ID)
 			asdtc->type = DOMAIN_TYPE_S2;
-		else if (domain_id > KVM_IOMMU_DOMAIN_IDMAP_ID && domain_id < MAX_SMMU_DOMAIN)
+		else if (domain_id > PIXEL_SMMU_IDMAP_ID && domain_id < MAX_SMMU_DOMAIN)
 			asdtc->type = nested ? DOMAIN_TYPE_NESTED : DOMAIN_TYPE_S1;
 		else
 			asdtc->type = DOMAIN_TYPE_UNATTACHED;
