@@ -619,7 +619,7 @@ static struct kobj_attribute kobj_attr_force_active =
 static char syna_str_buf[STR_BUF_LENGTH];
 static loff_t syna_output_str_length;
 static ssize_t syna_sysfs_get_raw_data_read(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *battr, char *buf,
+		const struct bin_attribute *battr, char *buf,
 		loff_t offset, size_t count)
 {
 	u64 index = 0;
@@ -729,7 +729,7 @@ output_string:
  *    on success, return count; otherwise, return error code
  */
 static ssize_t syna_sysfs_get_raw_data_write(struct file *fp, struct kobject *kobj,
-		struct bin_attribute *battr, char *buf,
+		const struct bin_attribute *battr, char *buf,
 		loff_t offset, size_t count)
 {
 	int retval = count;
@@ -1127,7 +1127,7 @@ static struct attribute *attrs[] = {
 	&kobj_attr_debug.attr,
 	NULL,
 };
-static struct bin_attribute *bin_attrs[] = {
+static const struct bin_attribute * const bin_attrs[] = {
 	&bin_attr_get_raw_data,
 	NULL,
 };
