@@ -22,7 +22,7 @@
 #include <linux/usb/composite.h>
 
 #include "drivers/usb/gadget/configfs.h"
-#include "u_serial.h"
+#include <drivers/usb/gadget/function/u_serial.h>
 
 #define MAX_INST_NAME_LEN		40
 /*  DM1_PORT NUM : /dev/ttyGS* port number */
