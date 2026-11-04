@@ -383,7 +383,6 @@ static struct virtqueue *_find_vq(struct virtio_device *vdev,
 			vqi->name);
 		goto err_new_virtqueue;
 	}
-	virtqueue_set_dma_premapped(tvr->vq);
 
 	tvr->vq->priv = tvr;
 
