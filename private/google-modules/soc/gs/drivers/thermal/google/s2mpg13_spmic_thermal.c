@@ -6,6 +6,7 @@
  *
  */
 
+#include <soc/google/thermal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -550,7 +551,7 @@ s2mpg13_spmic_thermal_register_tzd(struct s2mpg13_spmic_thermal_chip *s2mpg13_sp
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++, mask <<= 1) {
 		dev_info(dev, "Registering %d sensor\n", i);
-		tzd = devm_thermal_of_zone_register(s2mpg13_spmic_thermal->dev, i,
+		tzd = google_devm_thermal_of_zone_register(s2mpg13_spmic_thermal->dev, i,
 							   &s2mpg13_spmic_thermal->sensor[i],
 							   &s2mpg13_spmic_thermal_ops);
 
