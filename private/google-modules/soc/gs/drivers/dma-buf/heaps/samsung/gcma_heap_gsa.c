@@ -23,7 +23,7 @@
 #include <linux/pfn.h>
 #include <linux/samsung-secure-iova.h>
 #include <linux/gsa/gsa_ipc.h>
-#include <soc/google/gcma.h>
+#include <linux/gcma.h>
 
 #include "samsung-dma-heap.h"
 #include "gcma_heap.h"
@@ -141,7 +141,7 @@ static int heap_protect(struct gcma_heap *gcma_heap,
 	start_pfn = PFN_DOWN(priv->base);
 	num_pfns = priv->size >> PAGE_SHIFT;
 	end_pfn = start_pfn + num_pfns - 1;
-	pixel_gcma_alloc_range(start_pfn, end_pfn);
+	gcma_alloc_range(start_pfn, end_pfn, GFP_KERNEL);
 
 	/* Allocate a single large IOVA range for the heap */
 	priv->iova_base = secure_iova_alloc(priv->size, heap_align);
@@ -185,7 +185,7 @@ err_free_iova:
 	secure_iova_free(priv->iova_base, priv->size);
 	priv->iova_base = 0;
 err_free_gcma_range:
-	pixel_gcma_free_range(start_pfn, end_pfn);
+	gcma_free_range(start_pfn, end_pfn);
 	gcma_arbitrator_free(gcma_heap->arb, paddr, priv->size);
 	return ret;
 }
@@ -221,7 +221,7 @@ static int heap_unprotect(struct gcma_heap *gcma_heap,
 		start_pfn = PFN_DOWN(priv->base);
 		num_pfns = priv->size >> PAGE_SHIFT;
 		end_pfn = start_pfn + num_pfns - 1;
-		pixel_gcma_free_range(start_pfn, end_pfn);
+		gcma_free_range(start_pfn, end_pfn);
 
 		gcma_arbitrator_free(gcma_heap->arb, priv->base, priv->size);
 	}

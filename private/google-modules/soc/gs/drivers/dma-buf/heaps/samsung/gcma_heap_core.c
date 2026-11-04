@@ -20,7 +20,7 @@
 #include <linux/slab.h>
 #include <linux/sizes.h>
 #include <linux/pfn.h>
-#include <soc/google/gcma.h>
+#include <linux/gcma.h>
 
 #include "samsung-dma-heap.h"
 #include "gcma_heap.h"
@@ -123,7 +123,7 @@ struct page *gcma_alloc(struct gcma_heap *gcma_heap, unsigned long size)
 
 	pfn = PFN_DOWN(paddr);
 	page = phys_to_page(paddr);
-	pixel_gcma_alloc_range(pfn, pfn + (size >> PAGE_SHIFT) - 1);
+	gcma_alloc_range(pfn, pfn + (size >> PAGE_SHIFT) - 1, BASE_GFP);
 	gcma_set_size(page, size);
 	inc_gcma_heap_stat(gcma_heap, USAGE, size);
 	/*
@@ -141,7 +141,7 @@ void gcma_free(struct gcma_heap *gcma_heap, struct page *page)
 
 	size = gcma_get_size(page);
 	pfn = page_to_pfn(page);
-	pixel_gcma_free_range(pfn, pfn + (size >> PAGE_SHIFT) - 1);
+	gcma_free_range(pfn, pfn + (size >> PAGE_SHIFT) - 1);
 	gcma_arbitrator_free(gcma_heap->arb, page_to_phys(page), size);
 }
 
