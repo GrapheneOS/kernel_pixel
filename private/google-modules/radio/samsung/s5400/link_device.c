@@ -2629,7 +2629,7 @@ static void sync_net_dev(struct link_device *ld)
 	struct mem_link_device *mld = to_mem_link_device(ld);
 
 	napi_synchronize(&mld->mld_napi);
-	mif_info("%s\n", netdev_name(&mld->dummy_net));
+	mif_info("%s\n", netdev_name(mld->dummy_net));
 }
 
 static int link_start_normal_boot(struct link_device *ld, struct io_device *iod)
@@ -3404,7 +3404,7 @@ static ssize_t rx_napi_list_show(struct device *dev,
 	ssize_t count = 0;
 
 	modem = (struct modem_data *)dev->platform_data;
-	netdev = &modem->mld->dummy_net;
+	netdev = modem->mld->dummy_net;
 
 	count += scnprintf(&buf[count], PAGE_SIZE - count, "[%s's napi_list]\n",
 		netdev_name(netdev));
@@ -3464,7 +3464,7 @@ static ssize_t rx_poll_count_show(struct device *dev,
 	mld = modem->mld;
 
 	return sysfs_emit(buf, "%s: %d\n",
-			netdev_name(&mld->dummy_net), mld->rx_poll_count);
+			netdev_name(mld->dummy_net), mld->rx_poll_count);
 }
 
 static ssize_t rx_poll_count_store(struct device *dev,
@@ -4003,13 +4003,9 @@ static int init_shmem_maps(u32 link_type, struct modem_data *modem,
 	}
 
 	if (ld->sbd_ipc) {
-		hrtimer_init(&mld->sbd_tx_timer,
-				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		mld->sbd_tx_timer.function = sbd_tx_timer_func;
+		hrtimer_setup(&mld->sbd_tx_timer, sbd_tx_timer_func, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
-		hrtimer_init(&mld->sbd_print_timer,
-				CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-		mld->sbd_print_timer.function = sbd_print;
+		hrtimer_setup(&mld->sbd_print_timer, sbd_print, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 		err = create_sbd_link_device(ld,
 				&mld->sbd_link_dev, mld->base, mld->size);
@@ -4297,8 +4293,10 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	if (err)
 		goto error;
 
-	init_dummy_netdev(&mld->dummy_net);
-	netif_napi_add_weight(&mld->dummy_net, &mld->mld_napi, mld_rx_int_poll, NAPI_POLL_WEIGHT);
+	mld->dummy_net = alloc_netdev_dummy(0);
+	if (!mld->dummy_net)
+		goto error;
+	netif_napi_add_weight(mld->dummy_net, &mld->mld_napi, mld_rx_int_poll, NAPI_POLL_WEIGHT);
 	napi_enable(&mld->mld_napi);
 
 	INIT_LIST_HEAD(&ld->list);
@@ -4332,8 +4330,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	msb_queue_head_init(&mld->msb_rxq);
 	msb_queue_head_init(&mld->msb_log);
 
-	hrtimer_init(&mld->tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	mld->tx_timer.function = tx_timer_func;
+	hrtimer_setup(&mld->tx_timer, tx_timer_func, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	INIT_WORK(&mld->page_reclaim_work, bootdump_oom_handler_work);
 
@@ -4459,8 +4456,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		mif_err("pktproc_create_ul() error %d\n", err);
 		goto error;
 	}
-	hrtimer_init(&mld->pktproc_tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	mld->pktproc_tx_timer.function = pktproc_tx_timer_func;
+	hrtimer_setup(&mld->pktproc_tx_timer, pktproc_tx_timer_func, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 #endif
 
 #if IS_ENABLED(CONFIG_CPIF_TP_MONITOR)
@@ -4498,6 +4494,11 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	return ld;
 
 error:
+	if (mld->dummy_net) {
+		napi_disable(&mld->mld_napi);
+		netif_napi_del(&mld->mld_napi);
+		free_netdev(mld->dummy_net);
+	}
 	kfree(mld);
 	mif_err("xxx\n");
 	return NULL;
