@@ -1045,7 +1045,7 @@ static int dw8250_suspend(struct device *dev)
 	google_serial8250_suspend_port(data->data.line);
 
 	if (uart_console(&up->port))
-		console_stop(up->port.cons);
+		console_suspend(up->port.cons);
 
 	return pm_runtime_force_suspend(dev);
 }
@@ -1071,7 +1071,7 @@ static int dw8250_resume(struct device *dev)
 	google_serial8250_resume_port(data->data.line);
 
 	if (uart_console(&up->port))
-		console_start(up->port.cons);
+		console_resume(up->port.cons);
 
 	return 0;
 }
