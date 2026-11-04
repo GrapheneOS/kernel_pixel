@@ -275,7 +275,7 @@ static int usb_offload_rmem_init(struct device *sysdev)
 	struct iommu_domain	*domain;
 	struct reserved_mem	*rmem;
 	struct device_node	*np;
-	int i, count, ret;
+	int i, count, ret, first;
 
 	domain = iommu_get_domain_for_dev(sysdev);
 	if (!domain) {
@@ -285,20 +285,18 @@ static int usb_offload_rmem_init(struct device *sysdev)
 	}
 
 	/* When memory swap is requested, we only init reserved memory on DRAM */
-	ret = of_reserved_mem_device_init_by_idx(sysdev, sysdev->of_node,
-			offload_data->mem_swap_stat == STATE_SWAP_REQUESTED ? MEM_DRAM : MEM_SRAM);
+	first = offload_data->mem_swap_stat == STATE_SWAP_REQUESTED ? MEM_DRAM : MEM_SRAM;
+	ret = of_reserved_mem_device_init_by_idx(sysdev, sysdev->of_node, first);
 	if (ret) {
 		dev_err(sysdev, "Could not get reserved memory index : %d\n",
-			offload_data->mem_swap_stat == STATE_SWAP_REQUESTED ? MEM_DRAM : MEM_SRAM);
+			first);
 		goto release_rmem;
 	}
 
 	count = of_property_count_elems_of_size(sysdev->of_node, "memory-region",
 						sizeof(u32));
 
-	/* When memory swap is requested, we only init reserved memory on DRAM */
-	for (i = (offload_data->mem_swap_stat == STATE_SWAP_REQUESTED) ? MEM_DRAM : MEM_SRAM;
-	     i < count; i++) {
+	for (i = first; i < count; i++) {
 		np = of_parse_phandle(sysdev->of_node, "memory-region", i);
 		if (!np) {
 			dev_err(sysdev, "memory-region not found\n");
@@ -325,19 +323,18 @@ static int usb_offload_rmem_init(struct device *sysdev)
 	return 0;
 
 unmap_iommu:
-	if (i > 0) {
-		for (i = 0; i < count - 1; i++) {
-			np = of_parse_phandle(sysdev->of_node, "memory-region", i);
-			if (!np)
-				continue;
+	/* Only undo mappings successfully installed by this attempt. */
+	while (--i >= first) {
+		np = of_parse_phandle(sysdev->of_node, "memory-region", i);
+		if (!np)
+			continue;
 
-			rmem = of_reserved_mem_lookup(np);
-			of_node_put(np);
-			if (!rmem)
-				continue;
+		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
+		if (!rmem)
+			continue;
 
-			iommu_unmap(domain, rmem->base, rmem->size);
-		}
+		iommu_unmap(domain, rmem->base, rmem->size);
 	}
 
 release_rmem:
