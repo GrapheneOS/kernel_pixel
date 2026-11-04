@@ -103,6 +103,7 @@ static void sscd_sample_test_release(struct device *dev)
 static int sscd_sample_test_init(void)
 {
 	struct sscd_info *info = &test_info;
+	int ret;
 
 	info->name = DEVICE_NAME;
 	info->seg_count = 5;
@@ -111,8 +112,21 @@ static int sscd_sample_test_init(void)
 	/*
 	 * register SSCD platform device
 	 */
-	platform_device_register(&sscd_dev);
-	return sysfs_create_group(&sscd_dev.dev.kobj, &sscd_test_group);
+	ret = platform_device_register(&sscd_dev);
+	if (ret)
+		goto err_put;
+	ret = sysfs_create_group(&sscd_dev.dev.kobj, &sscd_test_group);
+	if (ret) {
+		platform_device_unregister(&sscd_dev);
+		goto err_free;
+	}
+	return 0;
+
+err_put:
+	platform_device_put(&sscd_dev);
+err_free:
+	test_client_free_segments(info);
+	return ret;
 }
 
 static void sscd_sample_test_exit(void)
