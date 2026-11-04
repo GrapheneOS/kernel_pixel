@@ -104,14 +104,5 @@ ddk_module(
         "//private/google-modules/trusty:trusty-core",
         "//private/google-modules/trusty:trusty-ipc",
         "//private/google-modules/trusty:trusty_headers",
-    ] + select({
-        "//private/devices/google/common:soc_is_laguna_or_later": [
-            "//private/google-modules/soc/gs/drivers/soc/google/gcma",
-        ],
-        "//private/devices/google/common:soc_is_zuma_or_zumapro": [
-            "//private/google-modules/soc/gs/drivers/soc/google/gcma",
-        ],
-        "//conditions:default": [
-        ],
-    }),
+    ],
 )
