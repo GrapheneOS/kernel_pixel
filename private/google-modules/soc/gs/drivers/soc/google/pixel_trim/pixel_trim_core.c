@@ -68,7 +68,7 @@ EXPORT_SYMBOL_GPL(unregister_trim);
  * Success or failure of the trimming process depends on the implementation
  * of each registered 'trim' callback function.
  */
-static void execute_trim(void)
+void execute_trim(void)
 {
 	struct pixel_trim *trim;
 
