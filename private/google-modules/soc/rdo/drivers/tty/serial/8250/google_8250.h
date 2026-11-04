@@ -13,7 +13,7 @@
 
 #include "google_serial_8250.h"
 #include "google_serial_core.h"
-#include "serial_mctrl_gpio.h"
+#include <drivers/tty/serial/serial_mctrl_gpio.h>
 
 struct uart_8250_dma {
 	int (*tx_dma)(struct uart_8250_port *p);
