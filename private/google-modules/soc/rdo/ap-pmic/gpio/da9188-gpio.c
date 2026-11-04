@@ -451,9 +451,7 @@ static int da9188_gpio_direction_output(struct gpio_chip *chip,
 	if (unlikely(ret))
 		return ret;
 
-	da9188_gpio_set(chip, offset, value);
-
-	return ret;
+	return da9188_gpio_set(chip, offset, value);
 }
 
 static const struct pinconf_ops da9188_pinconf_ops = {
