@@ -16198,7 +16198,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, batt_drv);
 
 	psy_cfg.drv_data = batt_drv;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 
 	batt_drv->psy = devm_power_supply_register(batt_drv->device,
 						   &gbatt_psy_desc.psy_dsc, &psy_cfg);

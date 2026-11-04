@@ -6,6 +6,7 @@
  *
  */
 
+#include "../soc_defs.h"
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/list.h>
