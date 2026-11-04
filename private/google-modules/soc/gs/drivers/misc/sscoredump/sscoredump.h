@@ -38,6 +38,7 @@ struct sscd_device {
 	struct mutex             rx_lock; /* access to structure */
 
 	bool                     enabled;
+	bool                     removing;
 	atomic_t                 opened;
 	u32                      read_timeout;
 	wait_queue_head_t        read_wait_q;
