@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+#include <linux/dma-mapping.h>
 #include <linux/module.h>
 #include <linux/platform_data/sscoredump.h>
 #include <gs_drm/gs_sscd.h>
@@ -309,15 +310,21 @@ int display_sscd_device_initialize(struct device *parent_dev,
 	pdev = &disp_sscd->pdev;
 
 	pdev->name = disp_sscd->name;
-	pdev->driver_override = SSCD_NAME;
 	pdev->id = -1;
 	pdev->dev.platform_data = &disp_sscd->pdata;
 	pdev->dev.release = display_sscd_release;
 
-	ret = platform_device_register(pdev);
+	device_initialize(&pdev->dev);
+	pdev->dev.dma_parms = &pdev->dma_parms;
+	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	pdev->platform_dma_mask = DMA_BIT_MASK(32);
+	pdev->dev.dma_mask = &pdev->platform_dma_mask;
+	ret = device_set_driver_override(&pdev->dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(pdev);
 	if (ret) {
 		dev_err(parent_dev, "Failed to register coredump device for %s\n", device_name);
-		platform_device_unregister(pdev);
+		platform_device_put(pdev);
 		devm_kfree(parent_dev, disp_sscd);
 
 		return ret;
