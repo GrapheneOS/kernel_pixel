@@ -812,7 +812,7 @@ MODULE_DEVICE_TABLE(of, dw_i3c_xfer_ap_host_of_match);
 
 static struct platform_driver dw_i3c_xfer_ap_host = {
 	.probe = dw_i3c_xfer_ap_host_probe,
-	.remove_new = dw_i3c_xfer_ap_host_remove,
+	.remove = dw_i3c_xfer_ap_host_remove,
 	.driver = {
 		.name = "dw-i3c-xfer-ap-host",
 		.of_match_table = dw_i3c_xfer_ap_host_of_match,
