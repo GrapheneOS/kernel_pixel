@@ -71,6 +71,31 @@ struct hyp_arm_smmu_v3_global_config kvm_hyp_smmu_global_config;
  * Wait until @cond is true.
  * Return 0 on success, or -ETIMEDOUT
  */
+static struct kvm_hyp_iommu_domain smmu_idmap_domain = {
+	.domain_id = PIXEL_SMMU_IDMAP_ID,
+	.refs = ATOMIC_INIT(1),
+};
+
+static void smmu_lock(struct hyp_arm_smmu_v3_device *smmu)
+{
+	BUILD_BUG_ON(sizeof(smmu->lock) != sizeof(hyp_spinlock_t));
+	hyp_spin_lock((hyp_spinlock_t *)&smmu->lock);
+}
+
+static void smmu_unlock(struct hyp_arm_smmu_v3_device *smmu)
+{
+	hyp_spin_unlock((hyp_spinlock_t *)&smmu->lock);
+}
+
+static void smmu_poll_delay(void)
+{
+	u64 ticks = DIV_ROUND_UP(arch_timer_get_cntfrq(), 1000000);
+	u64 start = __arch_counter_get_cntvct();
+
+	while (__arch_counter_get_cntvct() - start < ticks)
+		cpu_relax();
+}
+
 #define smmu_wait(_cond)					\
 ({								\
 	int __i = 0;						\
@@ -78,10 +103,10 @@ struct hyp_arm_smmu_v3_global_config kvm_hyp_smmu_global_config;
 								\
 	while (!(_cond)) {					\
 		if (++__i > ARM_SMMU_POLL_TIMEOUT_US) {		\
-			__ret = -ETIMEDOUT;			\
+			__ret = (_cond) ? 0 : -ETIMEDOUT;			\
 			break;					\
 		}						\
-		pkvm_udelay(1);					\
+		smmu_poll_delay();					\
 	}							\
 	__ret;							\
 })
@@ -112,7 +137,7 @@ static u64 smmu_poll_timeout_cycle;
 		smmu_wfe(__end_cnt);					\
 		if ((__arch_counter_get_cntvct() - __start_cnt) >=	\
 		    smmu_poll_timeout_cycle) {				\
-			__ret = -ETIMEDOUT;				\
+			__ret = (_cond) ? 0 : -ETIMEDOUT;				\
 			break;						\
 		}							\
 	}								\
@@ -131,7 +156,7 @@ static u64 smmu_poll_timeout_cycle;
 })
 
 struct domain_iommu_node {
-	struct kvm_hyp_iommu		*iommu;
+	struct hyp_arm_smmu_v3_device	*iommu;
 	struct list_head		list;
 	unsigned long			ref;
 };
@@ -285,7 +310,7 @@ void pkvm_ptw_hvc_call(struct user_pt_regs *regs)
 		return;
 	}
 
-	if (domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID) {
+	if (domain_id == PIXEL_SMMU_IDMAP_ID) {
 		dest = &kvm_hyp_shared_arm_smmu_telemetry->hs2t.s2_map_counters;
 	} else if (domain_id > 0 && domain_id < MAX_SMMU_DOMAIN) {
 		struct hyp_arm_smmu_domain_telemetry *hasdt;
@@ -368,9 +393,9 @@ void pkvm_ptw_hvc_call(struct user_pt_regs *regs)
 }
 /* End of IOMMU telemetry code */
 
-static struct hyp_arm_smmu_v3_device *to_smmu(struct kvm_hyp_iommu *iommu)
+static struct hyp_arm_smmu_v3_device *to_smmu(struct hyp_arm_smmu_v3_device *iommu)
 {
-	return container_of(iommu, struct hyp_arm_smmu_v3_device, iommu);
+	return iommu;
 }
 
 static struct hyp_arm_smmu_v3_nested_domain *to_nested_domain(struct hyp_arm_smmu_v3_domain *dom)
@@ -391,11 +416,6 @@ static int smmu_take_pages(u64 phys, size_t size)
 	return __pkvm_host_donate_hyp(phys >> PAGE_SHIFT, size >> PAGE_SHIFT);
 }
 
-static void smmu_reclaim_pages(u64 phys, size_t size)
-{
-	WARN_ON(!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size));
-	WARN_ON(__pkvm_hyp_donate_host(phys >> PAGE_SHIFT, size >> PAGE_SHIFT));
-}
 
 #define Q_WRAP(smmu, reg)	((reg) & (1 << (smmu)->cmdq_log2size))
 #define Q_IDX(smmu, reg)	((reg) & ((1 << (smmu)->cmdq_log2size) - 1))
@@ -551,7 +571,7 @@ static int smmu_send_cmd(struct hyp_arm_smmu_v3_device *smmu,
 {
 	int ret;
 
-	if (smmu->iommu.power_is_off)
+	if (smmu->power_is_off)
 		return 0;
 
 	ret = smmu_add_cmd(smmu, cmd);
@@ -654,7 +674,7 @@ smmu_get_ste_ptr(struct hyp_arm_smmu_v3_device *smmu, u32 sid)
 	return &cfg->linear.table[sid];
 }
 
-static int smmu_nested_cfg_sync(struct kvm_hyp_iommu *iommu, void *cmd_desc, size_t cmd_desc_size)
+static int __smmu_nested_cfg_sync(struct hyp_arm_smmu_v3_device *iommu, void *cmd_desc, size_t cmd_desc_size)
 {
 	struct hyp_arm_smmu_v3_cmd *cmd = cmd_desc;
 	struct hyp_arm_smmu_v3_device *smmu = to_smmu(iommu);
@@ -668,7 +688,7 @@ static int smmu_nested_cfg_sync(struct kvm_hyp_iommu *iommu, void *cmd_desc, siz
 		return -EINVAL;
 
 	/* Take the lock to avoid the STE from going away. */
-	kvm_iommu_lock(iommu);
+	smmu_lock(iommu);
 	sid = FIELD_GET(CMDQ_CFGI_0_SID, le64_to_cpu(cmd->data[0]));
 	ste = smmu_get_ste_ptr(smmu, sid);
 	if (!ste || (FIELD_GET(STRTAB_STE_0_CFG, le64_to_cpu(ste->data[0])) !=
@@ -682,7 +702,7 @@ static int smmu_nested_cfg_sync(struct kvm_hyp_iommu *iommu, void *cmd_desc, siz
 	WARN_ON(ret);
 
 out:
-	kvm_iommu_unlock(iommu);
+	smmu_unlock(iommu);
 	return ret;
 }
 
@@ -766,18 +786,24 @@ static int smmu_init_registers(struct hyp_arm_smmu_v3_device *smmu)
 	return 0;
 }
 
-static void smmu_share_pages(phys_addr_t phys, size_t size)
+static int smmu_share_pages(u64 phys, size_t size)
 {
 	size_t nr_pages;
 	u64 pfn;
+	int ret;
 
-	WARN_ON(!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size));
+	if (WARN_ON(!PAGE_ALIGNED(phys) || !PAGE_ALIGNED(size)))
+		return -EINVAL;
 	nr_pages = size >> PAGE_SHIFT;
 	pfn = phys >> PAGE_SHIFT;
 
 	while (nr_pages--) {
-		WARN_ON(__pkvm_host_share_hyp(pfn++));
+		ret = __pkvm_host_share_hyp(pfn++);
+		if (ret)
+			return ret;
 	}
+	/* Sharing changes ownership; pinning installs the EL2 mappings. */
+	return hyp_pin_shared_mem(hyp_phys_to_virt(phys), hyp_phys_to_virt(phys + size));
 }
 
 static int smmu_init_cmdq(struct hyp_arm_smmu_v3_device *smmu)
@@ -943,7 +969,8 @@ static int smmu_reset_device(struct hyp_arm_smmu_v3_device *smmu)
 	return smmu_write_cr0(smmu, CR0_SMMUEN | CR0_CMDQEN | CR0_ATSCHK | CR0_EVTQEN);
 
 err_disable_cmdq:
-	return smmu_write_cr0(smmu, 0);
+	smmu_write_cr0(smmu, 0);
+	return ret;
 }
 
 static void smmu_smc_set_power_state(struct hyp_arm_smmu_v3_device *smmu, bool on)
@@ -960,6 +987,9 @@ static bool smmu_needs_fw_sync(struct hyp_arm_smmu_v3_device *smmu)
 {
 	return (smmu->options & ARM_SMMU_OPT_SYNC_FW) && kvm_hyp_smmu_global_config.use_smc_s2;
 }
+
+static const struct kvm_power_domain_ops smmu_power_ops;
+static int smmu_init_idmap(void);
 
 static int smmu_init_device(struct hyp_arm_smmu_v3_device *smmu)
 {
@@ -1004,10 +1034,19 @@ static int smmu_init_device(struct hyp_arm_smmu_v3_device *smmu)
 	if (smmu_needs_fw_sync(smmu))
 		smmu_smc_set_power_state(smmu, true);
 
-	return kvm_iommu_init_device(&smmu->iommu);
+	smmu->lock = 0;
+	smmu->power_is_off = false;
+	switch (smmu->power_domain.type) {
+	case KVM_POWER_DOMAIN_NONE:
+		return 0;
+	case KVM_POWER_DOMAIN_HOST_HVC:
+		return pkvm_init_hvc_pd(&smmu->power_domain, &smmu_power_ops);
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
-static int smmu_init(void)
+static int smmu_init(pkvm_handle_t drv_id)
 {
 	int ret;
 	struct hyp_arm_smmu_v3_device *smmu;
@@ -1024,12 +1063,16 @@ static int smmu_init(void)
 		return ret;
 
 	kvm_hyp_smmu_last_err = kern_hyp_va(kvm_hyp_smmu_last_err);
-	smmu_share_pages(hyp_virt_to_phys(kvm_hyp_smmu_last_err),
+	ret = smmu_share_pages(hyp_virt_to_phys(kvm_hyp_smmu_last_err),
 			 PAGE_ALIGN(NR_CPUS * sizeof(struct hyp_arm_smmu_v3_err)));
+	if (ret)
+		return ret;
 
 	kvm_hyp_shared_arm_smmu_telemetry = kern_hyp_va(kvm_hyp_shared_arm_smmu_telemetry);
-	smmu_share_pages(hyp_virt_to_phys(kvm_hyp_shared_arm_smmu_telemetry),
+	ret = smmu_share_pages(hyp_virt_to_phys(kvm_hyp_shared_arm_smmu_telemetry),
 			 PAGE_ALIGN(sizeof(*kvm_hyp_shared_arm_smmu_telemetry)));
+	if (ret)
+		return ret;
 
 	/* Guaranteed to be set by KVM */
 	arch_timer_rate = read_sysreg(cntfrq_el0);
@@ -1039,22 +1082,19 @@ static int smmu_init(void)
 	for_each_smmu(smmu) {
 		ret = smmu_init_device(smmu);
 		if (ret)
-			goto out_reclaim_smmu;
+			return ret;
 	}
 
-	return 0;
-out_reclaim_smmu:
-	smmu_reclaim_pages(smmu_arr_phys, smmu_arr_size);
-	return ret;
+	return smmu_init_idmap();
 }
 
-static struct kvm_hyp_iommu *smmu_id_to_iommu(pkvm_handle_t smmu_id)
+static struct hyp_arm_smmu_v3_device *smmu_id_to_device(pkvm_handle_t smmu_id)
 {
 	if (smmu_id >= kvm_hyp_arm_smmu_v3_count)
 		return NULL;
 	smmu_id = array_index_nospec(smmu_id, kvm_hyp_arm_smmu_v3_count);
 
-	return &kvm_hyp_arm_smmu_v3_smmus[smmu_id].iommu;
+	return &kvm_hyp_arm_smmu_v3_smmus[smmu_id];
 }
 
 static struct hyp_arm_smmu_v3_domain *smmu_alloc_nested_domain(void)
@@ -1067,9 +1107,40 @@ static struct hyp_arm_smmu_v3_domain *smmu_alloc_nested_domain(void)
 	return &nested_domain->smmu_domain;
 }
 
-static int smmu_alloc_domain(struct kvm_hyp_iommu_domain *domain, int type)
+static int smmu_domain_finalise(struct hyp_arm_smmu_v3_device *smmu,
+				struct kvm_hyp_iommu_domain *domain, unsigned long flags);
+
+static int smmu_alloc_domain(pkvm_handle_t iommu_id,
+			     struct kvm_hyp_iommu_domain *domain, int type)
 {
 	struct hyp_arm_smmu_v3_domain *smmu_domain;
+	struct hyp_arm_smmu_v3_device *smmu = smmu_id_to_device(iommu_id);
+	unsigned long flags = 0;
+	int ret;
+
+	if (!smmu)
+		return -ENODEV;
+	if (domain->domain_id == PIXEL_SMMU_IDMAP_ID && domain != &smmu_idmap_domain)
+		return -EINVAL;
+
+	if (type & PIXEL_SMMU_DOMAIN_DISABLE_CONTPTE) {
+		flags |= ARM_SMMU_DISABLE_CONTPTE;
+		type &= ~PIXEL_SMMU_DOMAIN_DISABLE_CONTPTE;
+	}
+	if (type == KVM_ARM_SMMU_DOMAIN_ANY)
+		type = smmu->features & ARM_SMMU_FEAT_TRANS_S1 ?
+			KVM_ARM_SMMU_DOMAIN_S1 : KVM_ARM_SMMU_DOMAIN_S2;
+	if (type == KVM_ARM_SMMU_DOMAIN_S1 || type == KVM_ARM_SMMU_DOMAIN_NESTED) {
+		if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S1) ||
+		    domain->domain_id >= BIT(smmu->asid_bits))
+			return -EINVAL;
+	} else if (type == KVM_ARM_SMMU_DOMAIN_S2) {
+		if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S2) ||
+		    domain->domain_id >= BIT(smmu->vmid_bits))
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
 
 	if (type >= KVM_ARM_SMMU_DOMAIN_MAX)
 		return -EINVAL;
@@ -1086,16 +1157,19 @@ static int smmu_alloc_domain(struct kvm_hyp_iommu_domain *domain, int type)
 
 	INIT_LIST_HEAD(&smmu_domain->iommu_list);
 	hyp_rwlock_init(&smmu_domain->list_lock);
-	/*
-	 * Can't do much without knowing the SMMUv3.
-	 * Page table will be allocated at attach_dev, but can be
-	 * freed from free domain.
-	 */
 	smmu_domain->domain = domain;
 	smmu_domain->type = type;
 	smmu_domain->snapshot_done = false;
 	hyp_spin_lock_init(&smmu_domain->pgt_lock);
-	domain->priv = (void *)smmu_domain;
+	domain->priv = smmu_domain;
+	if (type != KVM_ARM_SMMU_DOMAIN_NESTED) {
+		ret = smmu_domain_finalise(smmu, domain, flags);
+		if (ret) {
+			domain->priv = NULL;
+			hyp_free(smmu_domain);
+			return ret;
+		}
+	}
 	if (domain->domain_id < MAX_SMMU_DOMAIN) {
 		smmu_telemetry_init_domain_data(domain->domain_id);
 
@@ -1151,7 +1225,7 @@ static void smmu_free_domain(struct kvm_hyp_iommu_domain *domain)
 		hyp_free(smmu_domain);
 }
 
-/* Must be protected by smmu.iommu.lock */
+/* Must be protected by smmu.lock */
 static void smmu_record_timeout(struct hyp_arm_smmu_v3_device *smmu)
 {
 	int cpu = hyp_smp_processor_id();
@@ -1181,7 +1255,7 @@ static void smmu_inv_domain(struct hyp_arm_smmu_v3_device *smmu,
 		cmd.tlbi.asid = domain->domain_id;
 	}
 
-	if (smmu->iommu.power_is_off)
+	if (smmu->power_is_off)
 		return;
 
 	WARN_ON(smmu_send_cmd(smmu, &cmd));
@@ -1197,9 +1271,9 @@ static void smmu_tlb_flush_all(void *cookie)
 	hyp_read_lock(&smmu_domain->list_lock);
 	list_for_each_entry(iommu_node, &smmu_domain->iommu_list, list) {
 		smmu = to_smmu(iommu_node->iommu);
-		kvm_iommu_lock(&smmu->iommu);
+		smmu_lock(smmu);
 		smmu_inv_domain(smmu, smmu_domain);
-		kvm_iommu_unlock(&smmu->iommu);
+		smmu_unlock(smmu);
 	}
 	hyp_read_unlock(&smmu_domain->list_lock);
 }
@@ -1243,8 +1317,8 @@ static int smmu_tlb_inv_range_smmu(struct hyp_arm_smmu_v3_device *smmu,
 	struct hyp_arm_smmu_v3_domain *smmu_domain = domain->priv;
 	struct arm_smmu_cmdq_batch cmds = { };
 
-	kvm_iommu_lock(&smmu->iommu);
-	if (smmu->iommu.power_is_off)
+	smmu_lock(smmu);
+	if (smmu->power_is_off)
 		goto out_ret;
 
 	/* Almost copy-paste from the kernel dirver. */
@@ -1311,7 +1385,7 @@ static int smmu_tlb_inv_range_smmu(struct hyp_arm_smmu_v3_device *smmu,
 	/* Only inserts the sync command, caller needs to wait for it to be consumed */
 	ret = smmu_sync_cmd_nowait(smmu);
 out_ret:
-	kvm_iommu_unlock(&smmu->iommu);
+	smmu_unlock(smmu);
 	return ret;
 }
 
@@ -1320,8 +1394,8 @@ static int smmu_wait_until_cmdq_empty(struct hyp_arm_smmu_v3_device *smmu)
 	u64 cmdq_sync_start_time;
 	int ret = 0;
 
-	kvm_iommu_lock(&smmu->iommu);
-	if (smmu->iommu.power_is_off)
+	smmu_lock(smmu);
+	if (smmu->power_is_off)
 		goto out_ret;
 
 	cmdq_sync_start_time = __arch_counter_get_cntvct();
@@ -1333,7 +1407,7 @@ static int smmu_wait_until_cmdq_empty(struct hyp_arm_smmu_v3_device *smmu)
 		smmu_record_timeout(smmu);
 
 out_ret:
-	kvm_iommu_unlock(&smmu->iommu);
+	smmu_unlock(smmu);
 	return ret;
 }
 
@@ -1364,7 +1438,7 @@ static void smmu_tlb_inv_range(struct kvm_hyp_iommu_domain *domain,
 	unsigned long end = iova + size;
 	struct arm_smmu_cmdq_ent cmd = { };
 	bool sync_tlb_inv = kvm_hyp_smmu_global_config.use_smc_s2 &&
-			    domain->domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID;
+			    domain->domain_id == PIXEL_SMMU_IDMAP_ID;
 
 	cmd.tlbi.leaf = leaf;
 	cmd.tlbi.vmid = smmu_domain->vmid;
@@ -1456,7 +1530,7 @@ static void smmu_free_leaf(unsigned long phys, size_t granule, void *cookie)
 	struct kvm_hyp_iommu_domain *domain = cookie;
 
 	/* No tracking for idmap domain. */
-	if (domain->domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID)
+	if (domain->domain_id == PIXEL_SMMU_IDMAP_ID)
 		return;
 
 	WARN_ON(iommu_pkvm_unuse_dma(phys, granule));
@@ -1679,7 +1753,7 @@ static int smmu_domain_finalise(struct hyp_arm_smmu_v3_device *smmu,
 	struct io_pgtable_cfg cfg;
 	struct hyp_arm_smmu_v3_domain *smmu_domain = domain->priv;
 	struct arm_lpae_io_pgtable *data;
-	bool idmapped = domain->domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID;
+	bool idmapped = domain->domain_id == PIXEL_SMMU_IDMAP_ID;
 	unsigned long quirks = idmapped ? 0 : IO_PGTABLE_QUIRK_UNMAP_INVAL;
 
 
@@ -1717,7 +1791,7 @@ static int smmu_domain_finalise(struct hyp_arm_smmu_v3_device *smmu,
 	}
 
 	hyp_spin_lock(&smmu_domain->pgt_lock);
-	smmu_domain->pgtable = kvm_arm_io_pgtable_alloc_pixel(&cfg, domain, &ret);
+	smmu_domain->pgtable = kvm_arm_io_pgtable_alloc_pixel(&cfg, domain, idmapped, &ret);
 	smmu_domain->pgsize_bitmap = cfg.pgsize_bitmap;
 	hyp_spin_unlock(&smmu_domain->pgt_lock);
 	if (ret)
@@ -1777,7 +1851,7 @@ static int smmu_get_ref_domain(struct hyp_arm_smmu_v3_device *smmu,
 		return -ENOMEM;
 	}
 
-	iommu_node->iommu = &smmu->iommu;
+	iommu_node->iommu = smmu;
 	iommu_node->ref = 1;
 	list_add_tail(&iommu_node->list, &smmu_domain->iommu_list);
 
@@ -2080,7 +2154,7 @@ static int smmu_install_nested_ste(struct hyp_arm_smmu_v3_device *smmu, u32 sid,
 	return ret;
 }
 
-static int smmu_attach_dev_nested(struct kvm_hyp_iommu *iommu,
+static int __smmu_attach_dev_nested(struct hyp_arm_smmu_v3_device *iommu,
 				  struct kvm_hyp_iommu_domain *s1_domain,
 				  struct kvm_hyp_iommu_domain *s2_domain, u32 sid, u32 pasid,
 				  unsigned long flags, void *s1_desc, size_t s1_desc_size)
@@ -2089,12 +2163,11 @@ static int smmu_attach_dev_nested(struct kvm_hyp_iommu *iommu,
 	struct hyp_arm_smmu_v3_domain *s1_smmu_domain = s1_domain->priv;
 	struct hyp_arm_smmu_v3_domain *s2_smmu_domain = s2_domain->priv;
 	struct hyp_arm_smmu_v3_s1_ctx *s1_ste = s1_desc;
-	bool init_idmap = false;
 	int ret;
 
 	hyp_write_lock(&s1_smmu_domain->list_lock);
 	hyp_write_lock(&s2_smmu_domain->list_lock);
-	kvm_iommu_lock(iommu);
+	smmu_lock(iommu);
 
 	/* Setup the S2 idmap domain first. */
 	ret = smmu_fix_up_domains(smmu, s2_smmu_domain);
@@ -2113,7 +2186,7 @@ static int smmu_attach_dev_nested(struct kvm_hyp_iommu *iommu,
 	if (!(smmu->features & ARM_SMMU_FEAT_NESTING) ||
 	    !smmu_is_domain_nested(s1_smmu_domain) ||
 	    s2_smmu_domain->type != KVM_ARM_SMMU_DOMAIN_S2 ||
-	    s2_domain->domain_id != KVM_IOMMU_DOMAIN_IDMAP_ID ||
+	    s2_domain->domain_id != PIXEL_SMMU_IDMAP_ID ||
 	    s1_desc_size != sizeof(*s1_ste)) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -2130,8 +2203,6 @@ static int smmu_attach_dev_nested(struct kvm_hyp_iommu *iommu,
 			goto out_unlock_s2_ref;
 	}
 
-	if (!s2_smmu_domain->snapshot_done)
-		init_idmap = true;
 
 	/* Then handle the S1 domain. */
 	s1_smmu_domain->vmid = s2_smmu_domain->vmid;
@@ -2157,32 +2228,14 @@ out_unlock_s2_ref:
 	if (ret)
 		smmu_put_ref_domain(smmu, s2_smmu_domain);
 out_unlock:
-	kvm_iommu_unlock(iommu);
+	smmu_unlock(iommu);
 	hyp_write_unlock(&s2_smmu_domain->list_lock);
 	hyp_write_unlock(&s1_smmu_domain->list_lock);
-
-	if (!ret && init_idmap) {
-		/*
-		 * Setup the table first on the firmware side because the snapshot can trigger
-		 * TLB invalidations if pagetable entries are being coalesced. If that happens
-		 * before the table is setup, the firmware will be invoked to perform TLB
-		 * invalidations without knowledge of the table.
-		 */
-		if (kvm_hyp_smmu_global_config.use_smc_s2)
-			smmu_set_ns_ipa_tbl(s2_smmu_domain);
-
-		kvm_hyp_shared_arm_smmu_telemetry->hs2t.host_mem_usage = 0;
-		ret = kvm_iommu_snapshot_host_stage2(s2_domain);
-		if (!ret) {
-			s2_smmu_domain->snapshot_done = true;
-			smmu_telemetry_rec_idmap_snapshot();
-		}
-	}
 
 	return ret;
 }
 
-static int smmu_attach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_domain *domain,
+static int __smmu_attach_dev(struct hyp_arm_smmu_v3_device *iommu, struct kvm_hyp_iommu_domain *domain,
 			   u32 sid, u32 pasid, u32 pasid_bits, unsigned long flags)
 {
 	int ret;
@@ -2191,10 +2244,9 @@ static int smmu_attach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_dom
 	struct hyp_arm_smmu_v3_device *smmu = to_smmu(iommu);
 	struct hyp_arm_smmu_v3_domain *smmu_domain = domain->priv;
 	bool force_cacheable;
-	bool init_idmap = false;
 
 	hyp_write_lock(&smmu_domain->list_lock);
-	kvm_iommu_lock(iommu);
+	smmu_lock(iommu);
 
 	if (smmu_is_domain_nested(smmu_domain)) {
 		ret = -EINVAL;
@@ -2224,9 +2276,6 @@ static int smmu_attach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_dom
 			goto out_unlock_ref;
 	}
 
-	if (domain->domain_id == KVM_IOMMU_DOMAIN_IDMAP_ID &&
-	    !smmu_domain->snapshot_done)
-		init_idmap = true;
 
 	if (smmu_domain->type == KVM_ARM_SMMU_DOMAIN_S2) {
 		/* Device already attached or pasid for s2. */
@@ -2274,26 +2323,8 @@ out_unlock_ref:
 	if (ret)
 		smmu_put_ref_domain(smmu, smmu_domain);
 out_unlock:
-	kvm_iommu_unlock(iommu);
+	smmu_unlock(iommu);
 	hyp_write_unlock(&smmu_domain->list_lock);
-
-	if (!ret && init_idmap) {
-		/*
-		 * Setup the table first on the firmware side because the snapshot can trigger
-		 * TLB invalidations if pagetable entries are being coalesced. If that happens
-		 * before the table is setup, the firmware will be invoked to perform TLB
-		 * invalidations without knowledge of the table.
-		 */
-		if (kvm_hyp_smmu_global_config.use_smc_s2)
-			smmu_set_ns_ipa_tbl(smmu_domain);
-
-		kvm_hyp_shared_arm_smmu_telemetry->hs2t.host_mem_usage = 0;
-		ret = kvm_iommu_snapshot_host_stage2(domain);
-		if (!ret) {
-			smmu_domain->snapshot_done = true;
-			smmu_telemetry_rec_idmap_snapshot();
-		}
-	}
 
 	return ret;
 }
@@ -2314,7 +2345,7 @@ static int smmu_clear_ste(struct hyp_arm_smmu_v3_device *smmu, u32 sid)
 	return WARN_ON(smmu_sync_ste(smmu, sid));
 }
 
-static int smmu_detach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_domain *domain,
+static int __smmu_detach_dev(struct hyp_arm_smmu_v3_device *iommu, struct kvm_hyp_iommu_domain *domain,
 			   u32 sid, u32 pasid)
 {
 	struct arm_smmu_ste *dst;
@@ -2327,7 +2358,7 @@ static int smmu_detach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_dom
 	u32 domain_id, ste_cfg, ste_cont, base_sid;
 
 	hyp_write_lock(&smmu_domain->list_lock);
-	kvm_iommu_lock(iommu);
+	smmu_lock(iommu);
 	if (smmu_is_domain_nested(smmu_domain)) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -2439,7 +2470,7 @@ static int smmu_detach_dev(struct kvm_hyp_iommu *iommu, struct kvm_hyp_iommu_dom
 
 	smmu_put_ref_domain(smmu, smmu_domain);
 out_unlock:
-	kvm_iommu_unlock(iommu);
+	smmu_unlock(iommu);
 	hyp_write_unlock(&smmu_domain->list_lock);
 	/* CD table is per SID and not domain for device with PASIDs. */
 	if (!ret && cd_table && pasid == 0 && pasid_bits)
@@ -2447,7 +2478,7 @@ out_unlock:
 	return ret;
 }
 
-static int smmu_detach_dev_nested(struct kvm_hyp_iommu *iommu,
+static int __smmu_detach_dev_nested(struct hyp_arm_smmu_v3_device *iommu,
 				  struct kvm_hyp_iommu_domain *s1_domain,
 				  struct kvm_hyp_iommu_domain *s2_domain, u32 sid, u32 pasid)
 {
@@ -2461,7 +2492,7 @@ static int smmu_detach_dev_nested(struct kvm_hyp_iommu *iommu,
 
 	hyp_write_lock(&s1_smmu_domain->list_lock);
 	hyp_write_lock(&s2_smmu_domain->list_lock);
-	kvm_iommu_lock(iommu);
+	smmu_lock(iommu);
 
 	if (!smmu_is_domain_nested(s1_smmu_domain)) {
 		ret = -EINVAL;
@@ -2529,7 +2560,7 @@ static int smmu_detach_dev_nested(struct kvm_hyp_iommu *iommu,
 	smmu_put_ref_domain(smmu, s2_smmu_domain);
 
 out:
-	kvm_iommu_unlock(iommu);
+	smmu_unlock(iommu);
 	hyp_write_unlock(&s2_smmu_domain->list_lock);
 	hyp_write_unlock(&s1_smmu_domain->list_lock);
 	return ret;
@@ -2539,45 +2570,31 @@ static int smmu_map_pages(struct kvm_hyp_iommu_domain *domain, unsigned long iov
 			  phys_addr_t paddr, size_t pgsize,
 			  size_t pgcount, int prot, size_t *total_mapped)
 {
-	size_t mapped;
-	size_t granule;
-	int ret = 0;
 	struct hyp_arm_smmu_v3_domain *smmu_domain = domain->priv;
 	struct io_pgtable *pgtable = smmu_domain->pgtable;
+	size_t mapped = 0, size, granule;
+	int ret;
 
-	if (!pgtable)
+	if (!pgtable || !pgsize || !pgcount ||
+	    check_mul_overflow(pgsize, pgcount, &size))
 		return -EINVAL;
-
 	granule = 1UL << __ffs(smmu_domain->pgsize_bitmap);
-	if (!IS_ALIGNED(iova | paddr | pgsize, granule))
-		return -EINVAL;
-	/*
-	 * We cannot trust the host that iova and paddr are pgsize aligned.
-	 */
-	if (!IS_ALIGNED(iova | paddr, pgsize))
+	if (!IS_ALIGNED(iova | paddr | pgsize, granule) ||
+	    !IS_ALIGNED(iova | paddr, pgsize))
 		return -EINVAL;
 
+	ret = iommu_pkvm_use_dma(paddr, size);
+	if (ret)
+		return ret;
 	hyp_spin_lock(&smmu_domain->pgt_lock);
-	while (pgcount) {
-		mapped = 0;
-		ret = pgtable->ops.map_pages(&pgtable->ops, iova, paddr,
-					     pgsize, pgcount, prot, 0, &mapped);
-		if (ret)
-			break;
-		WARN_ON(!IS_ALIGNED(mapped, pgsize));
-		WARN_ON(mapped > pgcount * pgsize);
-
-		pgcount -= mapped / pgsize;
-		*total_mapped += mapped;
-		iova += mapped;
-		paddr += mapped;
-	}
-
-	if (*total_mapped)
+	ret = pgtable->ops.map_pages(&pgtable->ops, iova, paddr,
+				    pgsize, pgcount, prot, 0, &mapped);
+	if (mapped)
 		smmu_domain->pgt_version++;
-
 	hyp_spin_unlock(&smmu_domain->pgt_lock);
-
+	*total_mapped += mapped;
+	if (mapped < size)
+		WARN_ON(iommu_pkvm_unuse_dma(paddr + mapped, size - mapped));
 	return ret;
 }
 
@@ -2718,13 +2735,13 @@ static int smmu_id_to_token(pkvm_handle_t smmu_id, u64 *out_token)
 	return 0;
 }
 
-static int smmu_dev_block_dma(struct kvm_hyp_iommu *iommu, u32 sid, bool is_host2guest)
+static int __smmu_dev_block_dma(struct hyp_arm_smmu_v3_device *iommu, u32 sid, bool is_host2guest)
 {
 	struct hyp_arm_smmu_v3_device *smmu = to_smmu(iommu);
 	static struct arm_smmu_ste *dst;
 	int ret = 0;
 
-	kvm_iommu_lock(iommu);
+	smmu_lock(iommu);
 	dst = smmu_get_ste_ptr(smmu, sid);
 
 	/*
@@ -2750,7 +2767,7 @@ static int smmu_dev_block_dma(struct kvm_hyp_iommu *iommu, u32 sid, bool is_host
 		}
 	}
 
-	kvm_iommu_unlock(iommu);
+	smmu_unlock(iommu);
 	return ret;
 }
 
@@ -2766,46 +2783,65 @@ static bool smmu_dabt_handler(struct user_pt_regs *regs, u64 esr, u64 addr)
 	return false;
 }
 
-static int smmu_suspend(struct kvm_hyp_iommu *iommu)
+static int smmu_suspend(struct kvm_power_domain *pd)
 {
-	struct hyp_arm_smmu_v3_device *smmu = to_smmu(iommu);
+	struct hyp_arm_smmu_v3_device *smmu =
+		container_of(pd, struct hyp_arm_smmu_v3_device, power_domain);
 	int ret = 0;
 
 	/*
-	 * Disable translation, GBPA is validated at probe to be set, so all translation
+	 * Disable translation, GBPA is validated at probe to be set, so all transaltion
 	 * would be aborted when SMMU is disabled.
 	 */
-	if (iommu->power_domain.type == KVM_POWER_DOMAIN_HOST_HVC) {
+	smmu_lock(smmu);
+	if (!smmu->power_is_off) {
 		ret = smmu_write_cr0(smmu, 0);
 		if (ret)
-			return ret;
+			goto out_unlock;
 
 		if (smmu_needs_fw_sync(smmu))
 			smmu_smc_set_power_state(smmu, false);
 	}
 
+	smmu->power_is_off = true;
+out_unlock:
+	smmu_unlock(smmu);
 	return ret;
 }
 
-static int smmu_resume(struct kvm_hyp_iommu *iommu)
+static int smmu_resume(struct kvm_power_domain *pd)
 {
-	struct hyp_arm_smmu_v3_device *smmu = to_smmu(iommu);
+	struct hyp_arm_smmu_v3_device *smmu =
+		container_of(pd, struct hyp_arm_smmu_v3_device, power_domain);
 	int ret = 0;
 
 	/*
 	 * Re-enable and clean all caches.
 	 */
-	if (iommu->power_domain.type == KVM_POWER_DOMAIN_HOST_HVC) {
+	smmu_lock(smmu);
+	if (smmu->power_is_off) {
+		/* Reset issues commands, which must not be skipped as powered off. */
+		smmu->power_is_off = false;
 		ret = smmu_reset_device(smmu);
-		if (ret)
-			return ret;
+		if (ret) {
+			smmu->power_is_off = true;
+			goto out_unlock;
+		}
 
 		if (smmu_needs_fw_sync(smmu))
 			smmu_smc_set_power_state(smmu, true);
 	}
 
+	smmu->power_is_off = false;
+out_unlock:
+	smmu_unlock(smmu);
 	return ret;
 }
+
+static const struct kvm_power_domain_ops smmu_power_ops = {
+	.power_on = smmu_resume,
+	.power_off = smmu_suspend,
+};
 
 static int smmu_iotlb_sync_map(struct kvm_hyp_iommu_domain *domain,
 			       unsigned long iova, size_t size)
@@ -2853,7 +2889,7 @@ static size_t smmu_pgsize_idmap(size_t size, u64 paddr)
 	return BIT(__fls(pgsizes));
 }
 
-static void __smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
+static int __smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
 				     phys_addr_t start, phys_addr_t end, int prot)
 {
 	size_t size = end - start;
@@ -2879,7 +2915,7 @@ static void __smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
 				smmu_telemetry_req_idmap_map(mapped, smmu_domain->snapshot_done);
 
 			if (!mapped || ret)
-				return;
+				return ret ?: -ENOMEM;
 		}
 	} else {
 		while (size) {
@@ -2890,18 +2926,21 @@ static void __smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
 			size -= unmapped;
 			start += unmapped;
 			if (WARN_ON(!unmapped))
-				return;
+				return -EIO;
 
 			if (smmu_phys_is_dram(start - unmapped))
 				smmu_telemetry_req_idmap_unmap(unmapped,
 							       smmu_domain->snapshot_done);
 		}
 	}
+	return 0;
 }
 
-static void smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
+static int smmu_host_stage2_idmap(
 				   phys_addr_t start, phys_addr_t end, int prot)
 {
+	struct kvm_hyp_iommu_domain *domain = &smmu_idmap_domain;
+	int ret;
 	struct hyp_arm_smmu_v3_domain *smmu_domain = domain->priv;
 	struct io_pgtable *pgtable = smmu_domain->pgtable;
 	phys_addr_t block_region_start = kvm_hyp_smmu_global_config.block_region_start;
@@ -2918,9 +2957,10 @@ static void smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
 	hyp_spin_unlock(&smmu_domain->pgt_lock);
 
 	if (start < block_region_start && end > block_region_end) {
-		__smmu_host_stage2_idmap(domain, start, block_region_start, prot);
-		__smmu_host_stage2_idmap(domain, block_region_end, end, prot);
-		return;
+		ret = __smmu_host_stage2_idmap(domain, start, block_region_start, prot);
+		if (ret)
+			return ret;
+		return __smmu_host_stage2_idmap(domain, block_region_end, end, prot);
 	}
 
 	if (start >= block_region_start && start < block_region_end)
@@ -2930,9 +2970,9 @@ static void smmu_host_stage2_idmap(struct kvm_hyp_iommu_domain *domain,
 		end = block_region_start;
 
 	if (start >= end)
-		return;
+		return 0;
 
-	__smmu_host_stage2_idmap(domain, start, end, prot);
+	return __smmu_host_stage2_idmap(domain, start, end, prot);
 }
 
 #ifdef MODULE
@@ -2946,26 +2986,118 @@ int smmu_init_hyp_module(const struct pkvm_module_ops *ops)
 }
 #endif
 
+static int smmu_init_idmap(void)
+{
+	struct hyp_arm_smmu_v3_device *smmu;
+	int ret;
+
+	for_each_smmu(smmu) {
+		if (!(smmu->features & ARM_SMMU_FEAT_TRANS_S2))
+			continue;
+		ret = smmu_alloc_domain(smmu - kvm_hyp_arm_smmu_v3_smmus, &smmu_idmap_domain,
+					KVM_ARM_SMMU_DOMAIN_S2);
+		if (ret)
+			return ret;
+		/* Firmware must know the table before the core snapshots host stage-2. */
+		if (kvm_hyp_smmu_global_config.use_smc_s2)
+			smmu_set_ns_ipa_tbl(smmu_idmap_domain.priv);
+		return 0;
+	}
+	return -ENODEV;
+}
+
+static int smmu_attach_dev(pkvm_handle_t iommu, struct kvm_hyp_iommu_domain *domain,
+			   pkvm_handle_t dev, u32 pasid, u32 pasid_bits, unsigned long flags)
+{
+	struct hyp_arm_smmu_v3_device *smmu = smmu_id_to_device(iommu);
+
+	if (!smmu || dev > U32_MAX || pasid_bits > 20)
+		return -EINVAL;
+	return __smmu_attach_dev(smmu, domain, dev, pasid, pasid_bits, flags);
+}
+
+static int smmu_attach_dev_nested(pkvm_handle_t iommu, struct kvm_hyp_iommu_domain *domain,
+				  pkvm_handle_t dev, u32 pasid, unsigned long flags,
+				  void *s1_desc, size_t s1_desc_size)
+{
+	struct hyp_arm_smmu_v3_device *smmu = smmu_id_to_device(iommu);
+
+	if (!smmu || dev > U32_MAX)
+		return -EINVAL;
+	return __smmu_attach_dev_nested(smmu, domain, &smmu_idmap_domain,
+					dev, pasid, flags, s1_desc, s1_desc_size);
+}
+
+static int smmu_detach_dev(pkvm_handle_t iommu, struct kvm_hyp_iommu_domain *domain,
+			   pkvm_handle_t dev, u32 pasid)
+{
+	struct hyp_arm_smmu_v3_device *smmu = smmu_id_to_device(iommu);
+
+	if (!smmu || dev > U32_MAX)
+		return -EINVAL;
+	if (smmu_is_domain_nested(domain->priv))
+		return __smmu_detach_dev_nested(smmu, domain, &smmu_idmap_domain, dev, pasid);
+	return __smmu_detach_dev(smmu, domain, dev, pasid);
+}
+
+static int smmu_set_identity(pkvm_handle_t iommu, pkvm_handle_t dev,
+			     bool on, unsigned long flags)
+{
+	if (on)
+		return smmu_attach_dev(iommu, &smmu_idmap_domain, dev, 0, 0, flags);
+	return smmu_detach_dev(iommu, &smmu_idmap_domain, dev, 0);
+}
+
+static int smmu_nested_cfg_sync(pkvm_handle_t iommu, void *cmd, size_t size)
+{
+	struct hyp_arm_smmu_v3_device *smmu = smmu_id_to_device(iommu);
+
+	if (!smmu)
+		return -ENODEV;
+	return __smmu_nested_cfg_sync(smmu, cmd, size);
+}
+
+static int smmu_dev_block_dma(pkvm_handle_t iommu, u32 sid, bool is_host2guest)
+{
+	struct hyp_arm_smmu_v3_device *smmu = smmu_id_to_device(iommu);
+
+	if (!smmu)
+		return -ENODEV;
+	return __smmu_dev_block_dma(smmu, sid, is_host2guest);
+}
+
+static void smmu_host_stage2_idmap_complete(bool map)
+{
+	struct hyp_arm_smmu_v3_domain *domain = smmu_idmap_domain.priv;
+
+	if (!domain->snapshot_done) {
+		domain->snapshot_done = true;
+		smmu_telemetry_rec_idmap_snapshot();
+	}
+}
+
 /* Shared with the kernel driver in EL1 */
 struct kvm_iommu_ops smmu_ops = {
 	.init				= smmu_init,
-	.get_iommu_by_id		= smmu_id_to_iommu,
+
 	.alloc_domain			= smmu_alloc_domain,
 	.free_domain			= smmu_free_domain,
 	.iotlb_sync			= smmu_iotlb_sync,
 	.attach_dev			= smmu_attach_dev,
 	.attach_dev_nested		= smmu_attach_dev_nested,
 	.detach_dev			= smmu_detach_dev,
-	.detach_dev_nested		= smmu_detach_dev_nested,
+
 	.nested_cfg_sync		= smmu_nested_cfg_sync,
 	.iotlb_inv_nested_domain	= smmu_iotlb_inv_nested_domain,
 	.map_pages			= smmu_map_pages,
 	.unmap_pages			= smmu_unmap_pages,
 	.iova_to_phys			= smmu_iova_to_phys,
 	.dabt_handler			= smmu_dabt_handler,
-	.suspend			= smmu_suspend,
-	.resume				= smmu_resume,
+
+
 	.host_stage2_idmap		= smmu_host_stage2_idmap,
+	.host_stage2_idmap_complete = smmu_host_stage2_idmap_complete,
+	.set_identity = smmu_set_identity,
 	.dev_block_dma			= smmu_dev_block_dma,
 	.get_iommu_token_by_id		= smmu_id_to_token,
 	.iotlb_sync_map			= smmu_iotlb_sync_map,

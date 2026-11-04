@@ -8,11 +8,16 @@ config IOMMU_IO_PGTABLE_PIXEL
 	  sizes at both stage-1 and stage-2, as well as address spaces
 	  up to 48-bits in size.
 
+config PIXEL_IOMMU_FAULT
+	tristate
+	depends on IOMMU_API
+
 config ARM_SMMU_V3_PIXEL
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
 	depends on ARM64
 	depends on IOMMU_API
 	select IOMMU_IO_PGTABLE_PIXEL
+	select PIXEL_IOMMU_FAULT
 	help
 	  Support for implementations of the ARM System MMU architecture
 	  version 3 providing translation support to a PCIe root complex.
@@ -24,6 +29,7 @@ config ARM_SMMU_V3_PKVM_PIXEL
 	tristate "ARM SMMUv3 support for protected Virtual Machines"
 	depends on KVM && ARM64
 	select IOMMU_IO_PGTABLE_PIXEL
+	select PIXEL_IOMMU_FAULT
 	help
 	  Enable a SMMUv3 driver in the KVM hypervisor, to protect VMs against
 	  memory accesses from devices owned by the host.
