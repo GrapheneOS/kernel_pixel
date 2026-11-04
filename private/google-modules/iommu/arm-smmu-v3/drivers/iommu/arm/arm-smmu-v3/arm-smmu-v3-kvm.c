@@ -518,7 +518,7 @@ static int kvm_arm_smmu_domain_finalize(struct kvm_arm_smmu_domain *kvm_smmu_dom
 	 * either 8 or 16 bits.
 	 */
 	ret = ida_alloc_range(&kvm_arm_smmu_domain_ida, KVM_SMMU_DOMAIN_NR_START,
-			      min(KVM_IOMMU_MAX_DOMAINS, max_domains), GFP_KERNEL);
+			      min(KVM_IOMMU_MAX_DOMAINS, max_domains) - 1, GFP_KERNEL);
 	if (ret < 0) {
 		free_io_pgtable_ops_pixel(pgtbl_ops);
 		return ret;
