@@ -116,11 +116,11 @@ the uapi_headers list have higher priority.
             default = False,
         ),
         "_clean_header_py": attr.label(
-            default = "@bionic//:libc/kernel/tools/clean_header_py",
+            default = "//:bionic_clean_header",
             allow_single_file = True,
         ),
         "_clean_header_deps": attr.label(
-            default = "@bionic//:libc/kernel/tools/clean_header_deps",
+            default = "//:bionic_clean_header_deps",
             allow_files = True,
         ),
         # HACK: Need to load CLANG_VERSION from kernel_toolchain_info() to find out the python3
