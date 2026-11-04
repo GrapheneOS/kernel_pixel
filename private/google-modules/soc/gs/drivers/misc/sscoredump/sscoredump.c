@@ -750,7 +750,9 @@ VISIBLE_IF_KUNIT int sscoredump_probe(struct platform_device *pdev)
 	minor = ida_alloc_max(&sscd_ida, SSCD_MAX_DEVS - 1, GFP_KERNEL);
 	if (minor < 0) {
 		pr_err("unable to reserve dev_minor\n");
-		goto fail1;
+		mutex_destroy(&sdev->rx_lock);
+		kfree(sdev);
+		return minor;
 	}
 
 	cdev_init(&sdev->chrdev, &sscd_dev_fops);
@@ -788,11 +790,14 @@ VISIBLE_IF_KUNIT int sscoredump_probe(struct platform_device *pdev)
 	return 0;
 
 fail2:
+	/* cdev_device_add() may have exposed the file operations before failing. */
+	mutex_lock(&sdev->rx_lock);
+	WRITE_ONCE(sdev->removing, true);
+	mutex_unlock(&sdev->rx_lock);
+	wake_up_all(&sdev->read_wait_q);
 	ida_free(&sscd_ida, minor);
-fail1:
-	kfree(sdev);
-
-	return -EAGAIN;
+	put_device(&sdev->dev);
+	return ret;
 }
 EXPORT_SYMBOL_IF_KUNIT(sscoredump_probe);
 
@@ -801,14 +806,24 @@ VISIBLE_IF_KUNIT void sscoredump_remove(struct platform_device *pdev)
 	struct sscd_device *sdev = platform_get_drvdata(pdev);
 	int minor;
 
+	if (WARN_ON(!sdev))
+		return;
 	dev_info(&sdev->dev, "remove");
 
-	minor = MINOR(sdev->chrdev.dev);
-
 	mutex_lock(&sscd_mutex);
+	platform_set_drvdata(pdev, NULL);
 	list_del(&sdev->node);
 	mutex_unlock(&sscd_mutex);
 
+	mutex_lock(&sdev->rx_lock);
+	WRITE_ONCE(sdev->removing, true);
+	sdev->enabled = false;
+	complete_all(&sdev->read_completion);
+	mutex_unlock(&sdev->rx_lock);
+	wake_up_all(&sdev->read_wait_q);
+
+	/* Readers and the reporter hold references until they finish. */
+	minor = MINOR(sdev->chrdev.dev);
 	cdev_device_del(&sdev->chrdev, &sdev->dev);
 	ida_free(&sscd_ida, minor);
 
