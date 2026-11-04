@@ -229,7 +229,7 @@ static void google_dock_vote_defaults(struct dock_drv *dock)
 	gvotable_cast_int_vote(dock->dc_icl_votable, DOCK_AICL_VOTER, 0, false);
 }
 
-static enum alarmtimer_restart google_dock_icl_ramp_alarm_cb(struct alarm
+static void google_dock_icl_ramp_alarm_cb(struct alarm
 							     *alarm,
 							     ktime_t now)
 {
@@ -239,7 +239,6 @@ static enum alarmtimer_restart google_dock_icl_ramp_alarm_cb(struct alarm
 	/* Alarm is in atomic context, schedule work to complete the task */
 	schedule_delayed_work(&dock->icl_ramp_work, msecs_to_jiffies(100));
 
-	return ALARMTIMER_NORESTART;
 }
 
 static void google_dock_icl_ramp_work(struct work_struct *work)
@@ -630,7 +629,7 @@ static int google_dock_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dock);
 
 	psy_cfg.drv_data = dock;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 
 	if (of_property_read_bool(pdev->dev.of_node, "google,psy-type-unknown"))
 		dock_psy_desc.type = POWER_SUPPLY_TYPE_UNKNOWN;

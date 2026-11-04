@@ -4736,7 +4736,7 @@ static struct attribute *br_stats_attrs[] = {
 };
 
 static ssize_t max_odpm_stats_dump_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -4762,7 +4762,7 @@ static struct bin_attribute max_odpm_stats_dump_attr = {
 };
 
 static ssize_t br_stats_dump_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -4785,7 +4785,7 @@ static struct bin_attribute br_stats_dump_attr = {
 	.size = sizeof(struct brownout_stats),
 };
 
-static struct bin_attribute *br_stats_bin_attrs[] = {
+static const struct bin_attribute *const br_stats_bin_attrs[] = {
 	&br_stats_dump_attr,
 	&max_odpm_stats_dump_attr,
 	NULL,
@@ -5002,7 +5002,7 @@ static ssize_t sys_evt_data_show(struct device *dev, struct device_attribute *at
 static DEVICE_ATTR_RO(sys_evt_data);
 
 static ssize_t sys_evt_main_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -5020,7 +5020,7 @@ static ssize_t sys_evt_main_read(struct file *filp,
 }
 
 static ssize_t sys_evt_sub_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -5050,7 +5050,7 @@ static struct bin_attribute sys_evt_sub_attr = {
 };
 
 static ssize_t cpm_cached_sys_evt_main_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -5068,7 +5068,7 @@ static ssize_t cpm_cached_sys_evt_main_read(struct file *filp,
 }
 
 static ssize_t cpm_cached_sys_evt_sub_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -5097,7 +5097,7 @@ static struct bin_attribute cpm_cached_sys_evt_sub_attr = {
 	.size = SYS_EVT_MAX_SUB,
 };
 
-static struct bin_attribute *sys_evt_bin_attrs[] = {
+static const struct bin_attribute *const sys_evt_bin_attrs[] = {
 	&sys_evt_main_attr,
 	&sys_evt_sub_attr,
 	&cpm_cached_sys_evt_main_attr,

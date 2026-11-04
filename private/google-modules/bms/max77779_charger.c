@@ -1341,7 +1341,7 @@ static int max77779_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max77779_chgr_data *data = gpiochip_get_data(chip);
 	int ret = 0;
@@ -1361,6 +1361,7 @@ static void max77779_gpio_set(struct gpio_chip *chip, unsigned int offset, int v
 
 	if (ret < 0)
 		dev_warn(data->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void max77779_gpio_init(struct max77779_chgr_data *data)
@@ -1655,7 +1656,7 @@ static int max77779_init_wcin_psy(struct max77779_chgr_data *data)
 
 	if (!data->wcin_psy) {
 		chgr_psy_cfg.drv_data = data;
-		chgr_psy_cfg.of_node = dev->of_node;
+		chgr_psy_cfg.fwnode = dev_fwnode(dev);
 		if (!data->wlcin_is_child) {
 			max77779_wcin_psy_desc.psy_dsc.name = GOOGLE_WLCIN_MAINS_NAME;
 		} else {

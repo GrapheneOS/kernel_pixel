@@ -5146,7 +5146,7 @@ static void gcpm_init_work(struct work_struct *work)
 			}
 
 			wcin_cfg.drv_data = gcpm;
-			wcin_cfg.of_node = gcpm->device->of_node;
+			wcin_cfg.fwnode = dev_fwnode(gcpm->device);
 
 			gcpm->wcin_psy = devm_power_supply_register(gcpm->device,
 								    &gcpm_wcin_psy_desc.psy_dsc,
@@ -6379,7 +6379,7 @@ static int google_cpm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gcpm);
 
 	psy_cfg.drv_data = gcpm;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 	gcpm->psy = devm_power_supply_register(gcpm->device,
 					       &gcpm_psy_desc.psy_dsc,
 					       &psy_cfg);
@@ -6399,9 +6399,9 @@ static int google_cpm_probe(struct platform_device *pdev)
 		gcpm->log = NULL;
 	}
 
-	/* gcpm_pps_psy_cfg.of_node is used to find out the snk_pdos */
+	/* The power supply fwnode is used to find the sink PDOs. */
 	gcpm_pps_psy_cfg.drv_data = gcpm;
-	gcpm_pps_psy_cfg.of_node = pdev->dev.of_node;
+	gcpm_pps_psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 	gcpm->pps_psy = devm_power_supply_register(gcpm->device,
 						   &gcpm_pps_psy_desc,
 						   &gcpm_pps_psy_cfg);

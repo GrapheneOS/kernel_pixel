@@ -5165,7 +5165,7 @@ static int ln8411_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return ret;
 }
 
-static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct ln8411_charger *ln8411 = gpiochip_get_data(chip);
 	int ret = 0;
@@ -5191,6 +5191,7 @@ static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int val
 
 	if (ret < 0)
 		dev_err(&ln8411->client->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void ln8411_gpio_init(struct ln8411_charger *ln8411)
@@ -6233,7 +6234,7 @@ static int ln8411_probe(struct i2c_client *client)
 	}
 
 	wcin_psy_cfg.drv_data = ln8411_charger;
-	wcin_psy_cfg.of_node = dev->of_node;
+	wcin_psy_cfg.fwnode = dev_fwnode(dev);
 	wcin_psy_cfg.supplied_to = wlcin_mains_name;
 	wcin_psy_cfg.num_supplicants = ARRAY_SIZE(wlcin_mains_name);
 	ln8411_charger->wcin_psy = devm_power_supply_register(dev,
