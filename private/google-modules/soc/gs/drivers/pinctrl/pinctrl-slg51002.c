@@ -149,7 +149,7 @@ static int slg51002_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return val;
 }
 
-static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
+static int slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	int ret;
@@ -175,7 +175,8 @@ static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		break;
 	default:
 		dev_err(data->chip->dev, "Unsupported GPIO offset %d\n", offset);
-		return;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ret = regmap_write(data->regmap, addr, val);
@@ -183,8 +184,10 @@ static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
 
+out:
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
+	return ret;
 }
 
 static int slg51002_gpio_seq_get(struct gpio_chip *chip, unsigned int offset)
@@ -202,7 +205,7 @@ static int slg51002_gpio_seq_get(struct gpio_chip *chip, unsigned int offset)
 	return val & slg51002_ctrl_bit_tbl[offset];
 }
 
-static void slg51002_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
+static int slg51002_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	int ret;
@@ -215,7 +218,7 @@ static void slg51002_gpio_seq_set(struct gpio_chip *chip, unsigned int offset,
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
 
-	return;
+	return ret;
 }
 
 static int slg51002_generic_seq_get(struct gpio_chip *chip, unsigned int offset)
@@ -233,7 +236,7 @@ static int slg51002_generic_seq_get(struct gpio_chip *chip, unsigned int offset)
 	return val & BIT(offset);
 }
 
-static void slg51002_generic_seq_set(struct gpio_chip *chip,
+static int slg51002_generic_seq_set(struct gpio_chip *chip,
 				unsigned int offset, int value)
 {
 	int ret;
@@ -245,8 +248,7 @@ static void slg51002_generic_seq_set(struct gpio_chip *chip,
 	if (ret < 0) {
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
-
-	return;
+	return ret;
 }
 
 static int slg51002_gpio_direction_input(struct gpio_chip *chip,
