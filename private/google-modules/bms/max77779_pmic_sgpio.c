@@ -137,7 +137,7 @@ static int max77779_pmic_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 	return val;
 }
 
-static void max77779_pmic_sgpio_set(struct gpio_chip *gc,
+static int max77779_pmic_sgpio_set(struct gpio_chip *gc,
 		unsigned int offset, int value)
 {
 	struct max77779_pmic_sgpio_info *info = gpiochip_get_data(gc);
@@ -147,10 +147,10 @@ static void max77779_pmic_sgpio_set(struct gpio_chip *gc,
 	uint8_t val;
 
 	if (offset >= gc->ngpio)
-		return;
+		return -EINVAL;
 
 	val = !!value << MAX77779_PMIC_GPIO_SGPIO_CNFG0_DATA_SHIFT;
-	max77779_external_pmic_reg_update(core, reg, mask, val);
+	return max77779_external_pmic_reg_update(core, reg, mask, val);
 }
 
 static void max77779_pmic_sgpio_set_irq_valid_mask(struct gpio_chip *gc,

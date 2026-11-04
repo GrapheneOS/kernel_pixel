@@ -3702,7 +3702,7 @@ static int p9221_set_dc_icl(struct p9221_charger_data *charger)
 	return ret;
 }
 
-static enum alarmtimer_restart p9221_auth_dc_icl_alarm_cb(struct alarm *alarm,
+static void p9221_auth_dc_icl_alarm_cb(struct alarm *alarm,
 							  ktime_t now)
 {
 	struct p9221_charger_data *charger =
@@ -3712,7 +3712,6 @@ static enum alarmtimer_restart p9221_auth_dc_icl_alarm_cb(struct alarm *alarm,
 	/* Alarm is in atomic context, schedule work to complete the task */
 	dev_info(&charger->client->dev, "Auth timeout, reset DC_ICL\n");
 	schedule_delayed_work(&charger->auth_dc_icl_work, msecs_to_jiffies(100));
-	return ALARMTIMER_NORESTART;
 }
 
 /*
@@ -3803,7 +3802,7 @@ bool is_ping_freq_fixed_at(struct p9221_charger_data *charger, u32 khz)
 	return true;
 }
 
-static enum alarmtimer_restart p9221_icl_ramp_alarm_cb(struct alarm *alarm,
+static void p9221_icl_ramp_alarm_cb(struct alarm *alarm,
 						       ktime_t now)
 {
 	struct p9221_charger_data *charger =
@@ -3812,7 +3811,7 @@ static enum alarmtimer_restart p9221_icl_ramp_alarm_cb(struct alarm *alarm,
 
 	/* should not schedule icl_ramp_work if charge on rtx phone */
 	if (charger->chg_on_rtx)
-		return ALARMTIMER_NORESTART;
+		return;
 
 	dev_info(&charger->client->dev, "ICL ramp alarm, ramp=%d\n",
 		 charger->icl_ramp);
@@ -3821,7 +3820,6 @@ static enum alarmtimer_restart p9221_icl_ramp_alarm_cb(struct alarm *alarm,
 	pm_stay_awake(charger->dev);
 	schedule_delayed_work(&charger->icl_ramp_work, msecs_to_jiffies(100));
 
-	return ALARMTIMER_NORESTART;
 }
 
 static void p9221_icl_ramp_work(struct work_struct *work)
@@ -6500,7 +6498,7 @@ static struct attribute *p9221_attributes[] = {
 };
 
 static ssize_t p9221_rxdata_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
 	struct p9221_charger_data *charger;
@@ -6521,7 +6519,7 @@ static struct bin_attribute bin_attr_rxdata = {
 };
 
 static ssize_t p9221_txdata_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
 	struct p9221_charger_data *charger;
@@ -6532,7 +6530,7 @@ static ssize_t p9221_txdata_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t p9221_txdata_write(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
+				  const struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t size)
 {
 	struct p9221_charger_data *charger;
@@ -6552,7 +6550,7 @@ static struct bin_attribute bin_attr_txdata = {
 	.size  = P9221R5_DATA_SEND_BUF_SIZE,
 };
 
-static struct bin_attribute *p9221_bin_attributes[] = {
+static const struct bin_attribute *p9221_bin_attributes[] = {
 	&bin_attr_txdata,
 	&bin_attr_rxdata,
 	NULL,
@@ -8476,7 +8474,7 @@ static void p9221_soc_work(struct work_struct *work)
 	if (!charger->batt_psy) {
 		static struct power_supply *psy[2];
 
-		err = power_supply_get_by_phandle_array(charger->dev->of_node,
+		err = power_supply_get_by_reference_array(of_fwnode_handle(charger->dev->of_node),
 							"idt,fuel-gauge",
 							psy, ARRAY_SIZE(psy));
 		if (err < 0 || IS_ERR_OR_NULL(psy[0])) {
@@ -8706,7 +8704,7 @@ static int p9221_charger_probe(struct i2c_client *client)
 	charger->cust_id = 5;
 
 	psy_cfg.drv_data = charger;
-	psy_cfg.of_node = charger->dev->of_node;
+	psy_cfg.fwnode = of_fwnode_handle(charger->dev->of_node);
 	charger->wc_psy = devm_power_supply_register(charger->dev,
 						     &p9221_psy_desc.psy_dsc,
 						     &psy_cfg);

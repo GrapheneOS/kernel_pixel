@@ -190,7 +190,7 @@ static int max77779_pinconf_set(struct pinctrl_dev *pctldev,
 			err =  max77779_external_pmic_reg_update(info->core, reg, mask, rval);
 			break;
 		}
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		case PIN_CONFIG_DRIVE_PUSH_PULL:
 		{

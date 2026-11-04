@@ -1823,7 +1823,7 @@ static int max77759_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max77759_chgr_data *data = gpiochip_get_data(chip);
 	int ret = 0;
@@ -1843,6 +1843,7 @@ static void max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int v
 		dev_err(data->dev, "GPIO %d: value=%d ret:%d\n", offset, value, ret);
 	else
 		dev_dbg(data->dev, "GPIO %d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void max77759_gpio_init(struct max77759_chgr_data *data)
@@ -2137,7 +2138,7 @@ static int max77759_init_wcin_psy(struct max77759_chgr_data *data)
 	int ret;
 
 	wcin_cfg.drv_data = data;
-	wcin_cfg.of_node = dev->of_node;
+	wcin_cfg.fwnode = of_fwnode_handle(dev->of_node);
 
 	if (of_property_read_bool(dev->of_node, "max77759,dc-psy-type-wireless"))
 		max77759_wcin_psy_desc.psy_dsc.type = POWER_SUPPLY_TYPE_WIRELESS;
