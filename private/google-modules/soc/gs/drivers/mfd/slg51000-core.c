@@ -423,7 +423,7 @@ static void slg51000_timeout_work(struct work_struct *work)
 
 static void slg51000_timer_trigger(struct timer_list *t)
 {
-	struct slg51000_dev *slg51000 = from_timer(slg51000, t, timer);
+	struct slg51000_dev *slg51000 = timer_container_of(slg51000, t, timer);
 	schedule_work(&slg51000->timeout_work);
 }
 
@@ -722,7 +722,7 @@ static int slg51000_i2c_probe(struct i2c_client *client)
 			ARRAY_SIZE(slg51000_devs), NULL, 0, NULL);
 
 out:
-	del_timer_sync(&slg51000->timer);
+	timer_delete_sync(&slg51000->timer);
 	cancel_work_sync(&slg51000->timeout_work);
 	mutex_destroy(&slg51000->pwr_lock);
 	return ret;
@@ -737,7 +737,7 @@ static void slg51000_i2c_remove(struct i2c_client *client)
 	sysfs_remove_group(&slg51000->dev->kobj, &attr_group);
 
 	mfd_remove_devices(slg51000->dev);
-	del_timer_sync(&slg51000->timer);
+	timer_delete_sync(&slg51000->timer);
 	cancel_work_sync(&slg51000->timeout_work);
 	mutex_destroy(&slg51000->pwr_lock);
 

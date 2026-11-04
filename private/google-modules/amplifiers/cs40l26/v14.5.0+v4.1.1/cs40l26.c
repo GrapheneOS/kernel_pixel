@@ -5078,7 +5078,7 @@ err_free:
 
 static void cs40l26_hibernate_timer_callback(struct timer_list *t)
 {
-	struct cs40l26_private *cs40l26 = from_timer(cs40l26, t, hibernate_timer);
+	struct cs40l26_private *cs40l26 = timer_container_of(cs40l26, t, hibernate_timer);
 
 	dev_dbg(cs40l26->dev, "Time since ALLOW_HIBERNATE exceeded HE_TIME max");
 }
