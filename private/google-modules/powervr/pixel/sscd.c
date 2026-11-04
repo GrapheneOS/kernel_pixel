@@ -207,6 +207,8 @@ int gpu_sscd_init(struct pixel_gpu_device *pixel_dev)
 {
 	int ret;
 	ret = platform_device_register(&sscd_dev);
+	if (ret)
+		platform_device_put(&sscd_dev);
 	return ret;
 }
 
