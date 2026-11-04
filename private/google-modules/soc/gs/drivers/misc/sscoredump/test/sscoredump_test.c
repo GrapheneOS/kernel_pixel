@@ -135,11 +135,32 @@ static void sscoredump_test_sysfs_enabled(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, "0", buf);
 }
 
+static void sscoredump_test_unbind(struct kunit *test)
+{
+	struct sscd_test_priv *priv = test->priv;
+	struct sscd_platform_data *pdata = dev_get_platdata(&priv->pdev->dev);
+	struct sscd_device *sdev = priv->sdev;
+	char crash_info[] = "report after unbind";
+
+	/* Model the reference held by a reader across driver unbind. */
+	get_device(&sdev->dev);
+	device_release_driver(&priv->pdev->dev);
+
+	KUNIT_EXPECT_TRUE(test, sdev->removing);
+	KUNIT_EXPECT_FALSE(test, sdev->enabled);
+	KUNIT_EXPECT_EQ(test, sdev_enabled_store(&sdev->dev, NULL, "1", 1), -ENODEV);
+	KUNIT_EXPECT_FALSE(test, sdev->enabled);
+	KUNIT_EXPECT_EQ(test, pdata->sscd_report(priv->pdev, NULL, 0, 0, crash_info),
+			-ENODEV);
+	put_device(&sdev->dev);
+}
+
 static struct kunit_case sscoredump_test_cases[] = {
 	KUNIT_CASE(sscoredump_test_report_no_reader),
 	KUNIT_CASE(sscoredump_test_create_report_simple),
 	KUNIT_CASE(sscoredump_test_create_report_with_elf),
 	KUNIT_CASE(sscoredump_test_sysfs_enabled),
+	KUNIT_CASE(sscoredump_test_unbind),
 	{}
 };
 
