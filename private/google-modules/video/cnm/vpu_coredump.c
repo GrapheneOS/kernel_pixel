@@ -31,6 +31,8 @@ int vpu_sscd_dev_register(struct vpu_core *core)
 	pdev->dev.release = vpu_core_sscd_release;
 
 	res = platform_device_register(&core->sscd_pdev);
+	if (res)
+		platform_device_put(pdev);
 
 	return res;
 }

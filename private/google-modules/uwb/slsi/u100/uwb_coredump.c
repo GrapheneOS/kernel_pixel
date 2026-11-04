@@ -50,6 +50,7 @@ int u100_register_coredump(struct u100_ctx *u100_ctx)
 
 	ret = platform_device_register(&sscd->sscd_dev);
 	if (ret) {
+		platform_device_put(&sscd->sscd_dev);
 		devm_kfree(&spi->dev, sscd);
 		return ret;
 	}
