@@ -2973,9 +2973,9 @@ static void google_wlc_soc_work(struct work_struct *work)
 	if (!charger->pdata->batt_psy) {
 		struct power_supply *psy;
 
-		psy = devm_power_supply_get_by_phandle(charger->dev, "google,fg-psy");
+		psy = devm_power_supply_get_by_reference(charger->dev, "google,fg-psy");
 		if (IS_ERR_OR_NULL(psy))
-			psy = devm_power_supply_get_by_phandle(charger->dev,
+			psy = devm_power_supply_get_by_reference(charger->dev,
 							       "google,fg-power-supply");
 		if (IS_ERR_OR_NULL(psy)) {
 			mod_delayed_work(system_wq, &charger->soc_work, msecs_to_jiffies(1000));
@@ -5093,7 +5093,7 @@ static struct attribute *google_wlc_attributes[] = {
 };
 
 static ssize_t google_wlc_rxdata_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *bin_attr,
+				      const struct bin_attribute *bin_attr,
 				      char *buf, loff_t pos, size_t size)
 {
 	struct google_wlc_data *charger;
@@ -5113,7 +5113,7 @@ static struct bin_attribute bin_attr_rxdata = {
 };
 
 static ssize_t google_wlc_txdata_read(struct file *filp, struct kobject *kobj,
-				      struct bin_attribute *bin_attr,
+				      const struct bin_attribute *bin_attr,
 				      char *buf, loff_t pos, size_t size)
 {
 	struct google_wlc_data *charger;
@@ -5124,7 +5124,7 @@ static ssize_t google_wlc_txdata_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t google_wlc_txdata_write(struct file *filp, struct kobject *kobj,
-				struct bin_attribute *bin_attr,
+				const struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
 {
 	struct google_wlc_data *charger;
@@ -5143,7 +5143,7 @@ static struct bin_attribute bin_attr_txdata = {
 	.write = google_wlc_txdata_write,
 };
 
-static struct bin_attribute *google_wlc_bin_attributes[] = {
+static const struct bin_attribute *google_wlc_bin_attributes[] = {
 	&bin_attr_txdata,
 	&bin_attr_rxdata,
 	NULL,
@@ -9316,7 +9316,7 @@ static int google_wlc_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void google_wlc_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int google_wlc_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct google_wlc_data *charger = gpiochip_get_data(chip);
 	int ret = 0;
@@ -9386,6 +9386,7 @@ static void google_wlc_gpio_set(struct gpio_chip *chip, unsigned int offset, int
 	if (ret < 0)
 		dev_err(&charger->client->dev, "GPIO%d: value=%d ret:%d\n",
 			offset, value, ret);
+	return ret;
 }
 
 #if IS_ENABLED(CONFIG_GPIOLIB)
@@ -9629,9 +9630,9 @@ static int google_wlc_parse_dt(struct device *dev,
 		dev_info(dev, "WCIN_INLIM_EN gpio: %d\n", desc_to_gpio(pdata->wcin_inlim_en_gpio));
 	}
 
-	pdata->batt_psy = devm_power_supply_get_by_phandle(dev, "google,fg-psy");
+	pdata->batt_psy = devm_power_supply_get_by_reference(dev, "google,fg-psy");
 	if (IS_ERR_OR_NULL(pdata->batt_psy))
-		pdata->batt_psy = devm_power_supply_get_by_phandle(dev, "google,fg-power-supply");
+		pdata->batt_psy = devm_power_supply_get_by_reference(dev, "google,fg-power-supply");
 	if (IS_ERR_OR_NULL(pdata->batt_psy)) {
 		dev_info(dev, "unable to find fuel gauge psy\n");
 		pdata->batt_psy = NULL;
@@ -9995,7 +9996,7 @@ static int google_wlc_probe(struct i2c_client *client)
 		gpiod_set_value_cansleep(charger->pdata->ap5v_gpio, 1);
 
 	psy_cfg.drv_data = charger;
-	psy_cfg.of_node = charger->dev->of_node;
+	psy_cfg.fwnode = of_fwnode_handle(charger->dev->of_node);
 	charger->wlc_psy = devm_power_supply_register(
 		charger->dev, &google_wlc_psy_desc.psy_dsc, &psy_cfg);
 	if (IS_ERR(charger->wlc_psy)) {

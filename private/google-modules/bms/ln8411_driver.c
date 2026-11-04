@@ -985,7 +985,8 @@ static int ln8411_set_charging(struct ln8411_charger *ln8411, bool enable)
 			dev_dbg(ln8411->dev, "%s: setting mpp gpio to 0\n", __func__);
 			ln8411->pdata->mpp_gpio = devm_gpiod_get(ln8411->dev, "ln8411,mpp",
 									GPIOD_OUT_LOW);
-			devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
+			if (!IS_ERR(ln8411->pdata->mpp_gpio))
+				devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
 		}
 	}
 
@@ -3985,7 +3986,8 @@ static int ln8411_check_active_state(struct ln8411_charger *ln8411)
 			dev_dbg(ln8411->dev, "%s: setting mpp gpio to 1\n", __func__);
 			ln8411->pdata->mpp_gpio = devm_gpiod_get(ln8411->dev, "ln8411,mpp",
 									     GPIOD_OUT_HIGH);
-			devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
+			if (!IS_ERR(ln8411->pdata->mpp_gpio))
+				devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
 		}
 
 		if (ln8411->cal_mode)
@@ -5165,7 +5167,7 @@ static int ln8411_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return ret;
 }
 
-static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct ln8411_charger *ln8411 = gpiochip_get_data(chip);
 	int ret = 0;
@@ -5191,6 +5193,7 @@ static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int val
 
 	if (ret < 0)
 		dev_err(&ln8411->client->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void ln8411_gpio_init(struct ln8411_charger *ln8411)
@@ -6233,7 +6236,7 @@ static int ln8411_probe(struct i2c_client *client)
 	}
 
 	wcin_psy_cfg.drv_data = ln8411_charger;
-	wcin_psy_cfg.of_node = dev->of_node;
+	wcin_psy_cfg.fwnode = dev_fwnode(dev);
 	wcin_psy_cfg.supplied_to = wlcin_mains_name;
 	wcin_psy_cfg.num_supplicants = ARRAY_SIZE(wlcin_mains_name);
 	ln8411_charger->wcin_psy = devm_power_supply_register(dev,

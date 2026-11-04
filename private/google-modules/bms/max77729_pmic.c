@@ -923,7 +923,7 @@ static int max77759_gpio_get(struct gpio_chip *chip, unsigned int offset)
 }
 
 /* offset is gpionum - 1 */
-static void max77759_gpio_set(struct gpio_chip *chip,
+static int max77759_gpio_set(struct gpio_chip *chip,
 			      unsigned int offset, int value)
 {
 	struct max77729_pmic_data *data = gpiochip_get_data(chip);
@@ -933,19 +933,19 @@ static void max77759_gpio_set(struct gpio_chip *chip,
 	uint8_t dir;
 
 	if ((offset < MAX77759_MIN_GPIO_OFF) || (offset > MAX77759_MAX_GPIO_OFF))
-		return;
+		return -EINVAL;
 
 	rc = maxq_gpio_control_read(data->maxq, &val);
 	if (rc < 0) {
 		dev_err(data->dev, "opcode read 0x23 failed\n");
-		return;
+		return rc;
 	}
 
 	if (offset == MAX77759_GPIO5_OFF) {
 		dir = val & MAX77759_GPIO5_DIR_MASK;
 		if (dir != MAX77759_GPIO5_DIR(MAX77759_GPIO_DIR_OUT))  {
 			dev_err(data->dev, "not output\n");
-			return;
+			return -EINVAL;
 		}
 		new_val = val & ~MAX77759_GPIO5_VAL_MASK;
 		new_val |= MAX77759_GPIO5_VAL(value);
@@ -953,7 +953,7 @@ static void max77759_gpio_set(struct gpio_chip *chip,
 		dir = val & MAX77759_GPIO6_DIR_MASK;
 		if (dir != MAX77759_GPIO6_DIR(MAX77759_GPIO_DIR_OUT))  {
 			dev_err(data->dev, "not output\n");
-			return;
+			return -EINVAL;
 		}
 		new_val = val & ~MAX77759_GPIO6_VAL_MASK;
 		new_val |= MAX77759_GPIO6_VAL(value);
@@ -963,9 +963,10 @@ static void max77759_gpio_set(struct gpio_chip *chip,
 		rc = maxq_gpio_control_write(data->maxq, new_val);
 		if (rc < 0) {
 			dev_err(data->dev, "opcode write 0x24 failed\n");
-			return;
+			return rc;
 		}
 	}
+	return 0;
 }
 
 /* offset is gpionum - 1 */
