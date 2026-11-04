@@ -656,7 +656,9 @@ static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_com
 	//pr_debug("%s, %pK, %pK\n", __func__, runtime, arg);
 
 	arg->byte_offset = alsa_stream->pos;
-	arg->copied_total = alsa_stream->prev_consumed - alsa_stream->hw_ptr_base;
+	arg->copied_total = alsa_stream->prev_consumed +
+			    0x100000000ULL * alsa_stream->n_overflow -
+			    alsa_stream->hw_ptr_base;
 
 	/* TODO: overflow in samples, HAL only uses pcm_io_samples for timestamps */
 	arg->sampling_rate = alsa_stream->params_rate;
