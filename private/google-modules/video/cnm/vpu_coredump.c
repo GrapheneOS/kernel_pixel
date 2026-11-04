@@ -26,11 +26,15 @@ int vpu_sscd_dev_register(struct vpu_core *core)
 
 	pdev->name = VPU_CORE_NAME;
 	pdev->id = PLATFORM_DEVID_NONE;
-	pdev->driver_override = SSCD_NAME;
 	pdev->dev.platform_data = &core->vpu_core_sscd_platdata;
 	pdev->dev.release = vpu_core_sscd_release;
 
-	res = platform_device_register(&core->sscd_pdev);
+	device_initialize(&pdev->dev);
+	res = device_set_driver_override(&pdev->dev, SSCD_NAME);
+	if (!res)
+		res = platform_device_add(pdev);
+	if (res)
+		platform_device_put(pdev);
 
 	return res;
 }

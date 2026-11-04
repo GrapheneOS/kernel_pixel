@@ -40,7 +40,6 @@ int u100_register_coredump(struct u100_ctx *u100_ctx)
 		return -ENOMEM;
 
 	sscd->sscd_dev.name = NAME;
-	sscd->sscd_dev.driver_override = SSCD_NAME;
 	sscd->sscd_dev.id = -1;
 	sscd->sscd_dev.dev.platform_data = &sscd->sscd_pdata;
 	sscd->sscd_dev.dev.release = u100_release_coredump;
@@ -48,8 +47,12 @@ int u100_register_coredump(struct u100_ctx *u100_ctx)
 	sscd->seg_count = SEG_COUNT;
 	sscd->name = NAME;
 
-	ret = platform_device_register(&sscd->sscd_dev);
+	device_initialize(&sscd->sscd_dev.dev);
+	ret = device_set_driver_override(&sscd->sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd->sscd_dev);
 	if (ret) {
+		platform_device_put(&sscd->sscd_dev);
 		devm_kfree(&spi->dev, sscd);
 		return ret;
 	}
