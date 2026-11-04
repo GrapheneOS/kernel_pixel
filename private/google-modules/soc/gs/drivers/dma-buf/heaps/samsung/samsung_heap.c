@@ -308,7 +308,7 @@ struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigne
 }
 EXPORT_SYMBOL_GPL(samsung_export_dmabuf);
 
-static int trusty_dma_buf_get_shared_mem_id(struct dma_buf *dma_buf,
+static int samsung_dma_buf_get_shared_mem_id(struct dma_buf *dma_buf,
 					    trusty_shared_mem_id_t *id)
 {
 	struct samsung_dma_buffer *buffer = dma_buf->priv;
@@ -354,7 +354,7 @@ static u64 pack_tag(u32 prot_id, u32 dma_va)
 	return tag;
 }
 
-static u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
+static u64 samsung_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
 {
 	struct buffer_prot_info *prot_info = samsung_dma_buf_prot_info(dma_buf);
 	/*
@@ -370,11 +370,11 @@ static u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf)
 static void trusty_register_dma_buf_callbacks(void)
 {
 #if IS_ENABLED(CONFIG_TRUSTY_DMA_BUF_FFA_TAG)
-	trusty_register_func_for_dma_buf(trusty_dma_buf_get_ffa_tag,
-					 trusty_dma_buf_get_shared_mem_id);
+	trusty_register_func_for_dma_buf(samsung_dma_buf_get_ffa_tag,
+					 samsung_dma_buf_get_shared_mem_id);
 #else
 	trusty_register_func_for_dma_buf(NULL,
-					 trusty_dma_buf_get_shared_mem_id);
+					 samsung_dma_buf_get_shared_mem_id);
 #endif
 }
 
@@ -432,4 +432,5 @@ module_init(samsung_dma_heap_init);
 module_exit(samsung_dma_heap_exit);
 MODULE_DESCRIPTION("DMA-BUF Samsung Heap");
 MODULE_IMPORT_NS("DMA_BUF");
+MODULE_IMPORT_NS("DMA_BUF_HEAP");
 MODULE_LICENSE("GPL v2");
