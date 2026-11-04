@@ -52,6 +52,8 @@ ddk_module(
         "gxp-mailbox-driver.c",
     ],
     deps = [
+        "//private/google-modules/iommu/arm-smmu-v3:headers",
+        "//private/google-modules/iommu/arm-smmu-v3/drivers/iommu:io-pgtable-pixel",
         "//common:all_headers_aarch64",
         "//private/google-modules/edgetpu/buenos/drivers/edgetpu:edgetpu.buenos",
         "//private/google-modules/edgetpu/buenos/drivers/edgetpu:headers",

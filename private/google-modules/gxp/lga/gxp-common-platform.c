@@ -97,7 +97,6 @@ static void gxp_sscd_release(struct device *dev)
 
 static struct platform_device gxp_sscd_dev = {
 	.name = GXP_DRIVER_NAME,
-	.driver_override = SSCD_NAME,
 	.id = -1,
 	.dev = {
 		.platform_data = &gxp_sscd_pdata,
@@ -109,7 +108,10 @@ static void gxp_common_platform_reg_sscd(void)
 {
 	int ret;
 
-	ret = platform_device_register(&gxp_sscd_dev);
+	device_initialize(&gxp_sscd_dev.dev);
+	ret = device_set_driver_override(&gxp_sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&gxp_sscd_dev);
 	if (ret) {
 		platform_device_put(&gxp_sscd_dev);
 		pr_err(GXP_NAME " Unable to register SSCD platform device: %d\n", ret);
