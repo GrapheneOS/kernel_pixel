@@ -24,6 +24,7 @@
 
 #define CREATE_TRACE_POINTS
 #include "google_irm_trace.h"
+#include <interconnect/google_irm_api.h>
 
 #define CPM_TASK_TIMEOUT_MS		1000
 
