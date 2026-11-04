@@ -102,4 +102,5 @@ static int pixel_stat_mm_init(void)
 
 module_init(pixel_stat_mm_init);
 MODULE_SOFTDEP("pre: pixel_stat_sysfs");
+MODULE_IMPORT_NS("MINIDUMP");
 MODULE_LICENSE("GPL v2");

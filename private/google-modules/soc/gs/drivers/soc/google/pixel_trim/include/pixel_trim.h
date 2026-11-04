@@ -14,6 +14,7 @@ struct pixel_trim {
 };
 
 #if IS_ENABLED(CONFIG_PIXEL_TRIM)
+void execute_trim(void);
 int register_trim(struct pixel_trim *trim);
 void unregister_trim(struct pixel_trim *trim);
 #else
