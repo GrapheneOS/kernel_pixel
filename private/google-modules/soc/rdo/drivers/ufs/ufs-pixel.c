@@ -1,3 +1,4 @@
+#include <core/ufs_trace_types.h>
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Pixel-Specific UFS feature support
@@ -1014,8 +1015,7 @@ void pixel_init_manual_gc(struct ufs_hba *hba)
 	mgc->hagc_support = true;
 	mgc->delay_ms = UFSHCD_MANUAL_GC_HOLD_HIBERN8;
 
-	hrtimer_init(&mgc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	mgc->hrtimer.function = pixel_mgc_hrtimer_handler;
+	hrtimer_setup(&mgc->hrtimer, pixel_mgc_hrtimer_handler, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	INIT_WORK(&mgc->hibern8_work, pixel_mgc_hibern8_work);
 	snprintf(wq_name, ARRAY_SIZE(wq_name), "ufs_mgc_hibern8_work_%d",
@@ -2091,6 +2091,7 @@ static ssize_t change_pwr_mode_store(struct device *dev,
 	struct Scsi_Host *shost = hba->host;
 	struct scsi_device *sdev;
 	u32 value;
+	unsigned int memflags;
 	int ret;
 
 	if (!ufs->pixel_ops->set_pwr_mode || !ufs->pixel_ops->get_pwr_mode)
@@ -2102,14 +2103,16 @@ static ssize_t change_pwr_mode_store(struct device *dev,
 	ufshcd_rpm_get_sync(hba);
 	ufshcd_hold(hba);
 
+	memflags = memalloc_noio_save();
 	shost_for_each_device(sdev, shost)
-		blk_mq_freeze_queue(sdev->request_queue);
+		blk_mq_freeze_queue_nomemsave(sdev->request_queue);
 
 	ufs->pixel_ops->get_pwr_mode(hba, &pwr_mode);
-	ret = ufshcd_config_pwr_mode(hba, &pwr_mode);
+	ret = ufshcd_config_pwr_mode(hba, &pwr_mode, UFSHCD_PMC_POLICY_DONT_FORCE);
 
 	shost_for_each_device(sdev, shost)
-		blk_mq_unfreeze_queue(sdev->request_queue);
+		blk_mq_unfreeze_queue_nomemrestore(sdev->request_queue);
+	memalloc_noio_restore(memflags);
 
 	ufshcd_release(hba);
 	ufshcd_rpm_put(hba);
