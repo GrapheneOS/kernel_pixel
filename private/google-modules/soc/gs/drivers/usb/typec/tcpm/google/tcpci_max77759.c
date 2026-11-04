@@ -770,7 +770,7 @@ static int ext_bst_en_gpio_get(struct gpio_chip *gpio, unsigned int offset)
 	return val & EXT_BST_EN;
 }
 
-static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int value)
+static int ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int value)
 {
 	struct max77759_plat *chip = gpiochip_get_data(gpio);
 	struct regmap *regmap = chip->data.regmap;
@@ -800,6 +800,7 @@ static void ext_bst_en_gpio_set(struct gpio_chip *gpio, unsigned int offset, int
 
 		ovp_operation(chip, OVP_ON);
 	}
+	return ret;
 }
 
 static int ext_bst_en_gpio_init(struct max77759_plat *chip)
@@ -3372,7 +3373,7 @@ static void reenable_auto_ultra_low_power_mode_work_item(struct kthread_work *wo
 	max777x9_disable_auto_ultra_low_power_mode(chip, false);
 }
 
-static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
+static void reenable_auto_ultra_low_power_mode_alarm_handler(struct alarm *alarm,
 										ktime_t time)
 {
 	struct max77759_plat *chip = container_of(alarm, struct max77759_plat,
@@ -3388,7 +3389,7 @@ static enum alarmtimer_restart reenable_auto_ultra_low_power_mode_alarm_handler(
 	pm_wakeup_event(chip->dev, PD_ACTIVITY_TIMEOUT_MS);
 
 exit:
-	return ALARMTIMER_NORESTART;
+	return;
 }
 
 static void max_tcpci_check_contaminant(struct google_shim_tcpci *tcpci,
@@ -3683,7 +3684,7 @@ static void aicl_check_alarm_work_item(struct kthread_work *work)
 		update_compliance_warnings(chip, COMPLIANCE_WARNING_INPUT_POWER_LIMITED, true);
 }
 
-static enum alarmtimer_restart aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
+static void aicl_check_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct max77759_plat *chip = container_of(alarm, struct max77759_plat, aicl_check_alarm);
 
@@ -3691,7 +3692,6 @@ static enum alarmtimer_restart aicl_check_alarm_handler(struct alarm *alarm, kti
 	kthread_queue_work(chip->wq, &chip->aicl_check_alarm_work);
 	pm_wakeup_event(chip->dev, AICL_CHECK_MS);
 
-	return ALARMTIMER_NORESTART;
 }
 
 static int max77759_aicl_active_cb(struct gvotable_election *el, const char *reason, void *value)
