@@ -2315,13 +2315,52 @@ static int ufs_google_link_startup_notify(struct ufs_hba *hba,
 	return 0;
 }
 
+static int ufs_google_negotiate_pwr_mode(struct ufs_hba *hba,
+				       const struct ufs_pa_layer_attr *dev_max_params,
+				       struct ufs_pa_layer_attr *dev_req_params)
+{
+	struct ufs_google_host *host = ufshcd_get_variant(hba);
+	struct ufs_host_params host_params;
+	int ret;
+
+	ufshcd_init_host_params(&host_params);
+
+	host_params.hs_rx_gear = host->google_pwr_mode.gear_rx;
+	host_params.hs_tx_gear = host->google_pwr_mode.gear_tx;
+	host_params.rx_lanes = host->google_pwr_mode.lane_rx;
+	host_params.tx_lanes = host->google_pwr_mode.lane_tx;
+	host_params.rx_pwr_hs = host->google_pwr_mode.pwr_rx;
+	host_params.tx_pwr_hs = host->google_pwr_mode.pwr_tx;
+	host_params.hs_rate = host->google_pwr_mode.hs_rate;
+
+	ret = ufshcd_negotiate_pwr_params(&host_params, dev_max_params,
+					dev_req_params);
+	if (ret) {
+		dev_err(hba->dev,
+			"%s: failed to determine capabilities (%d)\n",
+			__func__, ret);
+		return ret;
+	}
+
+	if (dev_req_params->pwr_rx != dev_req_params->pwr_tx ||
+	    dev_req_params->gear_rx != dev_req_params->gear_tx) {
+		dev_err(hba->dev,
+			"%s: rx/tx must be symmetrical pwr: %u/%u gear: %u/%u\n",
+			__func__, dev_req_params->pwr_rx,
+			dev_req_params->pwr_tx, dev_req_params->gear_rx,
+			dev_req_params->gear_tx);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int
 ufs_google_pwr_change_notify(struct ufs_hba *hba,
 			     enum ufs_notify_change_status status,
 			     struct ufs_pa_layer_attr *dev_req_params)
 {
 	struct ufs_google_host *host = ufshcd_get_variant(hba);
-	struct ufs_host_params host_params;
 	int ret = 0;
 
 	if (!dev_req_params) {
@@ -2331,36 +2370,6 @@ ufs_google_pwr_change_notify(struct ufs_hba *hba,
 
 	switch (status) {
 	case PRE_CHANGE:
-		ufshcd_init_host_params(&host_params);
-
-		host_params.hs_rx_gear = host->google_pwr_mode.gear_rx;
-		host_params.hs_tx_gear = host->google_pwr_mode.gear_tx;
-		host_params.rx_lanes = host->google_pwr_mode.lane_rx;
-		host_params.tx_lanes = host->google_pwr_mode.lane_tx;
-		host_params.rx_pwr_hs = host->google_pwr_mode.pwr_rx;
-		host_params.tx_pwr_hs = host->google_pwr_mode.pwr_tx;
-		host_params.hs_rate = host->google_pwr_mode.hs_rate;
-
-		ret = ufshcd_negotiate_pwr_params(&host_params,
-						  &hba->max_pwr_info.info,
-						  dev_req_params);
-		if (ret) {
-			dev_err(hba->dev,
-				"%s: failed to determine capabilities (%d)\n",
-				__func__, ret);
-			return ret;
-		}
-
-		if (dev_req_params->pwr_rx != dev_req_params->pwr_tx ||
-		    dev_req_params->gear_rx != dev_req_params->gear_tx) {
-			dev_err(hba->dev,
-				"%s: rx/tx must be symmetrical pwr: %u/%u gear: %u/%u\n",
-				__func__, dev_req_params->pwr_rx,
-				dev_req_params->pwr_tx, dev_req_params->gear_rx,
-				dev_req_params->gear_tx);
-			return -EINVAL;
-		}
-
 		dev_info(hba->dev, "hs_gear=%u hs_series=%u hs_rate=%u\n",
 			 dev_req_params->gear_rx, dev_req_params->pwr_rx,
 			 dev_req_params->hs_rate);
@@ -3089,6 +3098,7 @@ static const struct ufs_hba_variant_ops ufs_hba_google_vops = {
 	.apply_dev_quirks = ufs_google_apply_dev_quirks,
 	.link_startup_notify = ufs_google_link_startup_notify,
 	.phy_initialization = ufs_google_phy_initialization,
+	.negotiate_pwr_mode = ufs_google_negotiate_pwr_mode,
 	.pwr_change_notify = ufs_google_pwr_change_notify,
 	.suspend = ufs_google_suspend,
 	.resume = ufs_google_resume,
