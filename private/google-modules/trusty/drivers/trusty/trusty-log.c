@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2015 Google, Inc.
  */
+#include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/trusty/smcall.h>
 #include <linux/trusty/trusty.h>

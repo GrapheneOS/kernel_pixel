@@ -3,6 +3,7 @@
  * Copyright (C) 2020 Google, Inc.
  */
 
+#include <linux/vmalloc.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/platform_device.h>
