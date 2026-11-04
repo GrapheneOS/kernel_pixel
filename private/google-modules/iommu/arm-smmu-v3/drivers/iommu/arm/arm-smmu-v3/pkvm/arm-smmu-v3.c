@@ -78,7 +78,7 @@ struct hyp_arm_smmu_v3_global_config kvm_hyp_smmu_global_config;
 								\
 	while (!(_cond)) {					\
 		if (++__i > ARM_SMMU_POLL_TIMEOUT_US) {		\
-			__ret = -ETIMEDOUT;			\
+			__ret = (_cond) ? 0 : -ETIMEDOUT;			\
 			break;					\
 		}						\
 		pkvm_udelay(1);					\
@@ -112,7 +112,7 @@ static u64 smmu_poll_timeout_cycle;
 		smmu_wfe(__end_cnt);					\
 		if ((__arch_counter_get_cntvct() - __start_cnt) >=	\
 		    smmu_poll_timeout_cycle) {				\
-			__ret = -ETIMEDOUT;				\
+			__ret = (_cond) ? 0 : -ETIMEDOUT;				\
 			break;						\
 		}							\
 	}								\
@@ -943,7 +943,8 @@ static int smmu_reset_device(struct hyp_arm_smmu_v3_device *smmu)
 	return smmu_write_cr0(smmu, CR0_SMMUEN | CR0_CMDQEN | CR0_ATSCHK | CR0_EVTQEN);
 
 err_disable_cmdq:
-	return smmu_write_cr0(smmu, 0);
+	smmu_write_cr0(smmu, 0);
+	return ret;
 }
 
 static void smmu_smc_set_power_state(struct hyp_arm_smmu_v3_device *smmu, bool on)
