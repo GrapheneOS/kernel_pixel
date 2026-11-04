@@ -62,6 +62,31 @@
 
 #define UCLAMP_BUCKET_DELTA DIV_ROUND_CLOSEST(SCHED_CAPACITY_SCALE, UCLAMP_BUCKETS)
 
+#define SCHED_WARN_ON(condition) WARN_ON_ONCE(condition)
+
+static inline unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
+						struct task_struct *p)
+{
+	unsigned long min_util = 0, max_util = 0;
+
+	if (!uclamp_is_used())
+		return util;
+
+	if (p) {
+		min_util = uclamp_eff_value(p, UCLAMP_MIN);
+		max_util = uclamp_eff_value(p, UCLAMP_MAX);
+		if (uclamp_rq_is_idle(rq))
+			goto apply;
+	}
+
+	min_util = max(min_util, uclamp_rq_get(rq, UCLAMP_MIN));
+	max_util = max(max_util, uclamp_rq_get(rq, UCLAMP_MAX));
+apply:
+	if (min_util >= max_util)
+		return min_util;
+	return clamp(util, min_util, max_util);
+}
+
 /*
  * Bit definition for sched qos features.
  */
@@ -1636,9 +1661,9 @@ void rvh_dequeue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 				     int flags);
 void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
 				      struct task_struct *task);
-void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
-					  struct task_struct *task);
-void vh_binder_looper_state_registered_pixel_mod(void *data, struct binder_thread *thread,
+void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t);
+void vh_binder_wait_for_work_pixel_mod(void *data, bool do_proc_work,
+				     struct binder_thread *thread,
 				       struct binder_proc *proc);
 void vh_binder_looper_exited_pixel_mod(void *data, struct binder_thread *thread,
 				       struct binder_proc *proc);
@@ -1822,3 +1847,5 @@ void send_netlink_notification(struct task_struct *p, struct work_struct *work,
 			       enum vendor_sched_cmd cmd);
 void queue_delayed_notification(struct task_struct *p, enum vendor_sched_cmd cmd,
 				int old_group, int new_group);
+
+unsigned long cpu_util_cfs_group_mod(int cpu);
