@@ -108,8 +108,6 @@ struct dwc3_exynos {
 	/* Flag for setting current_dr_role peripheral */
 	int			need_dr_role;
 
-	struct xhci_goog_dma_coherent_mem	**mem;
-
 	/* bitmap of usb phy owners */
 	int			phy_owner_bits;
 };
