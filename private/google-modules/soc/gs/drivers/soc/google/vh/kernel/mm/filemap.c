@@ -152,17 +152,12 @@ void vh_page_cache_readahead_start(void *data, struct file *file, pgoff_t pgoff,
 {
 	struct file_ra_state *ra = &file->f_ra;
 	struct address_space *mapping = file->f_mapping;
-	DEFINE_RA_MMAP_MISS(ra);
 
 	if (file->f_mode & FMODE_RANDOM)
 		return;
 	if (!mapping_large_folio_support(mapping))
 		return;
-	/*
-	 * FIXME: ra_mmap_miss->order should be replaced with ra->order
-	 * in upstream kernel. c.f., https://r.android.com/3875281
-	 */
-	ra_mmap_miss->order = mapping_max_folio_order(mapping);
+	ra->order = mapping_max_folio_order(mapping);
 }
 
 void vh_ra_alloc_retry(void *data, unsigned int *order, bool *retry)

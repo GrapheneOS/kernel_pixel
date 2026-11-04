@@ -46,6 +46,7 @@ static struct cma_pixel_stat *stats[MAX_CMA_AREAS];
  */
 
 void vh_cma_alloc_start(void *data, const char *name, unsigned long count,
+			unsigned long available_count, unsigned long total_count,
 			unsigned int align)
 {
 	struct vendor_task_struct *tsk;
