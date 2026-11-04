@@ -1172,7 +1172,7 @@ int cnss_pci_recover_link_down(struct cnss_pci_data *pci_priv)
 	ret = cnss_resume_pci_link(pci_priv);
 	if (ret) {
 		cnss_pr_err("Failed to resume PCI link, err = %d\n", ret);
-		del_timer(&pci_priv->dev_rddm_timer);
+		timer_delete(&pci_priv->dev_rddm_timer);
 		return ret;
 	}
 
@@ -1782,7 +1782,7 @@ int cnss_pci_start_mhi(struct cnss_pci_data *pci_priv)
 		  jiffies + msecs_to_jiffies(BOOT_DEBUG_TIMEOUT_MS));
 
 	ret = cnss_pci_set_mhi_state(pci_priv, CNSS_MHI_POWER_ON);
-	del_timer_sync(&pci_priv->boot_debug_timer);
+	timer_delete_sync(&pci_priv->boot_debug_timer);
 	if (ret == 0)
 		cnss_wlan_adsp_pc_enable(pci_priv, false);
 
@@ -2633,7 +2633,7 @@ static int cnss_qca6290_shutdown(struct cnss_pci_data *pci_priv)
 	     test_bit(CNSS_DRIVER_IDLE_SHUTDOWN, &plat_priv->driver_state) ||
 	     test_bit(CNSS_IN_COLD_BOOT_CAL, &plat_priv->driver_state)) &&
 	    test_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state)) {
-		del_timer(&pci_priv->dev_rddm_timer);
+		timer_delete(&pci_priv->dev_rddm_timer);
 		cnss_pci_collect_dump_info(pci_priv, false);
 		CNSS_ASSERT(0);
 	}
@@ -2866,7 +2866,7 @@ static void cnss_wlan_reg_driver_work(struct work_struct *work)
 			return;
 		}
 
-		del_timer(&plat_priv->fw_boot_timer);
+		timer_delete(&plat_priv->fw_boot_timer);
 		if (test_bit(CNSS_IN_COLD_BOOT_CAL, &plat_priv->driver_state) &&
 		    !test_bit(CNSS_IN_REBOOT, &plat_priv->driver_state)) {
 			cnss_pr_err("Timeout waiting for calibration to complete\n");
@@ -5239,7 +5239,7 @@ static char *cnss_mhi_notify_status_to_str(enum mhi_callback status)
 static void cnss_dev_rddm_timeout_hdlr(struct timer_list *t)
 {
 	struct cnss_pci_data *pci_priv =
-		from_timer(pci_priv, t, dev_rddm_timer);
+		timer_container_of(pci_priv, t, dev_rddm_timer);
 
 	if (!pci_priv)
 		return;
@@ -5261,7 +5261,7 @@ static void cnss_dev_rddm_timeout_hdlr(struct timer_list *t)
 static void cnss_boot_debug_timeout_hdlr(struct timer_list *t)
 {
 	struct cnss_pci_data *pci_priv =
-		from_timer(pci_priv, t, boot_debug_timer);
+		timer_container_of(pci_priv, t, boot_debug_timer);
 
 	if (!pci_priv)
 		return;
@@ -5294,7 +5294,7 @@ static int cnss_pci_handle_mhi_sys_err(struct cnss_pci_data *pci_priv)
 
 	cnss_ignore_qmi_failure(true);
 	set_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
-	del_timer(&plat_priv->fw_boot_timer);
+	timer_delete(&plat_priv->fw_boot_timer);
 	mod_timer(&pci_priv->dev_rddm_timer,
 		  jiffies + msecs_to_jiffies(DEV_RDDM_TIMEOUT));
 	cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
@@ -5332,7 +5332,7 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl,
 	case MHI_CB_FATAL_ERROR:
 		cnss_ignore_qmi_failure(true);
 		set_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
-		del_timer(&plat_priv->fw_boot_timer);
+		timer_delete(&plat_priv->fw_boot_timer);
 		cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
 		cnss_reason = CNSS_REASON_DEFAULT;
 		break;
@@ -5342,8 +5342,8 @@ static void cnss_mhi_notify_status(struct mhi_controller *mhi_ctrl,
 	case MHI_CB_EE_RDDM:
 		cnss_ignore_qmi_failure(true);
 		set_bit(CNSS_DEV_ERR_NOTIFY, &plat_priv->driver_state);
-		del_timer(&plat_priv->fw_boot_timer);
-		del_timer(&pci_priv->dev_rddm_timer);
+		timer_delete(&plat_priv->fw_boot_timer);
+		timer_delete(&pci_priv->dev_rddm_timer);
 		cnss_pci_update_status(pci_priv, CNSS_FW_DOWN);
 		cnss_reason = CNSS_REASON_RDDM;
 		break;
@@ -5847,8 +5847,8 @@ static void cnss_pci_remove(struct pci_dev *pci_dev)
 	case KIWI_DEVICE_ID:
 	case MANGO_DEVICE_ID:
 		cnss_pci_wake_gpio_deinit(pci_priv);
-		del_timer(&pci_priv->boot_debug_timer);
-		del_timer(&pci_priv->dev_rddm_timer);
+		timer_delete(&pci_priv->boot_debug_timer);
+		timer_delete(&pci_priv->dev_rddm_timer);
 		break;
 	default:
 		break;

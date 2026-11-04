@@ -1013,12 +1013,12 @@ static inline int cnss_timer_delete_sync(struct timer_list *timer)
 #else
 static inline int cnss_timer_delete(struct timer_list *timer)
 {
-	return del_timer(timer);
+	return timer_delete(timer);
 }
 
 static inline int cnss_timer_delete_sync(struct timer_list *timer)
 {
-	return del_timer_sync(timer);
+	return timer_delete_sync(timer);
 }
 #endif
 

@@ -1323,7 +1323,7 @@ static void mtk_dpmaif_tput_task_qos(struct mtk_dpmaif_ctlb *dcb, u64 bat_speed)
 
 static void mtk_dpmaif_ring_rel_ctrl_timer_func(struct timer_list *t)
 {
-	struct mtk_dpmaif_ctlb *dcb = from_timer(dcb, t, ring_rel_ctrl_timer);
+	struct mtk_dpmaif_ctlb *dcb = timer_container_of(dcb, t, ring_rel_ctrl_timer);
 	struct dpmaif_bat_ring *bat_ring;
 	struct dpmaif_rxq *rxq;
 	struct dpmaif_txq *txq;
@@ -4663,7 +4663,7 @@ static void mtk_dpmaif_trans_disable(struct mtk_dpmaif_ctlb *dcb)
 	/* Wait bat reload task done */
 	mtk_dpmaif_flush_bat_reload(dcb);
 
-	del_timer_sync(&dcb->ring_rel_ctrl_timer);
+	timer_delete_sync(&dcb->ring_rel_ctrl_timer);
 
 	hrtimer_cancel(&dcb->db_ctlb.db_timer);
 }

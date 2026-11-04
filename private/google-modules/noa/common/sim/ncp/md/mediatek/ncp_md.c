@@ -111,7 +111,7 @@ static int noa_ncp_md_calc_tput(atomic_t *stats, unsigned int time_shift)
 static void noa_ncp_md_ring_rel_ctrl_timer_func(struct timer_list *t)
 {
 #ifdef linux
-	struct noa_md_fw *md_fw = from_timer(md_fw, t, ring_rel_ctrl_timer);
+	struct noa_md_fw *md_fw = timer_container_of(md_fw, t, ring_rel_ctrl_timer);
 #else
 	struct noa_md_fw *md_fw = container_of(t, struct noa_md_fw, ring_rel_ctrl_timer);
 #endif
