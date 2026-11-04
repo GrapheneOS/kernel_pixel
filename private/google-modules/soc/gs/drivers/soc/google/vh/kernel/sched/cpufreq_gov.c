@@ -139,7 +139,6 @@ extern unsigned int pmu_poll_time_ms;
 static void pmu_poll_defer_work(u64 time);
 
 #if IS_ENABLED(CONFIG_UCLAMP_TASK) && IS_ENABLED(CONFIG_FAIR_GROUP_SCHED)
-extern unsigned long cpu_util_cfs_group_mod(int cpu);
 #else
 #define cpu_util_cfs_group_mod cpu_util_cfs
 #endif
@@ -150,14 +149,6 @@ unsigned int map_scaling_freq(int cpu, unsigned int freq)
 
 	return policy ? clamp(freq, policy->min, policy->max) : freq;
 }
-
-#if !IS_ENABLED(CONFIG_TICK_DRIVEN_LATGOV)
-extern int get_ev_data(int cpu, unsigned long *inst, unsigned long *cyc,
-			unsigned long *stall, unsigned long *l2_cachemiss,
-			unsigned long *l3_cachemiss, unsigned long *mem_stall,
-			unsigned long *l2_cache_wb, unsigned long *l3_cache_access,
-			unsigned long *mem_count, unsigned long *cpu_freq);
-#endif
 
 /************************ Governor internals ***********************/
 #if IS_ENABLED(CONFIG_PIXEL_EM_FREQUENCY_SCALING)
@@ -172,41 +163,6 @@ void reset_scaling_freq(int cpu)
 }
 #endif
 
-static __always_inline
-unsigned long uclamp_rq_util_with(struct rq *rq, unsigned long util,
-				  struct task_struct *p)
-{
-	unsigned long min_util = 0;
-	unsigned long max_util = 0;
-
-	if (!static_branch_likely(&sched_uclamp_used))
-		return util;
-
-	if (p) {
-		min_util = uclamp_eff_value(p, UCLAMP_MIN);
-		max_util = uclamp_eff_value(p, UCLAMP_MAX);
-
-		/*
-		 * Ignore last runnable task's max clamp, as this task will
-		 * reset it. Similarly, no need to read the rq's min clamp.
-		 */
-		if (uclamp_rq_is_idle(rq))
-			goto out;
-	}
-
-	min_util = max_t(unsigned long, min_util, uclamp_rq_get(rq, UCLAMP_MIN));
-	max_util = max_t(unsigned long, max_util, uclamp_rq_get(rq, UCLAMP_MAX));
-out:
-	/*
-	 * Since CPU's {min,max}_util clamps are MAX aggregated considering
-	 * RUNNABLE tasks with _different_ clamps, we can end up with an
-	 * inversion. Fix it now when the clamps are applied.
-	 */
-	if (unlikely(min_util >= max_util))
-		return min_util;
-
-	return clamp(util, min_util, max_util);
-}
 
 static inline bool sugov_em_profile_changed(struct sugov_policy *sg_policy)
 {

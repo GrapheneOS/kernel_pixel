@@ -2,6 +2,8 @@
 #ifndef _VH_SCHED_H
 #define _VH_SCHED_H
 
+#include <linux/sched/task.h>
+
 #define ANDROID_VENDOR_CHECK_SIZE_ALIGN(_orig, _new)				\
 		static_assert(sizeof(struct{_new;}) <= sizeof(struct{_orig;}),	\
 			       __FILE__ ":" __stringify(__LINE__) ": "		\
