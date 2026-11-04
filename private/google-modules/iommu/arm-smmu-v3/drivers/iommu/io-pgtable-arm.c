@@ -19,7 +19,7 @@
 #include <linux/types.h>
 #include <linux/dma-mapping.h>
 
-#include "iommu-pages.h"
+#include <drivers/iommu/iommu-pages.h>
 
 #include <asm/barrier.h>
 
@@ -46,7 +46,6 @@ void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 			     void *cookie)
 {
 	struct device *dev = cfg->iommu_dev;
-	int order = get_order(size);
 	dma_addr_t dma;
 	void *pages;
 
@@ -55,7 +54,7 @@ void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 	if (cfg->alloc)
 		pages = cfg->alloc(cookie, size, gfp);
 	else
-		pages = iommu_alloc_pages_node(dev_to_node(dev), gfp, order);
+		pages = iommu_alloc_pages_node_sz(dev_to_node(dev), gfp, size);
 
 	if (!pages)
 		return NULL;
@@ -83,7 +82,7 @@ out_free:
 	if (cfg->free)
 		cfg->free(cookie, pages, size);
 	else
-		iommu_free_pages(pages, order);
+		iommu_free_pages(pages);
 
 	return NULL;
 }
@@ -99,7 +98,7 @@ void __arm_lpae_free_pages(void *pages, size_t size,
 	if (cfg->free)
 		cfg->free(cookie, pages, size);
 	else
-		iommu_free_pages(pages, get_order(size));
+		iommu_free_pages(pages);
 }
 
 void __arm_lpae_sync_pte(arm_lpae_iopte *ptep, int num_entries,

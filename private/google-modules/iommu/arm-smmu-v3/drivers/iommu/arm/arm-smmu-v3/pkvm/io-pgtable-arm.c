@@ -70,7 +70,7 @@ void __arm_lpae_free_pages(void *addr, size_t size, struct io_pgtable_cfg *cfg,
 		kvm_flush_dcache_to_poc(addr, size);
 
 	if (data->idmapped) {
-		kvm_iommu_reclaim_pages_atomic(addr, order);
+		kvm_iommu_reclaim_pages_atomic(addr);
 		cfg->telemetry_cb->atomic_pages_tel(-(size >> PAGE_SHIFT));
 	} else {
 		kvm_iommu_reclaim_pages(addr, order);
@@ -105,7 +105,7 @@ static int kvm_arm_io_pgtable_init(struct io_pgtable_cfg *cfg,
 }
 
 struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
-						  void *cookie,
+						  void *cookie, bool idmapped,
 						  int *out_ret)
 {
 	size_t pgd_size, alignment;
@@ -115,10 +115,11 @@ struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
 	data = hyp_alloc(sizeof(*data));
 	if (!data) {
 		kvm_iommu_request_hyp_alloc();
-		*out_ret = hyp_alloc_errno();
+		*out_ret = -ENOMEM;
 		return NULL;
 	}
 
+	data->idmapped = idmapped;
 	ret = kvm_arm_io_pgtable_init(cfg, data);
 	if (ret)
 		goto out_free;
@@ -160,6 +161,9 @@ out_free:
 	*out_ret = ret;
 	return NULL;
 }
+
+/* The core detached every endpoint before freeing the domain. */
+
 
 int kvm_arm_io_pgtable_free_pixel(struct io_pgtable *iopt)
 {
