@@ -1257,7 +1257,7 @@ static struct lwis_device *find_top_dev(void)
 
 static void event_heartbeat_timer(struct timer_list *t)
 {
-	struct lwis_device *lwis_dev = from_timer(lwis_dev, t, heartbeat_timer);
+	struct lwis_device *lwis_dev = timer_container_of(lwis_dev, t, heartbeat_timer);
 	int64_t event_id = LWIS_EVENT_ID_HEARTBEAT | (int64_t)lwis_dev->id
 							     << LWIS_EVENT_ID_EVENT_CODE_LEN;
 
@@ -1658,7 +1658,7 @@ void lwis_base_unprobe(struct lwis_device *unprobe_lwis_dev)
 		device_destroy(core.dev_class, MKDEV(core.device_major, lwis_dev->id));
 
 	if (timer_pending(&lwis_dev->heartbeat_timer))
-		del_timer(&lwis_dev->heartbeat_timer);
+		timer_delete(&lwis_dev->heartbeat_timer);
 }
 
 /*

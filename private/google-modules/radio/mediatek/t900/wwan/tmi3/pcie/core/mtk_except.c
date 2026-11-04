@@ -93,7 +93,7 @@ static int mtk_exception_rgu_handler(struct mtk_md_dev *mdev, int aee_type)
 			except->type = RESET_AEE_REBOOT;
 			MTK_INFO(mdev, "Receiving RGU before REBOOTINT\n");
 		} else {
-			if (del_timer_sync(&except->guard_timer) &&
+			if (timer_delete_sync(&except->guard_timer) &&
 			    !(aee_type & MTK_EXCEPTION_SUPPORT_ONLINE_DBG)) {
 				except->type = RESET_AEE_REBOOT;
 				MTK_INFO(mdev, "Deleting guardtimer when receive RGU\n");
@@ -290,7 +290,7 @@ static void mtk_exception_pwrctl_handler(enum pwrctl_evt evt, void *data)
 
 	switch (evt) {
 	case PWRCTL_EVT_RESET:
-		del_timer_sync(&except->check_link_timer);
+		timer_delete_sync(&except->check_link_timer);
 		mtk_fsm_evt_submit(mdev, FSM_EVT_PWROFF, FSM_F_DFLT, NULL, 0,
 				   EVT_MODE_BLOCKING);
 		fallthrough;
@@ -302,7 +302,7 @@ static void mtk_exception_pwrctl_handler(enum pwrctl_evt evt, void *data)
 		break;
 	case PWRCTL_EVT_PWROFF:
 		pm_runtime_resume(mdev->dev);
-		del_timer_sync(&except->check_link_timer);
+		timer_delete_sync(&except->check_link_timer);
 		mtk_fsm_evt_submit(mdev, FSM_EVT_PWROFF, FSM_F_DFLT, NULL, 0,
 				   EVT_MODE_BLOCKING);
 		break;
@@ -381,7 +381,7 @@ static void mtk_exception_fsm_post_handler(struct mtk_fsm_param *param, void *da
 		break;
 	case FSM_STATE_OFF:
 		mtk_pci_reset_sys_irq(mdev);
-		del_timer_sync(&except->guard_timer);
+		timer_delete_sync(&except->guard_timer);
 		clear_bit(MTK_EXCEPTION_LINK_ERR_IGNORE, &except->flag);
 		clear_bit(MTK_EXCEPTION_RESET_START, &except->flag);
 		if (param->evt_id == FSM_EVT_DEV_RESET_REQ) {
@@ -433,12 +433,12 @@ static void mtk_exception_link_monitor(struct timer_list *timer)
 	struct mtk_md_dev *mdev = except->mdev;
 
 	if (mtk_exception_reinit(mdev)) {
-		del_timer(&except->check_link_timer);
+		timer_delete(&except->check_link_timer);
 	} else if (except->check_cnt < MTK_EXCEPTION_MAX_CHECK_COUNT) {
 		mod_timer(timer, jiffies + HZ);
 		except->check_cnt++;
 	} else {
-		del_timer(&except->check_link_timer);
+		timer_delete(&except->check_link_timer);
 		except->check_cnt = 0;
 		MTK_INFO(mdev, "Stop link check timer\n");
 	}
@@ -498,8 +498,8 @@ int mtk_exception_exit(struct mtk_md_dev *mdev)
 	except = priv->except;
 
 	clear_bit(MTK_EXCEPTION_INIT_FLAG, &except->flag);
-	del_timer(&except->check_link_timer);
-	del_timer(&except->guard_timer);
+	timer_delete(&except->check_link_timer);
+	timer_delete(&except->guard_timer);
 	mtk_fsm_notifier_unregister(mdev, MTK_USER_EXCEPT);
 #if IS_ENABLED(CONFIG_MTK_WWAN_PWRCTL_SUPPORT)
 	mtk_pwrctl_event_unregister_callback(mtk_exception_pwrctl_handler);

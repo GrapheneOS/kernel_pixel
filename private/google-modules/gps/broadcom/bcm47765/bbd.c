@@ -180,7 +180,7 @@ void bbd_disable_stat(struct bbd_device *bbd)
 		dev_dbg(bbd->dev, "1HZ stat already disabled. skipping.\n");
 		return;
 	}
-	del_timer_sync(&stat1hz->timer);
+	timer_delete_sync(&stat1hz->timer);
 	cancel_work_sync(&stat1hz->work);
 	stat1hz->enabled = false;
 }

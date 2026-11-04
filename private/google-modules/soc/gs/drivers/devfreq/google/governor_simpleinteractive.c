@@ -305,7 +305,7 @@ static int devfreq_simple_interactive_func(struct devfreq *df,
 
 		goto out;
 	} else if (timer_pending(&data->freq_timer)) {
-		del_timer_sync(&data->freq_timer);
+		timer_delete_sync(&data->freq_timer);
 	}
 
 	data->changed_time = jiffies;
@@ -328,7 +328,7 @@ out:
 		 * AND there is no timer and we need to reporgram one.)
 		 */
 		if (data->df_update_enable || !timer_pending(&data->freq_timer)) {
-			del_timer(&data->freq_timer);
+			timer_delete(&data->freq_timer);
 			data->freq_timer.expires = expires +
 				msecs_to_jiffies(data->alt_data.min_sample_time * 2);
 			add_timer_on(&data->freq_timer, BOUND_CPU_NUM);
@@ -336,17 +336,17 @@ out:
 
 		if (*freq > exynos_df->min_freq) {
 			/* timer is bound to cpu0 */
-			del_timer(&data->freq_slack_timer);
+			timer_delete(&data->freq_slack_timer);
 			data->freq_slack_timer.expires = expires +
 				  msecs_to_jiffies(data->alt_data.hold_sample_time);
 			add_timer_on(&data->freq_slack_timer, BOUND_CPU_NUM);
 		} else if (timer_pending(&data->freq_slack_timer)) {
-			del_timer(&data->freq_slack_timer);
+			timer_delete(&data->freq_slack_timer);
 		}
 
 	} else if (exynos_df->suspend_flag) {
-		del_timer_sync(&data->freq_timer);
-		del_timer(&data->freq_slack_timer);
+		timer_delete_sync(&data->freq_timer);
+		timer_delete(&data->freq_slack_timer);
 	}
 #endif
 
@@ -384,7 +384,7 @@ static void alt_dvfs_nop_timer(struct timer_list *timer)
 /*timer callback function send a signal */
 static void simple_interactive_timer(struct timer_list *timer)
 {
-	struct devfreq_simple_interactive_data *gov_data = from_timer(gov_data, timer, freq_timer);
+	struct devfreq_simple_interactive_data *gov_data = timer_container_of(gov_data, timer, freq_timer);
 
 	wake_up_process(gov_data->change_freq_task);
 }

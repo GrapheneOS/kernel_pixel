@@ -1272,7 +1272,7 @@ static void p9221_set_offline(struct p9221_charger_data *charger)
 		feature_update_session(charger, WLCF_DISABLE_ALL_FEATURE);
 	p9221_uevent(charger, UEVENT_WLC);
 	p9221_icl_ramp_reset(charger);
-	del_timer(&charger->vrect_timer);
+	timer_delete(&charger->vrect_timer);
 
 	p9221_vote_defaults(charger);
 	if (charger->enabled)
@@ -1304,7 +1304,7 @@ static void p9221_tx_work(struct work_struct *work)
 
 static void p9221_vrect_timer_handler(struct timer_list *t)
 {
-	struct p9221_charger_data *charger = from_timer(charger,
+	struct p9221_charger_data *charger = timer_container_of(charger,
 							t, vrect_timer);
 
 	if (charger->align == WLC_ALIGN_CHECKING) {
@@ -1326,7 +1326,7 @@ static void p9221_vrect_timer_handler(struct timer_list *t)
 
 static void p9221_align_timer_handler(struct timer_list *t)
 {
-	struct p9221_charger_data *charger = from_timer(charger,
+	struct p9221_charger_data *charger = timer_container_of(charger,
 							t, align_timer);
 
 	charger->align = WLC_ALIGN_ERROR;
@@ -4105,7 +4105,7 @@ static void p9221_notifier_check_dc(struct p9221_charger_data *charger)
 	 * will be set by this function.
 	 */
 	cancel_delayed_work(&charger->dcin_work);
-	del_timer(&charger->vrect_timer);
+	timer_delete(&charger->vrect_timer);
 
 	mutex_lock(&charger->irq_det_lock);
 	if (charger->online_spoof && dc_in == 1) {
@@ -4197,7 +4197,7 @@ static bool p9221_notifier_check_det(struct p9221_charger_data *charger)
 {
 	bool relax = true;
 
-	del_timer(&charger->vrect_timer);
+	timer_delete(&charger->vrect_timer);
 
 	if (charger->online && !charger->ben_state)
 		goto done;
@@ -7391,7 +7391,7 @@ static irqreturn_t p9221_irq_det_thread(int irq, void *irq_data)
 			      align_status_str[charger->align]);
 	}
 
-	del_timer(&charger->align_timer);
+	timer_delete(&charger->align_timer);
 
 	/*
 	 * This interrupt will wake the device if it's suspended,
@@ -9027,8 +9027,8 @@ static void p9221_charger_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&charger->icl_stable_work);
 	alarm_try_to_cancel(&charger->icl_ramp_alarm);
 	alarm_try_to_cancel(&charger->auth_dc_icl_alarm);
-	del_timer_sync(&charger->vrect_timer);
-	del_timer_sync(&charger->align_timer);
+	timer_delete_sync(&charger->vrect_timer);
+	timer_delete_sync(&charger->align_timer);
 	disable_irq_wake(charger->pdata->irq_int);
 	device_init_wakeup(charger->dev, false);
 	cancel_delayed_work_sync(&charger->notifier_work);
