@@ -17,6 +17,7 @@ config GS_DRM_PANEL_UNIFIED
 	depends on OF && DRM
 	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_DSC_HELPER
 	select DRM_BRIDGE_CONNECTOR
 	help
 	  Choose this option to support the unified panel driver framework.
@@ -34,6 +35,7 @@ config GS_PANEL_S6E3HC4
 	tristate "Support for gs_drm-enabled s6e3hc4 panel"
 	depends on GS_DRM_PANEL_UNIFIED
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_DSC_HELPER
 	select DRM_DISPLAY_HELPER
 	help
 	  Select this option to enable support for the s6e3hc4 panel.

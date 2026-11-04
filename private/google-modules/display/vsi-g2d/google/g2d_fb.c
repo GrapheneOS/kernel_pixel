@@ -23,6 +23,7 @@ static struct drm_framebuffer_funcs g2d_fb_funcs = {
 };
 
 static struct drm_framebuffer *g2d_fb_alloc(struct drm_device *dev,
+					    const struct drm_format_info *info,
 					    const struct drm_mode_fb_cmd2 *mode_cmd,
 					    struct g2d_bo **obj, unsigned int num_planes)
 {
@@ -33,7 +34,7 @@ static struct drm_framebuffer *g2d_fb_alloc(struct drm_device *dev,
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
 
 	for (i = 0; i < num_planes; i++)
 		fb->obj[i] = &obj[i]->gem;
@@ -49,17 +50,16 @@ static struct drm_framebuffer *g2d_fb_alloc(struct drm_device *dev,
 }
 
 struct drm_framebuffer *g2d_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+				      const struct drm_format_info *info,
 				      const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_framebuffer *fb;
-	const struct drm_format_info *info;
 	struct g2d_bo *objs[MAX_NUM_PLANES];
 	struct drm_gem_object *obj;
 	unsigned int height, size;
 	unsigned char i, num_planes;
 	int ret = 0;
 
-	info = drm_get_format_info(dev, mode_cmd);
 	if (!info)
 		return ERR_PTR(-EINVAL);
 
@@ -94,7 +94,7 @@ struct drm_framebuffer *g2d_fb_create(struct drm_device *dev, struct drm_file *f
 		objs[i] = to_g2d_buffer_object(obj);
 	}
 
-	fb = g2d_fb_alloc(dev, mode_cmd, objs, i);
+	fb = g2d_fb_alloc(dev, info, mode_cmd, objs, i);
 	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "%s, failed to allocate framebuffer!", __func__);
 		ret = PTR_ERR(fb);

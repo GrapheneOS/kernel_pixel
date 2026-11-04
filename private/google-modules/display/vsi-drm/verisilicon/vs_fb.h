@@ -9,8 +9,9 @@
 struct vs_gem_object *vs_fb_get_gem_obj(struct drm_framebuffer *fb, unsigned char plane);
 dma_addr_t vs_fb_get_dma_addr(struct drm_framebuffer *fb, unsigned char plane);
 struct drm_framebuffer *vs_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+                                    const struct drm_format_info *info,
 				     const struct drm_mode_fb_cmd2 *mode_cmd);
-const struct drm_format_info *vs_get_format_info(const struct drm_mode_fb_cmd2 *cmd);
+const struct drm_format_info *vs_get_format_info(u32 pixel_format, u64 modifier);
 int vs_get_fbc_offset_ioctl(struct drm_device *dev, void *data, struct drm_file *file_priv);
 inline uint64_t vs_fb_parse_fourcc_modifier(uint64_t mode_cmd_modifier);
 bool vs_fb_is_shallow(uint64_t modifier);
