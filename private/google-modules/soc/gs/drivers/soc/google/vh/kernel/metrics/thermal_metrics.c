@@ -7,6 +7,7 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include "metrics.h"
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
