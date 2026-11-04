@@ -61,6 +61,9 @@ static int sscd_dev_open(struct inode *inode, struct file *filp)
 	struct sscd_device *sdev =
 		container_of(inode->i_cdev, struct sscd_device, chrdev);
 
+	if (READ_ONCE(sdev->removing))
+		return -ENODEV;
+
 	/* support only single client */
 	if (atomic_cmpxchg(&sdev->opened, 0, 1) != 0)
 		return -EBUSY;
@@ -89,6 +92,8 @@ static unsigned int sscd_dev_poll(struct file *filp,
 	unsigned int mask = 0;
 
 	poll_wait(filp, &sdev->read_wait_q, wait);
+	if (READ_ONCE(sdev->removing))
+		return POLLHUP;
 	if (atomic_read(&sdev->report_active) == 1)
 		mask = POLLIN | POLLRDNORM;
 
@@ -109,14 +114,22 @@ static ssize_t sscd_dev_read(struct file *filp, char __user *ubuf, size_t count,
 	if (pos < 0)
 		return -EINVAL;
 
+	if (READ_ONCE(sdev->removing))
+		return -ENODEV;
+
 	if (!atomic_read(&sdev->report_active) && (filp->f_flags & O_NONBLOCK))
 		return -EAGAIN;
 
 	if (wait_event_interruptible(sdev->read_wait_q,
-				     atomic_read(&sdev->report_active)))
+				     atomic_read(&sdev->report_active) ||
+				     READ_ONCE(sdev->removing)))
 		return -ERESTARTSYS;
 
 	mutex_lock(&sdev->rx_lock);
+	if (sdev->removing) {
+		mutex_unlock(&sdev->rx_lock);
+		return -ENODEV;
+	}
 
 	/*
 	 * potentially, reader might not consume data fast enough causing
@@ -425,21 +438,33 @@ EXPORT_SYMBOL_IF_KUNIT(create_report);
 static int sscd_report(struct platform_device *pdev, struct sscd_segment *segs,
 		       u16 nsegs, u64 flags, const char *crash_info)
 {
-	struct sscd_device *sdev = platform_get_drvdata(pdev);
+	struct sscd_device *sdev;
 	int rc = 0;
+
+	/* Serialize reference acquisition against unbind. */
+	mutex_lock(&sscd_mutex);
+	sdev = platform_get_drvdata(pdev);
+	if (sdev)
+		get_device(&sdev->dev);
+	mutex_unlock(&sscd_mutex);
+	if (!sdev)
+		return -ENODEV;
 
 	dev_info(&sdev->dev, "crash: %s", crash_info);
 
 	mutex_lock(&sdev->rx_lock);
 
-	get_device(&sdev->dev);
+	if (sdev->removing) {
+		rc = -ENODEV;
+		goto out;
+	}
 
 	/* check if enabled */
 	if (!sscd_enabled || !sdev->enabled)
 		goto out;
 
 	/* check if active report already present */
-	if (atomic_read(&sdev->report_active)) {
+	if (sdev->segs) {
 		rc = -EBUSY;
 		goto out;
 	}
@@ -490,9 +515,8 @@ static int sscd_report(struct platform_device *pdev, struct sscd_segment *segs,
 out:
 	sdev->report_count++;
 	sdev->report_time = ktime_get_real_seconds(); /* capture report time */
-	put_device(&sdev->dev);
-
 	mutex_unlock(&sdev->rx_lock);
+	put_device(&sdev->dev);
 
 	return rc;
 }
@@ -525,7 +549,10 @@ VISIBLE_IF_KUNIT ssize_t sdev_enabled_store(struct device *dev,
 	status = kstrtol(buf, 0, &value);
 	if (!status) {
 		mutex_lock(&sdev->rx_lock);
-		sdev->enabled = !!value;
+		if (sdev->removing)
+			status = -ENODEV;
+		else
+			sdev->enabled = !!value;
 		mutex_unlock(&sdev->rx_lock);
 	}
 	return status ? status : count;
@@ -736,7 +763,9 @@ VISIBLE_IF_KUNIT int sscoredump_probe(struct platform_device *pdev)
 	sdev->dev.groups = sscd_dev_groups;
 	sdev->dev.release = sscoredump_release;
 	dev_set_drvdata(&sdev->dev, sdev);
-	dev_set_name(&sdev->dev, "sscd_%s", dev_name(&pdev->dev));
+	ret = dev_set_name(&sdev->dev, "sscd_%s", dev_name(&pdev->dev));
+	if (ret)
+		goto fail2;
 
 	ret = cdev_device_add(&sdev->chrdev, &sdev->dev);
 	if (ret < 0) {
