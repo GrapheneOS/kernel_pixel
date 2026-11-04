@@ -56,7 +56,6 @@ static struct drm_driver g2d_drm_driver = {
 	.fops = &fops,
 	.name = DRV_NAME,
 	.desc = DRV_DESC,
-	.date = DRV_DATE,
 	.major = DRV_MAJOR,
 	.minor = DRV_MINOR,
 };

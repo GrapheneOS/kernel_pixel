@@ -48,6 +48,7 @@ bool vs_fb_is_shallow(uint64_t modifier)
 }
 
 static struct drm_framebuffer *vs_fb_alloc(struct drm_device *dev,
+					   const struct drm_format_info *info,
 					   const struct drm_mode_fb_cmd2 *mode_cmd,
 					   struct vs_gem_object **obj, unsigned int num_planes)
 {
@@ -58,7 +59,7 @@ static struct drm_framebuffer *vs_fb_alloc(struct drm_device *dev,
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, info, mode_cmd);
 
 	for (i = 0; i < num_planes; i++) {
 		if (vs_fb_is_shallow(mode_cmd->modifier[i]))
@@ -77,10 +78,10 @@ static struct drm_framebuffer *vs_fb_alloc(struct drm_device *dev,
 }
 
 struct drm_framebuffer *vs_fb_create(struct drm_device *dev, struct drm_file *file_priv,
+				     const struct drm_format_info *info,
 				     const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_framebuffer *fb;
-	const struct drm_format_info *info;
 	struct vs_gem_object *objs[MAX_NUM_PLANES];
 	struct drm_gem_object *obj;
 	unsigned int height, size;
@@ -88,7 +89,6 @@ struct drm_framebuffer *vs_fb_create(struct drm_device *dev, struct drm_file *fi
 	uint64_t vs_modifier;
 	int ret = 0;
 
-	info = drm_get_format_info(dev, mode_cmd);
 	if (!info)
 		return ERR_PTR(-EINVAL);
 
@@ -123,7 +123,7 @@ struct drm_framebuffer *vs_fb_create(struct drm_device *dev, struct drm_file *fi
 		objs[i] = to_vs_gem_object(obj);
 	}
 
-	fb = vs_fb_alloc(dev, mode_cmd, objs, i);
+	fb = vs_fb_alloc(dev, info, mode_cmd, objs, i);
 	if (IS_ERR(fb)) {
 		ret = PTR_ERR(fb);
 		goto err;
@@ -230,10 +230,10 @@ static const struct drm_format_info *vs_lookup_format_info(const struct drm_form
 	return NULL;
 }
 
-const struct drm_format_info *vs_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
+const struct drm_format_info *vs_get_format_info(u32 format, u64 modifier)
 {
-	if (fourcc_mod_vs_get_type(cmd->modifier[0]) == DRM_FORMAT_MOD_VS_TYPE_CUSTOM)
-		return vs_lookup_format_info(vs_formats, ARRAY_SIZE(vs_formats), cmd->pixel_format);
+	if (fourcc_mod_vs_get_type(modifier) == DRM_FORMAT_MOD_VS_TYPE_CUSTOM)
+		return vs_lookup_format_info(vs_formats, ARRAY_SIZE(vs_formats), format);
 	else
 		return NULL;
 }

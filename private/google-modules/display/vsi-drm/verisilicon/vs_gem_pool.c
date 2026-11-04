@@ -27,7 +27,7 @@ int vs_gem_pool_init(struct drm_device *drm_dev, struct vs_gem_pool *gem_pool,
 		return -ENOMEM;
 	}
 
-	if (drm_gem_vmap_unlocked(&gem_pool->gem_obj->base, &gem_pool->vmap)) {
+	if (drm_gem_vmap(&gem_pool->gem_obj->base, &gem_pool->vmap)) {
 		vs_gem_free_object(&gem_pool->gem_obj->base);
 		gem_pool->gem_obj = NULL;
 		drm_err(drm_dev, "unable to map gem object\n");
@@ -43,7 +43,7 @@ int vs_gem_pool_init(struct drm_device *drm_dev, struct vs_gem_pool *gem_pool,
 	gem_pool->used = 0;
 	gem_pool->nodes = kzalloc(node_size * node_count, GFP_KERNEL);
 	if (!gem_pool->nodes) {
-		drm_gem_vunmap_unlocked(&gem_pool->gem_obj->base, &gem_pool->vmap);
+		drm_gem_vunmap(&gem_pool->gem_obj->base, &gem_pool->vmap);
 		vs_gem_free_object(&gem_pool->gem_obj->base);
 		gem_pool->gem_obj = NULL;
 
@@ -145,7 +145,7 @@ void vs_gem_pool_deinit(struct vs_gem_pool *gem_pool)
 	INIT_LIST_HEAD(&gem_pool->list);
 
 	/* release gem object */
-	drm_gem_vunmap_unlocked(gem_obj, &gem_pool->vmap);
+	drm_gem_vunmap(gem_obj, &gem_pool->vmap);
 	vs_gem_free_object(gem_obj);
 	gem_pool->gem_obj = NULL;
 }

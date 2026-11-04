@@ -861,27 +861,6 @@ end:
 	return ret;
 }
 
-static void drm_atomic_helper_commit_writebacks(struct drm_device *dev,
-						struct drm_atomic_state *old_state)
-{
-	struct drm_connector *connector;
-	struct drm_connector_state *new_conn_state;
-	int i;
-
-	for_each_new_connector_in_state(old_state, connector, new_conn_state, i) {
-		const struct drm_connector_helper_funcs *funcs;
-
-		funcs = connector->helper_private;
-		if (!funcs->atomic_commit)
-			continue;
-
-		if (new_conn_state->writeback_job && new_conn_state->writeback_job->fb) {
-			WARN_ON(connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK);
-			funcs->atomic_commit(connector, old_state);
-		}
-	}
-}
-
 static bool is_connector_changed(struct drm_connector_state *old_conn_state,
 				 struct drm_connector_state *new_conn_state)
 {
