@@ -985,7 +985,8 @@ static int ln8411_set_charging(struct ln8411_charger *ln8411, bool enable)
 			dev_dbg(ln8411->dev, "%s: setting mpp gpio to 0\n", __func__);
 			ln8411->pdata->mpp_gpio = devm_gpiod_get(ln8411->dev, "ln8411,mpp",
 									GPIOD_OUT_LOW);
-			devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
+			if (!IS_ERR(ln8411->pdata->mpp_gpio))
+				devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
 		}
 	}
 
@@ -3985,7 +3986,8 @@ static int ln8411_check_active_state(struct ln8411_charger *ln8411)
 			dev_dbg(ln8411->dev, "%s: setting mpp gpio to 1\n", __func__);
 			ln8411->pdata->mpp_gpio = devm_gpiod_get(ln8411->dev, "ln8411,mpp",
 									     GPIOD_OUT_HIGH);
-			devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
+			if (!IS_ERR(ln8411->pdata->mpp_gpio))
+				devm_gpiod_put(ln8411->dev, ln8411->pdata->mpp_gpio);
 		}
 
 		if (ln8411->cal_mode)
