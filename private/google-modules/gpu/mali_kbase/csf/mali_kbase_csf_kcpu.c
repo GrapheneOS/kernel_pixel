@@ -1392,7 +1392,7 @@ static void kbase_csf_fence_wait_callback(struct dma_fence *fence, struct dma_fe
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 	timer_delete(&kcpu_queue->fence_timeout);
 #else
-	del_timer(&kcpu_queue->fence_timeout);
+	timer_delete(&kcpu_queue->fence_timeout);
 #endif
 #endif
 
@@ -1424,7 +1424,7 @@ static void kbasep_kcpu_fence_wait_cancel(struct kbase_kcpu_command_queue *kcpu_
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 		timer_delete_sync(&kcpu_queue->fence_timeout);
 #else
-		del_timer_sync(&kcpu_queue->fence_timeout);
+		timer_delete_sync(&kcpu_queue->fence_timeout);
 #endif
 #endif
 		if (removed)
@@ -1722,7 +1722,7 @@ static void kcpu_force_signal_fence(struct kbase_kcpu_command_queue *kcpu_queue)
 	}
 
 	/* set fence_signal_pending_cnt to 0
-	 * and del_timer of the kcpu_queue
+	 * and timer_delete of the kcpu_queue
 	 * because we signaled all the pending fence in the queue
 	 */
 	atomic_set(&kcpu_queue->fence_signal_pending_cnt, 0);
@@ -1730,7 +1730,7 @@ static void kcpu_force_signal_fence(struct kbase_kcpu_command_queue *kcpu_queue)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 	del = timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #else
-	del = del_timer_sync(&kcpu_queue->fence_signal_timeout);
+	del = timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #endif
 	dev_info(kctx->kbdev->dev, "kbase KCPU [%pK] delete fence signal timeout timer ret: %d",
 		 kcpu_queue, del);
@@ -1738,7 +1738,7 @@ static void kcpu_force_signal_fence(struct kbase_kcpu_command_queue *kcpu_queue)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 	timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #else
-	del_timer_sync(&kcpu_queue->fence_signal_timeout);
+	timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #endif
 #endif
 }
@@ -1817,7 +1817,7 @@ static int kbasep_kcpu_fence_signal_process(struct kbase_kcpu_command_queue *kcp
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 		int del = timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #else
-		int del = del_timer_sync(&kcpu_queue->fence_signal_timeout);
+		int del = timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #endif
 
 		dev_dbg(kctx->kbdev->dev, "kbase KCPU delete fence signal timeout timer ret: %d",
@@ -1827,7 +1827,7 @@ static int kbasep_kcpu_fence_signal_process(struct kbase_kcpu_command_queue *kcp
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 		timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #else
-		del_timer_sync(&kcpu_queue->fence_signal_timeout);
+		timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #endif
 #endif
 	}
@@ -2897,7 +2897,7 @@ int kbase_csf_kcpu_queue_halt_timers(struct kbase_device *kbdev)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 				int ret = timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #else
-				int ret = del_timer_sync(&kcpu_queue->fence_signal_timeout);
+				int ret = timer_delete_sync(&kcpu_queue->fence_signal_timeout);
 #endif
 
 				dev_dbg(kbdev->dev,
@@ -2911,7 +2911,7 @@ int kbase_csf_kcpu_queue_halt_timers(struct kbase_device *kbdev)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 				int ret = timer_delete_sync(&kcpu_queue->fence_timeout);
 #else
-				int ret = del_timer_sync(&kcpu_queue->fence_timeout);
+				int ret = timer_delete_sync(&kcpu_queue->fence_timeout);
 #endif
 
 				dev_dbg(kbdev->dev,

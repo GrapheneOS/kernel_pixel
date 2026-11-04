@@ -105,7 +105,7 @@ static void g2d_finish_task(struct g2d_device *g2d_dev,
 
 	task->ktime_end = ktime_get();
 
-	del_timer(&task->hw_timer);
+	timer_delete(&task->hw_timer);
 
 	g2d_stamp_task(task, G2D_STAMP_STATE_DONE,
 		       (int)ktime_us_delta(task->ktime_end, task->ktime_begin));
@@ -192,7 +192,7 @@ static void g2d_schedule_task(struct g2d_task *task)
 	unsigned long flags;
 	int ret;
 
-	del_timer(&task->fence_timer);
+	timer_delete(&task->fence_timer);
 
 	if (g2d_task_has_error_fence(task))
 		goto err_fence;

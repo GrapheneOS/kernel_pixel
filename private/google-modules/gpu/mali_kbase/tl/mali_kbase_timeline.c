@@ -276,7 +276,7 @@ void kbase_timeline_release(struct kbase_timeline *timeline)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 	timer_delete_sync(&timeline->autoflush_timer);
 #else
-	del_timer_sync(&timeline->autoflush_timer);
+	timer_delete_sync(&timeline->autoflush_timer);
 #endif
 
 	atomic_set(timeline->timeline_flags, 0);

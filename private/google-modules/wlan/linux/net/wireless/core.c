@@ -1749,7 +1749,7 @@ EXPORT_SYMBOL_GPL(wiphy_work_flush);
 
 void wiphy_delayed_work_timer(struct timer_list *t)
 {
-	struct wiphy_delayed_work *dwork = from_timer(dwork, t, timer);
+	struct wiphy_delayed_work *dwork = timer_container_of(dwork, t, timer);
 
 	wiphy_work_queue(dwork->wiphy, &dwork->work);
 }
@@ -1762,7 +1762,7 @@ void wiphy_delayed_work_queue(struct wiphy *wiphy,
 	trace_wiphy_delayed_work_queue(wiphy, &dwork->work, delay);
 
 	if (!delay) {
-		del_timer(&dwork->timer);
+		timer_delete(&dwork->timer);
 		wiphy_work_queue(wiphy, &dwork->work);
 		return;
 	}
@@ -1777,7 +1777,7 @@ void wiphy_delayed_work_cancel(struct wiphy *wiphy,
 {
 	lockdep_assert_held(&wiphy->mtx);
 
-	del_timer_sync(&dwork->timer);
+	timer_delete_sync(&dwork->timer);
 	wiphy_work_cancel(wiphy, &dwork->work);
 }
 EXPORT_SYMBOL_GPL(wiphy_delayed_work_cancel);
@@ -1787,7 +1787,7 @@ void wiphy_delayed_work_flush(struct wiphy *wiphy,
 {
 	lockdep_assert_held(&wiphy->mtx);
 
-	del_timer_sync(&dwork->timer);
+	timer_delete_sync(&dwork->timer);
 	wiphy_work_flush(wiphy, &dwork->work);
 }
 EXPORT_SYMBOL_GPL(wiphy_delayed_work_flush);

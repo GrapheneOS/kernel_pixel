@@ -785,11 +785,11 @@ err_alloc_debug:
 	destroy_workqueue(core->butler_wq);
 err_butler_wq:
 	if (timer_pending(&core->mfc_idle_timer))
-		del_timer(&core->mfc_idle_timer);
+		timer_delete(&core->mfc_idle_timer);
 	destroy_workqueue(core->mfc_idle_wq);
 err_wq_idle:
 	if (timer_pending(&core->meerkat_timer))
-		del_timer(&core->meerkat_timer);
+		timer_delete(&core->meerkat_timer);
 	destroy_workqueue(core->meerkat_wq);
 err_wq_meerkat:
 	mfc_core_deinit_memlog(core);
@@ -831,11 +831,11 @@ static void mfc_core_remove(struct platform_device *pdev)
 	platform_device_unregister(&mfc_core_sscd_dev);
 #endif
 	if (timer_pending(&core->meerkat_timer))
-		del_timer(&core->meerkat_timer);
+		timer_delete(&core->meerkat_timer);
 	flush_workqueue(core->meerkat_wq);
 	destroy_workqueue(core->meerkat_wq);
 	if (timer_pending(&core->mfc_idle_timer))
-		del_timer(&core->mfc_idle_timer);
+		timer_delete(&core->mfc_idle_timer);
 	flush_workqueue(core->mfc_idle_wq);
 	destroy_workqueue(core->mfc_idle_wq);
 	flush_workqueue(core->butler_wq);

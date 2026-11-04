@@ -395,8 +395,8 @@ extern void timer_cb_compat(struct timer_list *tl);
 #define timer_set_private(timer_compat, priv) (timer_compat)->arg = priv
 #define timer_expires(timer_compat) (timer_compat)->timer.expires
 
-#define del_timer(t) del_timer(&((t)->timer))
-#define del_timer_sync(t) del_timer_sync(&((t)->timer))
+#define timer_delete(t) timer_delete(&((t)->timer))
+#define timer_delete_sync(t) timer_delete_sync(&((t)->timer))
 #define timer_pending(t) timer_pending(&((t)->timer))
 #define add_timer(t) add_timer(&((t)->timer))
 #define mod_timer(t, j) mod_timer(&((t)->timer), j)
@@ -473,8 +473,8 @@ static inline void tasklet_init(struct tasklet_struct *tasklet,
 
 #define tasklet_kill(tasklet)	{ do {} while (0); }
 
-/* 2.4.x introduced del_timer_sync() */
-#define del_timer_sync(timer) del_timer(timer)
+/* 2.4.x introduced timer_delete_sync() */
+#define timer_delete_sync(timer) timer_delete(timer)
 
 #else
 

@@ -851,7 +851,7 @@ struct cnss_plat_data {
 };
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0))
-#define from_timer timer_container_of
+#define timer_container_of timer_container_of
 #endif
 
 #if IS_ENABLED(CONFIG_ARCH_QCOM) && !IS_ENABLED(CONFIG_WCN_GOOGLE)
@@ -1013,12 +1013,12 @@ static inline int cnss_timer_delete_sync(struct timer_list *timer)
 #else
 static inline int cnss_timer_delete(struct timer_list *timer)
 {
-	return del_timer(timer);
+	return timer_delete(timer);
 }
 
 static inline int cnss_timer_delete_sync(struct timer_list *timer)
 {
-	return del_timer_sync(timer);
+	return timer_delete_sync(timer);
 }
 #endif
 

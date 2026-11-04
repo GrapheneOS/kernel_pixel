@@ -259,7 +259,7 @@ spi1_avail_failure:
 static void dw3000_nfcc_coex_watchdog_timeout(struct timer_list *timer)
 {
 	struct dw3000_nfcc_coex *nfcc_coex =
-		from_timer(nfcc_coex, timer, watchdog_timer);
+		timer_container_of(nfcc_coex, timer, watchdog_timer);
 	struct dw3000 *dw = nfcc_coex_to_dw(nfcc_coex);
 	struct dw3000_stm_command cmd = { dw3000_nfcc_coex_do_watchdog_timeout,
 					  NULL, NULL };
@@ -280,7 +280,7 @@ int dw3000_nfcc_coex_cancel_watchdog(struct dw3000 *dw)
 
 	trace_dw3000_nfcc_coex_cancel_watchdog(dw);
 	/* Is watchdog timer running? */
-	if (!del_timer(&nfcc_coex->watchdog_timer))
+	if (!timer_delete(&nfcc_coex->watchdog_timer))
 		return -ENOENT;
 	return 0;
 }
