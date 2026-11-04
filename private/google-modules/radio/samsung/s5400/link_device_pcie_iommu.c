@@ -104,10 +104,7 @@ void cpif_pcie_iommu_reset(struct pktproc_queue *q)
 	}
 
 	/* Initialize */
-	if (ioc->pf_cache.va) {
-		__page_frag_cache_drain(virt_to_page(ioc->pf_cache.va),
-					ioc->pf_cache.pagecnt_bias);
-	}
+	page_frag_cache_drain(&ioc->pf_cache);
 	memset(&q->ioc, 0, offsetof(struct cpif_pcie_iommu_ctrl, pf_buf));
 }
 
@@ -117,21 +114,22 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 	struct modem_ctl *mc = dev_get_drvdata(q->ppa->dev);
 	struct cpif_pcie_iommu_ctrl *ioc = &q->ioc;
 	const size_t pf_size = q->ppa->true_packet_size;
-	void *addr_des, *addr_asc;
+	void *addr, *page_va;
 
 	/*
-	 * Every page orders are compatible with IOMMU granularity.
-	 * But the poped addrs are in descending order.
+	 * Page fragments are allocated in ascending order within each page.
 	 */
-	addr_des = page_frag_alloc(&ioc->pf_cache, pf_size, GFP_ATOMIC);
-	if (!addr_des) {
+	addr = page_frag_alloc(&ioc->pf_cache, pf_size, GFP_ATOMIC);
+	if (!addr) {
 		mif_err_limited("failed to alloc page frag\n");
 		return NULL;
 	}
 
+	page_va = page_address(virt_to_head_page(addr));
+
 	/* Map the last page */
 	*map_cnt = 0;
-	if (ioc->map_page_va != ioc->pf_cache.va) {
+	if (ioc->map_page_va != page_va) {
 		unsigned long map_size, tailroom;
 		int ret;
 
@@ -152,6 +150,8 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 		if (ret) {
 			mif_err("map failure idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
 				ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
+			page_frag_free(addr);
+			page_frag_cache_drain(&ioc->pf_cache);
 			return NULL;
 		}
 		ioc->mapped_cnt++;
@@ -165,29 +165,21 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 
 set_map:
 		ioc->map_src_pa = src_pa;
-		ioc->map_page_va = ioc->pf_cache.va;
+		ioc->map_page_va = page_va;
 		ioc->map_idx = idx;
-		ioc->pf_offset = 0;
 	}
 
-	/* Convert an address in accending order */
-	addr_asc = ioc->pf_cache.va + ioc->pf_offset;
-
-	ioc->pf_buf[idx] = addr_asc;
-	ioc->pf_offset += pf_size;
+	ioc->pf_buf[idx] = addr;
 	ioc->curr_fore = idx;
 
 	/*
 	 * The first buffer should be mapped with a new page.
 	 * Drain the page frag cache at the last buffer.
 	 */
-	if (idx == (q->num_desc - 1)) {
-		__page_frag_cache_drain(virt_to_page(ioc->pf_cache.va),
-					ioc->pf_cache.pagecnt_bias);
-		ioc->pf_cache.va = NULL;
-	}
+	if (idx == (q->num_desc - 1))
+		page_frag_cache_drain(&ioc->pf_cache);
 
-	return addr_asc;
+	return addr;
 }
 
 void cpif_pcie_iommu_try_ummap_va(struct pktproc_queue *q, unsigned long src_pa,
