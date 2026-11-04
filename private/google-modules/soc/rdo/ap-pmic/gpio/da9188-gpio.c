@@ -154,7 +154,7 @@ static int da9188_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		else
 			return -EINVAL;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		ret = gpio_mbox_send_req_helper(priv, MB_GPIO_CMD_GET_DIRECTION,
 						pin, 0, &response_data);
 		if (unlikely(ret))
@@ -265,7 +265,7 @@ static int da9188_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			command = MB_GPIO_CMD_SET_OUTPUT_DRIVE;
 			request_data = DA9188_GPIO_OUTPUT_DRIVE_PP;
 			break;
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			/* First set to output. */
 			ret = gpio_mbox_send_req_helper(priv,
 							MB_GPIO_CMD_SET_DIRECTION,
@@ -411,7 +411,7 @@ static int da9188_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return response_data;
 }
 
-static void da9188_gpio_set(struct gpio_chip *chip, unsigned int offset,
+static int da9188_gpio_set(struct gpio_chip *chip, unsigned int offset,
 			    int value)
 {
 	struct da9188_gpio_ctrl *priv = gpiochip_get_data(chip);
@@ -422,6 +422,7 @@ static void da9188_gpio_set(struct gpio_chip *chip, unsigned int offset,
 					request_data, NULL);
 	if (unlikely(ret))
 		dev_dbg(priv->dev, "gpio%d set failed\n", offset);
+	return ret;
 }
 
 static int da9188_gpio_get_direction(struct gpio_chip *chip,
