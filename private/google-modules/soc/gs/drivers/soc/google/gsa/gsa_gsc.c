@@ -380,7 +380,7 @@ static int gsa_gsc_probe(struct platform_device *pdev)
 	}
 	s->ctdl_ap_irq = ret;
 
-	ret = devm_gpio_request(dev, s->ctdl_ap_irq, gpio_name);
+	ret = devm_gpio_request_one(dev, s->ctdl_ap_irq, GPIOF_IN, gpio_name);
 	if (ret) {
 		dev_err(dev, "devm_gpio_request failed (%d)\n", ret);
 		return ret;
