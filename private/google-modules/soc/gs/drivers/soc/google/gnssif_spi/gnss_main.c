@@ -183,8 +183,7 @@ static int gnss_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	ret = platform_device_add_data(sscd_dev, &sscd_pdata, sizeof(sscd_pdata));
 	if (!ret)
-		ret = driver_set_override(&sscd_dev->dev, &sscd_dev->driver_override,
-					  SSCD_NAME, strlen(SSCD_NAME));
+		ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
 	if (!ret)
 		ret = platform_device_add(sscd_dev);
 	if (ret) {
