@@ -145,8 +145,7 @@ static void ptick_init(struct rq *rq)
 	if (WARN_ON(!vrq->ptick_timer))
 		return;
 
-	hrtimer_init(vrq->ptick_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
-	vrq->ptick_timer->function = ptick;
+	hrtimer_setup(vrq->ptick_timer, ptick, CLOCK_MONOTONIC, HRTIMER_MODE_REL_HARD);
 }
 
 static void init_vendor_rq(void)
@@ -458,7 +457,7 @@ static int vh_sched_init(void)
 #endif /* IS_ENABLED(CONFIG_RVH_SCHED_LIB) */
 
 	REGISTER_TRACE_VH(binder_set_priority, vh_binder_set_priority_pixel_mod);
-	REGISTER_TRACE_VH(binder_looper_state_registered, vh_binder_looper_state_registered_pixel_mod);
+	REGISTER_TRACE_VH(binder_wait_for_work, vh_binder_wait_for_work_pixel_mod);
 	REGISTER_TRACE_VH(binder_looper_exited, vh_binder_looper_exited_pixel_mod);
 	REGISTER_TRACE_VH(binder_restore_priority, vh_binder_restore_priority_pixel_mod);
 	REGISTER_TRACE_VH(binder_proc_transaction_finish, vh_binder_proc_transaction_finish);
@@ -473,8 +472,8 @@ static int vh_sched_init(void)
 	REGISTER_TRACE_RVH(find_lowest_rq, rvh_find_lowest_rq_pixel_mod);
 
 #if IS_ENABLED(CONFIG_VH_PRIO_INHERITANCE)
-	REGISTER_TRACE_VH(prio_inheritance, vh_prio_inheritance);
-	REGISTER_TRACE_VH(prio_restore, vh_prio_restore);
+	REGISTER_TRACE_VH(task_cmdline_prio_inherit, vh_prio_inheritance);
+	REGISTER_TRACE_VH(task_cmdline_prio_restore, vh_prio_restore);
 #endif
 
 	REGISTER_TRACE_RVH(util_fits_cpu, rvh_util_fits_cpu_pixel_mod);

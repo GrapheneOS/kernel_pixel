@@ -121,6 +121,7 @@ ddk_module(
         "CONFIG_VH_PREEMPTIRQ_TRACEPOINTS": {
             True: [
                 "init_preemptirq_long.c",
+                "preemptirq_long_internal.h",
                 "preemptirq_long.c",
             ],
         },

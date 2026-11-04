@@ -225,11 +225,6 @@ static void google_cpufreq_register_em(struct cpufreq_policy *policy)
 				    &em_cb, policy->cpus, true);
 }
 
-static struct freq_attr *google_cpufreq_attr[] = {
-	&cpufreq_freq_attr_scaling_available_freqs,
-	NULL,
-};
-
 static struct cpufreq_driver google_cpufreq_driver = {
 	.name = "google-cpufreq",
 	.flags = CPUFREQ_NEED_INITIAL_FREQ_CHECK | CPUFREQ_IS_COOLING_DEV |
@@ -241,7 +236,6 @@ static struct cpufreq_driver google_cpufreq_driver = {
 	.verify = cpufreq_generic_frequency_table_verify,
 	.init = google_cpufreq_cpu_init,
 	.exit = google_cpufreq_cpu_exit,
-	.attr = google_cpufreq_attr,
 };
 
 /* TODO (b/229330089) support different type of core (Large/Mid/Small) */

@@ -6,6 +6,7 @@
  * Copyright 2021 Google LLC
  */
 
+#include "preemptirq_long_internal.h"
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <trace/hooks/sched.h>
