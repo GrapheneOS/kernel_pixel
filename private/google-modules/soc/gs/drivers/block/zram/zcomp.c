@@ -283,6 +283,7 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 			   struct zram *zram, u32 prio)
 {
 	struct zcomp *comp;
+	struct zcomp_input __percpu *input;
 	int error, cpu;
 
 	down_read(&zcomp_rwsem);
@@ -296,21 +297,22 @@ struct zcomp *zcomp_create(const char *algo_name, struct zcomp_params *params,
 	comp->params = params;
 	comp->prio = prio;
 
-	comp->input = alloc_percpu(struct zcomp_input);
-	if (!comp->input) {
+	input = alloc_percpu(struct zcomp_input);
+	if (!input) {
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(-ENOMEM);
 	}
 	for_each_possible_cpu(cpu)
-		local_lock_init(&per_cpu_ptr(comp->input, cpu)->lock);
+		local_lock_init(&per_cpu_ptr(input, cpu)->lock);
 
 	error = comp->op->create(comp, algo_name);
 	if (error) {
-		free_percpu(comp->input);
+		free_percpu(input);
 		up_read(&zcomp_rwsem);
 		return ERR_PTR(error);
 	}
 
+	comp->input = input;
 	comp->zram = zram;
 	up_read(&zcomp_rwsem);
 
