@@ -271,7 +271,7 @@ static const struct dev_pm_ops g2d_pm_ops = {
 
 static struct platform_driver g2d_drm_platform_driver = {
 	.probe = g2d_drm_platform_probe,
-	.remove_new = g2d_drm_platform_remove,
+	.remove = g2d_drm_platform_remove,
 
 	.driver = {
 		.name = DRV_NAME,
