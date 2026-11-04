@@ -397,7 +397,7 @@ void arm_smmu_write_cd_entry(struct arm_smmu_master *master, int ssid,
 
 int arm_smmu_set_pasid(struct arm_smmu_master *master,
 		       struct arm_smmu_domain *smmu_domain, ioasid_t pasid,
-		       struct arm_smmu_cd *cd);
+		       struct arm_smmu_cd *cd, struct iommu_domain *old);
 
 int arm_smmu_write_reg_sync(struct arm_smmu_device *smmu, u32 val,
 			    unsigned int reg_off, unsigned int ack_off);
