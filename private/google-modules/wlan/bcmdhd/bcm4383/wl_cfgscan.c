@@ -5002,7 +5002,7 @@ wl_priortize_scan_over_listen(struct bcm_cfg80211 *cfg,
 #define IS_P2P_DISC_NDEV(wdev) \
 	(wdev->netdev ? (strncmp(wdev->netdev->name, "p2p0", strlen("p2p0")) == 0) : false)
 
-#if defined(WL_PMSR_BKPORT)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0) || defined(WL_PMSR_BKPORT)
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie, const u8 *rx_addr)

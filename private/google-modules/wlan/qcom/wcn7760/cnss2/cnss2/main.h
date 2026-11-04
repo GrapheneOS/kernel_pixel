@@ -851,7 +851,7 @@ struct cnss_plat_data {
 };
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 16, 0))
-#define timer_container_of timer_container_of
+#define from_timer timer_container_of
 #endif
 
 #if IS_ENABLED(CONFIG_ARCH_QCOM) && !IS_ENABLED(CONFIG_WCN_GOOGLE)

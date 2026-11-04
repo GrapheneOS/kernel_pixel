@@ -194,9 +194,9 @@ extern void google_pcie_dump_debug(int num);
 
 static void sscd_release(struct device *dev);
 static struct sscd_platform_data sscd_pdata;
+static bool sscd_registered;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -1848,13 +1848,27 @@ bool dhd_plat_pcie_enable_big_core(void)
 void
 dhd_plat_register_coredump(void)
 {
-	platform_device_register(&sscd_dev);
+	int ret;
+
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
+	if (ret) {
+		DHD_ERROR(("%s: failed to register coredump device: %d\n", __func__, ret));
+		platform_device_put(&sscd_dev);
+	} else {
+		sscd_registered = true;
+	}
 }
 
 void
 dhd_plat_unregister_coredump(void)
 {
-	platform_device_unregister(&sscd_dev);
+	if (sscd_registered) {
+		platform_device_unregister(&sscd_dev);
+		sscd_registered = false;
+	}
 }
 #endif /* DHD_COREDUMP */
 

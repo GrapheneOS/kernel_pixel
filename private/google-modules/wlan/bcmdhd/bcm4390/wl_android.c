@@ -5508,8 +5508,7 @@ static int wl_android_get_p2p_dev_addr(struct net_device *ndev, char *command, i
 	int ret;
 	struct ether_addr p2pdev_addr;
 
-#define MAC_ADDR_STR_LEN 18
-	if (total_len < MAC_ADDR_STR_LEN) {
+	if (total_len < MAC_ADDR_STR_LEN + 1) {
 		DHD_ERROR(("wl_android_get_p2p_dev_addr: buflen %d is less than p2p dev addr\n",
 			total_len));
 		return -1;

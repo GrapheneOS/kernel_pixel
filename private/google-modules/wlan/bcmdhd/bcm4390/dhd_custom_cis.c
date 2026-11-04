@@ -1726,7 +1726,7 @@ dhd_check_module_mac(dhd_pub_t *dhdp)
 			}
 		} else {
 			bzero((char *)eabuf, sizeof(eabuf));
-			strlcpy(eabuf, otp_mac_buf, sizeof(eabuf));
+			strscpy(eabuf, otp_mac_buf, sizeof(eabuf));
 			if (!bcm_ether_atoe(eabuf, mac)) {
 				DHD_ERROR(("%s : mac parsing err\n", __FUNCTION__));
 				if (dhd_set_default_macaddr(dhdp) < 0) {
@@ -2100,7 +2100,7 @@ write_cid:
 #ifndef DHD_EXPORT_CNTL_FILE
 	dhd_write_file(cidfilepath, cid_info, strlen(cid_info) + 1);
 #else
-	strlcpy(cidinfostr, cid_info, MAX_VNAME_LEN);
+	strscpy(cidinfostr, cid_info, MAX_VNAME_LEN);
 #endif /* DHD_EXPORT_CNTL_FILE */
 
 	if (!cur_vid_info) {
@@ -2201,7 +2201,7 @@ dhd_check_module_bcm(char *module_type, int index, bool *is_murata_fem)
 		return ret;
 	}
 #else
-	strlcpy(vname, cidinfostr, MAX_VNAME_LEN);
+	strscpy(vname, cidinfostr, MAX_VNAME_LEN);
 #endif /* DHD_EXPORT_CNTL_FILE */
 
 	for (i = 1, ptr = vname; i < index && ptr; i++) {
@@ -2267,7 +2267,7 @@ dhd_check_module_cid(dhd_pub_t *dhdp)
 #ifndef DHD_EXPORT_CNTL_FILE
 	dhd_write_file(cidfilepath, cid_info, strlen(cid_info) + 1);
 #else
-	strlcpy(cidinfostr, cid_info, MAX_VNAME_LEN);
+	strscpy(cidinfostr, cid_info, MAX_VNAME_LEN);
 #endif /* DHD_EXPORT_CNTL_FILE */
 
 	DHD_INFO(("%s: cidinfostr %x%x\n", __FUNCTION__,
@@ -2293,7 +2293,7 @@ dhd_check_stored_module_info(char *vid)
 		return ret;
 	}
 #else
-	strlcpy(vid, cidinfostr, MAX_VID_LEN);
+	strscpy(vid, cidinfostr, MAX_VID_LEN);
 #endif /* DHD_EXPORT_CNTL_FILE */
 
 	if (vid[0] == (char)0) {
