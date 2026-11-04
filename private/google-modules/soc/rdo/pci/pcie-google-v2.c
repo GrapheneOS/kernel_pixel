@@ -2784,11 +2784,6 @@ static void google_pcie_choose_state(void *data, struct pci_dev *pci_dev,
 	*state = PCI_D3cold;
 }
 
-static void google_pcie_pm_verify_state(void *data, int *state_ret, pci_power_t *state)
-{
-	if (state_ret && state)
-		*state_ret = (*state == PCI_D3cold);
-}
 
 static int __init google_pcie_init(void)
 {
@@ -2810,10 +2805,6 @@ static int __init google_pcie_init(void)
 			google_pcie_choose_state, NULL);
 	if (ret)
 		return ret;
-	ret = register_trace_android_vh_pci_pm_verify_state(
-			google_pcie_pm_verify_state, NULL);
-	if (ret)
-		return ret;
 
 	return platform_driver_register(&google_pcie_driver);
 }
@@ -2822,8 +2813,6 @@ static void __exit google_pcie_exit(void)
 {
 	platform_driver_unregister(&google_pcie_driver);
 
-	unregister_trace_android_vh_pci_pm_verify_state(
-			google_pcie_pm_verify_state, NULL);
 	unregister_trace_android_vh_platform_pci_choose_state(
 			google_pcie_choose_state, NULL);
 	unregister_trace_android_vh_platform_pci_get_power_state(
