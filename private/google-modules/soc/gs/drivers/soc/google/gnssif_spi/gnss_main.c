@@ -162,9 +162,9 @@ static void gnss_remove(struct platform_device *pdev)
 
 	gpio_free(gc->gpio_gnss2ap_spi.num);
 
-	platform_device_unregister(&sscd_dev);
-
 	device_remove_file(&pdev->dev, &dev_attr_coredump);
+
+	platform_device_unregister(&sscd_dev);
 }
 
 static int gnss_probe(struct platform_device *pdev)
