@@ -49,7 +49,7 @@ struct __qdf_timer_t {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0)
 static inline void __os_timer_shim(struct timer_list *os_timer)
 {
-	struct __qdf_timer_t *timer = from_timer(timer, os_timer, os_timer);
+	struct __qdf_timer_t *timer = timer_container_of(timer, os_timer, os_timer);
 
 	timer->callback(timer->context);
 }
@@ -156,14 +156,14 @@ static inline bool __qdf_timer_mod(struct __qdf_timer_t *timer, uint32_t msec)
 
 static inline bool __qdf_timer_stop(struct __qdf_timer_t *timer)
 {
-	return !!del_timer(&timer->os_timer);
+	return !!timer_delete(&timer->os_timer);
 }
 
 static inline void __qdf_timer_free(struct __qdf_timer_t *timer)
 {
 	struct timer_list *os_timer = &timer->os_timer;
 
-	del_timer_sync(os_timer);
+	timer_delete_sync(os_timer);
 
 	if (object_is_on_stack(os_timer))
 		destroy_timer_on_stack(os_timer);
@@ -171,7 +171,7 @@ static inline void __qdf_timer_free(struct __qdf_timer_t *timer)
 
 static inline bool __qdf_timer_sync_cancel(struct __qdf_timer_t *timer)
 {
-	return del_timer_sync(&timer->os_timer);
+	return timer_delete_sync(&timer->os_timer);
 }
 
 #endif /* _I_QDF_TIMER_H */

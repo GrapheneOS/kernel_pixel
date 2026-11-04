@@ -398,7 +398,7 @@ static int power_reset_cp(struct modem_ctl *mc)
 
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
-		del_timer(&mld->crash_ack_timer);
+		timer_delete(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
 
 	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))
@@ -442,7 +442,7 @@ static int power_reset_dump_cp(struct modem_ctl *mc)
 
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
-		del_timer(&mld->crash_ack_timer);
+		timer_delete(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
 
 	if (ld->sbd_ipc && hrtimer_active(&mld->sbd_print_timer))

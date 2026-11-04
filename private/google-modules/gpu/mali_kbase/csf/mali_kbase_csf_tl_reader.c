@@ -363,7 +363,7 @@ void kbase_csf_tl_reader_term(struct kbase_csf_tl_reader *self)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 	timer_delete_sync(&self->read_timer);
 #else
-	del_timer_sync(&self->read_timer);
+	timer_delete_sync(&self->read_timer);
 #endif
 }
 
@@ -425,7 +425,7 @@ void kbase_csf_tl_reader_stop(struct kbase_csf_tl_reader *self)
 #if KERNEL_VERSION(6, 15, 0) <= LINUX_VERSION_CODE
 	timer_delete_sync(&self->read_timer);
 #else
-	del_timer_sync(&self->read_timer);
+	timer_delete_sync(&self->read_timer);
 #endif
 
 	spin_lock_irqsave(&self->read_lock, flags);

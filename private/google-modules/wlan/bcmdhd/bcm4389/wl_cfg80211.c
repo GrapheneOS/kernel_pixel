@@ -15163,7 +15163,7 @@ wl_stop_wait_next_action_frame(struct bcm_cfg80211 *cfg, struct net_device *ndev
 	s32 err = 0;
 
 	if (wl_get_drv_status_all(cfg, FINDING_COMMON_CHANNEL)) {
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 		if (cfg->afx_hdl != NULL) {
 			if (cfg->afx_hdl->dev != NULL) {
 				wl_clr_drv_status(cfg, SCANNING, cfg->afx_hdl->dev);
@@ -16162,7 +16162,7 @@ static void wl_del_roam_timeout(struct bcm_cfg80211 *cfg)
 
 	/* restore prec_map to ALLPRIO */
 	dhdp->dequeue_prec_map = ALLPRIO;
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #if defined(BCMDONGLEHOST)
 	DHD_ENABLE_RUNTIME_PM(dhdp);
 #endif /* BCMDONGLEHOST && OEM_ANDROID */
@@ -16806,9 +16806,9 @@ static void wl_deinit_priv(struct bcm_cfg80211 *cfg)
 #ifdef WL_SCHED_SCAN
 	cancel_delayed_work_sync(&cfg->sched_scan_stop_work);
 #endif /* WL_SCHED_SCAN */
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #endif
 #ifdef WL_CELLULAR_CHAN_AVOID
 	wl_cellavoid_deinit(cfg);
@@ -17107,9 +17107,9 @@ void wl_cfg80211_detach(struct bcm_cfg80211 *cfg)
 	wl_deinit_wps_reauth_sm(cfg);
 #endif /* WL_WPS_SYNC */
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #endif /* DHD_LOSSLESS_ROAMING */
 
 #ifdef WL_STATIC_IF
@@ -18559,7 +18559,7 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 #endif /* WL_RAV_MSCS_NEG_IN_ASSOC */
 
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #endif /* DHD_LOSSLESS_ROAMING */
 
 	err = dhd_monitor_init(cfg->pub);
@@ -18748,7 +18748,7 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 	/* Force clear of scan_suppress */
 	if (cfg->scan_suppressed)
 		wl_cfg80211_scan_suppress(ndev, 0);
-	del_timer_sync(&cfg->scan_supp_timer);
+	timer_delete_sync(&cfg->scan_supp_timer);
 	cancel_work_sync(&cfg->wlan_work);
 #endif /* DHCP_SCAN_SUPPRESS */
 
@@ -18890,11 +18890,11 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 	wl_flush_eq(cfg);
 	wl_link_down(cfg);
 	if (cfg->p2p_supported) {
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 		wl_cfgp2p_down(cfg);
 	}
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 
 	wl_cfg80211_clear_mgmt_vndr_ies(cfg);
 
@@ -22225,7 +22225,7 @@ static void wl_deinit_wps_reauth_sm(struct bcm_cfg80211 *cfg)
 	for (i = 0; i < WPS_MAX_SESSIONS; i++) {
 		cfg->wps_session[i].in_use = false;
 		cfg->wps_session[i].state = WPS_STATE_IDLE;
-		del_timer_sync(&cfg->wps_session[i].timer);
+		timer_delete_sync(&cfg->wps_session[i].timer);
 	}
 
 }
@@ -22317,7 +22317,7 @@ wl_wps_session_del(struct net_device *ndev)
 	WL_CFG_WPS_SYNC_UNLOCK(&cfg->wps_sync, flags);
 
 	/* Ensure this API is called from sleepable context. */
-	del_timer_sync(&cfg->wps_session[inst].timer);
+	timer_delete_sync(&cfg->wps_session[inst].timer);
 
 	WL_INFORM_MEM(("[%s][WPS] session deleted\n", ndev->name));
 }

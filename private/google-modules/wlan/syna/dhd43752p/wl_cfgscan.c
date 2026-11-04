@@ -2747,7 +2747,7 @@ wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 		dev = ndev;
 	}
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 	/* clear scan enq time on complete */
 	CLR_TS(cfg, scan_enq);
 	CLR_TS(cfg, scan_start);
@@ -2881,7 +2881,7 @@ int wl_cfg80211_scan_suppress(struct net_device *dev, int suppress)
 		return 0;
 	}
 
-	del_timer_sync(&cfg->scan_supp_timer);
+	timer_delete_sync(&cfg->scan_supp_timer);
 
 	if ((ret = wldev_ioctl_set(dev, WLC_SET_SCANSUPPRESS,
 		&suppress, sizeof(int))) < 0) {
@@ -3183,7 +3183,7 @@ wl_notify_scan_status(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	err = wl_inform_bss(cfg);
 
 scan_done_out:
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 	WL_CFG_DRV_LOCK(&cfg->cfgdrv_lock, flags);
 	if (cfg->scan_request) {
 		_wl_notify_scan_done(cfg, false);
@@ -5071,7 +5071,7 @@ wl_priortize_scan_over_listen(struct bcm_cfg80211 *cfg,
 	wl_set_drv_status(cfg, FAKE_REMAINING_ON_CHANNEL, ndev);
 
 	WL_DBG(("cancel current listen timer \n"));
-	del_timer_sync(&cfg->p2p->listen_timer);
+	timer_delete_sync(&cfg->p2p->listen_timer);
 
 	wl_clr_p2p_status(cfg, LISTEN_EXPIRED);
 

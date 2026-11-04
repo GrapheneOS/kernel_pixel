@@ -49,7 +49,7 @@ static void h2omg_timer_work(struct work_struct *work)
 
 static void h2omg_timer_cb(struct timer_list *t)
 {
-	struct h2omg_info *info = from_timer(info, t, wet_timer);
+	struct h2omg_info *info = timer_container_of(info, t, wet_timer);
 
 	schedule_work(&info->timer_work);
 }

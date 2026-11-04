@@ -219,7 +219,7 @@ static void coredump_received(struct hsspi_layer *hlayer,
 		goto out;
 	}
 
-	del_timer_sync(&layer->timer);
+	timer_delete_sync(&layer->timer);
 
 	memcpy(&cch, blk->data, sizeof(cch));
 	cch_body = blk->data + sizeof(cch);
@@ -353,6 +353,6 @@ int coredump_layer_init(struct coredump_layer *layer, struct debug *debug)
 
 void coredump_layer_deinit(struct coredump_layer *layer)
 {
-	del_timer_sync(&layer->timer);
+	timer_delete_sync(&layer->timer);
 	kfree(layer->coredump_data);
 }
