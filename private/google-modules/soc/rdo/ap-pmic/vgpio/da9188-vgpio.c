@@ -59,7 +59,7 @@ static int da9188_vgpio_get(struct gpio_chip *chip, unsigned int offset)
 	return response_data;
 }
 
-static void da9188_vgpio_set(struct gpio_chip *chip, unsigned int offset,
+static int da9188_vgpio_set(struct gpio_chip *chip, unsigned int offset,
 			     int value)
 {
 	struct da9188_vgpio_ctrl *priv = gpiochip_get_data(chip);
@@ -72,6 +72,7 @@ static void da9188_vgpio_set(struct gpio_chip *chip, unsigned int offset,
 					request_data, NULL);
 	if (unlikely(ret))
 		dev_dbg(priv->dev, "vgpio%d set failed\n", pin_num);
+	return ret;
 }
 
 static const struct gpio_chip da9188_vgpio_chip = {
