@@ -8,6 +8,7 @@
 #include <asm/kvm_mmu.h>
 
 #include <arm-smmu-v3/io-pgtable.h>
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 #include <linux/moduleparam.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -25,10 +26,10 @@ extern struct kvm_iommu_ops kvm_nvhe_sym(smmu_ops);
 
 
 #ifdef MODULE
-static unsigned long                   pkvm_module_token;
+static pkvm_handle_t hyp_drv_id;
 
 #define ksym_ref_addr_nvhe(x) \
-	((typeof(kvm_nvhe_sym(x)) *)(pkvm_el2_mod_va(&kvm_nvhe_sym(x), pkvm_module_token)))
+	((typeof(kvm_nvhe_sym(x)) *)(pkvm_el2_mod_va(&kvm_nvhe_sym(x))))
 
 int kvm_nvhe_sym(smmu_init_hyp_module)(const struct pkvm_module_ops *ops);
 #else
@@ -46,13 +47,6 @@ static DEFINE_PER_CPU(local_lock_t, err_lock) = INIT_LOCAL_LOCK(err_lock);
 
 #define UNFINALIZED_DOMAIN		(-1)
 static struct hyp_shared_arm_smmu_telemetry *kvm_shared_arm_smmu_telemetry;
-/*
- * Pre allocated pages that can be used from the EL2 part of the driver from atomic
- * context, ideally used for page table pages for identity domains.
- */
-static int atomic_pages;
-module_param(atomic_pages, int, 0);
-
 /*
  * Load pKVM SMMUv3 module, but without probing, so the kernel driver takes over
  * control over the SMMUs, this is useful during bring up, where we can have prebuilts
@@ -318,38 +312,6 @@ static struct kvm_arm_smmu_domain *__kvm_arm_smmu_domain_alloc(void)
 	return kvm_smmu_domain;
 }
 
-static struct iommu_domain *kvm_arm_smmu_domain_alloc(unsigned int type)
-{
-	struct kvm_arm_smmu_domain *kvm_smmu_domain;
-
-	if (type != IOMMU_DOMAIN_IDENTITY &&
-	    type != IOMMU_DOMAIN_BLOCKED)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	kvm_smmu_domain = __kvm_arm_smmu_domain_alloc();
-	if (IS_ERR(kvm_smmu_domain))
-		return ERR_CAST(kvm_smmu_domain);
-
-	return &kvm_smmu_domain->domain;
-}
-
-static struct iommu_domain *kvm_arm_smmu_domain_alloc_paging(struct device *dev)
-{
-	struct kvm_arm_smmu_domain *kvm_smmu_domain = __kvm_arm_smmu_domain_alloc();
-	struct kvm_arm_smmu_master *master;
-
-	if (IS_ERR(kvm_smmu_domain))
-		return ERR_CAST(kvm_smmu_domain);
-
-	if (dev) {
-		master = dev_iommu_priv_get(dev);
-		if (master->nested_translations)
-			kvm_smmu_domain->domain.ops = &kvm_arm_smmu_nested_domain_ops;
-	}
-
-	return &kvm_smmu_domain->domain;
-}
-
 static bool kvm_arm_smmu_is_domain_nested(struct kvm_arm_smmu_domain *kvm_smmu_domain)
 {
 	return kvm_smmu_domain->domain.ops == &kvm_arm_smmu_nested_domain_ops;
@@ -430,7 +392,7 @@ static int kvm_arm_smmu_domain_finalize(struct kvm_arm_smmu_domain *kvm_smmu_dom
 		return 0;
 
 	if (kvm_smmu_domain->domain.type == IOMMU_DOMAIN_IDENTITY) {
-		kvm_smmu_domain->id = KVM_IOMMU_DOMAIN_IDMAP_ID;
+		kvm_smmu_domain->id = PIXEL_SMMU_IDMAP_ID;
 		/*
 		 * Identity domains doesn't use the DMA API, so no need to
 		 * set the  domain aperture.
@@ -517,7 +479,7 @@ static int kvm_arm_smmu_domain_finalize(struct kvm_arm_smmu_domain *kvm_smmu_dom
 	 * either 8 or 16 bits.
 	 */
 	ret = ida_alloc_range(&kvm_arm_smmu_domain_ida, KVM_SMMU_DOMAIN_NR_START,
-			      min(KVM_IOMMU_MAX_DOMAINS, max_domains) - 1, GFP_KERNEL);
+			      min(KVM_IOMMU_MAX_HOST_DOMAINS, max_domains) - 1, GFP_KERNEL);
 	if (ret < 0) {
 		free_io_pgtable_ops_pixel(pgtbl_ops);
 		return ret;
@@ -525,7 +487,9 @@ static int kvm_arm_smmu_domain_finalize(struct kvm_arm_smmu_domain *kvm_smmu_dom
 
 	kvm_smmu_domain->id = ret;
 
-	ret = kvm_iommu_alloc_domain(kvm_smmu_domain->id, type);
+	ret = kvm_iommu_alloc_domain(hyp_drv_id, smmu_to_host(smmu)->id,
+				     kvm_smmu_domain->id, type | (master->single_page_size ?
+				     PIXEL_SMMU_DOMAIN_DISABLE_CONTPTE : 0));
 	if (ret) {
 		ida_free(&kvm_arm_smmu_domain_ida, kvm_smmu_domain->id);
 		free_io_pgtable_ops_pixel(pgtbl_ops);
@@ -567,6 +531,36 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
 
 	kfree(kvm_smmu_domain);
 }
+
+static struct iommu_domain *kvm_arm_smmu_alloc_for_dev(struct device *dev, unsigned int type)
+{
+	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct kvm_arm_smmu_domain *domain = __kvm_arm_smmu_domain_alloc();
+	int ret;
+
+	if (IS_ERR(domain))
+		return ERR_CAST(domain);
+	domain->domain.type = type;
+	if (type != IOMMU_DOMAIN_IDENTITY && master->nested_translations)
+		domain->domain.ops = &kvm_arm_smmu_nested_domain_ops;
+	ret = kvm_arm_smmu_domain_finalize(domain, master);
+	if (ret) {
+		kvm_arm_smmu_domain_free(&domain->domain);
+		return ERR_PTR(ret);
+	}
+	return &domain->domain;
+}
+
+static struct iommu_domain *kvm_arm_smmu_domain_alloc_paging(struct device *dev)
+{
+	return kvm_arm_smmu_alloc_for_dev(dev, IOMMU_DOMAIN_UNMANAGED);
+}
+
+static struct iommu_domain *kvm_arm_smmu_domain_alloc_identity(struct device *dev)
+{
+	return kvm_arm_smmu_alloc_for_dev(dev, IOMMU_DOMAIN_IDENTITY);
+}
+
 
 static void *kvm_arm_smmu_alloc_hyp_shared_page(void)
 {
@@ -611,7 +605,7 @@ static int kvm_arm_smmu_sync_cd_entry(struct kvm_arm_smmu_master *master,
 
 		cmd->data[0] &= cpu_to_le64(~CMDQ_CFGI_0_SID);
 		cmd->data[0] |= cpu_to_le64(FIELD_PREP(CMDQ_CFGI_0_SID, sid));
-		ret = kvm_iommu_nested_cfg_sync(host_smmu->id, cmd, sizeof(*cmd));
+		ret = kvm_iommu_nested_cfg_sync(hyp_drv_id, host_smmu->id, cmd, sizeof(*cmd));
 		if (ret)
 			return ret;
 	}
@@ -740,6 +734,9 @@ static int kvm_arm_smmu_attach_stream(struct host_arm_smmu_device *host_smmu,
 	if (s1_ctx)
 		return kvm_iommu_attach_dev_nested(host_smmu->id, domain->id, stream->id,
 						  pasid, flags, s1_ctx, sizeof(*s1_ctx));
+	if (domain->domain.type == IOMMU_DOMAIN_IDENTITY)
+		return kvm_iommu_set_identity(hyp_drv_id, host_smmu->id, stream->id,
+					     true, flags);
 	return kvm_iommu_attach_dev(host_smmu->id, domain->id, stream->id, pasid,
 				   master->ssid_bits, flags);
 }
@@ -747,8 +744,8 @@ static int kvm_arm_smmu_attach_stream(struct host_arm_smmu_device *host_smmu,
 static int kvm_arm_smmu_detach_stream(struct host_arm_smmu_device *host_smmu,
 	struct kvm_arm_smmu_domain *domain, u32 sid, u32 pasid)
 {
-	if (kvm_arm_smmu_is_domain_nested(domain))
-		return kvm_iommu_detach_dev_nested(host_smmu->id, domain->id, sid, pasid);
+	if (domain->domain.type == IOMMU_DOMAIN_IDENTITY)
+		return kvm_iommu_set_identity(hyp_drv_id, host_smmu->id, sid, false, 0);
 	return kvm_iommu_detach_dev(host_smmu->id, domain->id, sid, pasid);
 }
 
@@ -840,14 +837,27 @@ static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
 	return 0;
 }
 
-static void kvm_arm_smmu_remove_dev_pasid(struct device *dev, ioasid_t pasid,
-					  struct iommu_domain *domain)
+static int kvm_arm_smmu_blocking_set_dev_pasid(struct iommu_domain *domain,
+					     struct device *dev, ioasid_t pasid,
+					     struct iommu_domain *old)
 {
 	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
-	struct host_arm_smmu_device *host_smmu = smmu_to_host(master->smmu);
 
-	kvm_arm_smmu_detach_dev_pasid(host_smmu, master, pasid);
+	return kvm_arm_smmu_detach_dev_pasid(smmu_to_host(master->smmu), master, pasid);
 }
+
+static int kvm_arm_smmu_attach_blocked(struct iommu_domain *domain, struct device *dev)
+{
+	return kvm_arm_smmu_blocking_set_dev_pasid(domain, dev, 0, NULL);
+}
+
+static struct iommu_domain kvm_arm_smmu_blocked_domain = {
+	.type = IOMMU_DOMAIN_BLOCKED,
+	.ops = &(const struct iommu_domain_ops) {
+		.attach_dev = kvm_arm_smmu_attach_blocked,
+		.set_dev_pasid = kvm_arm_smmu_blocking_set_dev_pasid,
+	},
+};
 
 static void kvm_arm_smmu_release_device(struct device *dev)
 {
@@ -876,7 +886,6 @@ static void kvm_arm_smmu_release_device(struct device *dev)
 	if (detached && arm_smmu_cdtab_allocated(&master->cd_table))
 		kvm_arm_smmu_free_cd_tables(master);
 	kfree(master);
-	iommu_fwspec_free(dev);
 }
 
 static struct hyp_arm_smmu_v3_s1_ctx *kvm_arm_smmu_prepare_ste(struct kvm_arm_smmu_master *master,
@@ -956,7 +965,7 @@ static int __kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
 			 dev_name(master->dev));
 	}
 
-	if (!s1_ctx && master->nested_translations)
+	if (!s1_ctx && master->nested_translations && domain->type != IOMMU_DOMAIN_IDENTITY)
 		return -EINVAL;
 
 	for (i = 0; i < master->num_streams; i++) {
@@ -999,25 +1008,24 @@ out_ret:
 }
 
 static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
-				      struct device *dev, ioasid_t pasid)
+				      struct device *dev, ioasid_t pasid,
+				      struct iommu_domain *old)
 {
 	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
-	struct host_arm_smmu_device *host_smmu;
-	struct kvm_arm_smmu_domain *old;
+	struct host_arm_smmu_device *host_smmu = smmu_to_host(master->smmu);
 	int ret;
 
-	if (!master)
-		return -ENODEV;
-	host_smmu = smmu_to_host(master->smmu);
-	old = xa_load(&master->domains, pasid);
 	if (domain->type == IOMMU_DOMAIN_IDENTITY && pasid)
 		return -EINVAL;
+	ret = kvm_arm_smmu_domain_finalize(to_kvm_smmu_domain(domain), master);
+	if (ret)
+		return ret;
 	ret = kvm_arm_smmu_detach_dev_pasid(host_smmu, master, pasid);
-	if (ret || domain->type == IOMMU_DOMAIN_BLOCKED)
+	if (ret)
 		return ret;
 	ret = __kvm_arm_smmu_set_dev_pasid(domain, dev, pasid);
-	if (ret && old)
-		WARN_ON(__kvm_arm_smmu_set_dev_pasid(&old->domain, dev, pasid));
+	if (ret && old && old->type != IOMMU_DOMAIN_BLOCKED)
+		WARN_ON(__kvm_arm_smmu_set_dev_pasid(old, dev, pasid));
 	return ret;
 }
 
@@ -1031,14 +1039,14 @@ static int kvm_arm_smmu_attach_dev(struct iommu_domain *domain,
 	if (xa_find_after(&master->domains, &pasid, ULONG_MAX, XA_PRESENT))
 		return -EBUSY;
 
-	return kvm_arm_smmu_set_dev_pasid(domain, dev, 0);
+	return kvm_arm_smmu_set_dev_pasid(domain, dev, 0, iommu_get_domain_for_dev(dev));
 }
 
 static int kvm_arm_smmu_def_domain_type(struct device *dev)
 {
 	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
 
-	if (master->idmapped && atomic_pages)
+	if (master->idmapped)
 		return IOMMU_DOMAIN_IDENTITY;
 	return 0;
 }
@@ -1361,9 +1369,8 @@ static struct iommu_ops kvm_arm_smmu_ops = {
 	.probe_device		= kvm_arm_smmu_probe_device,
 	.release_device		= kvm_arm_smmu_release_device,
 	.domain_alloc_paging	= kvm_arm_smmu_domain_alloc_paging,
-	.domain_alloc		= kvm_arm_smmu_domain_alloc,
-	.pgsize_bitmap		= -1UL,
-	.remove_dev_pasid	= kvm_arm_smmu_remove_dev_pasid,
+	.domain_alloc_identity	= kvm_arm_smmu_domain_alloc_identity,
+	.blocked_domain		= &kvm_arm_smmu_blocked_domain,
 	.owner			= THIS_MODULE,
 	.def_domain_type	= kvm_arm_smmu_def_domain_type,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
@@ -1474,7 +1481,7 @@ static void kvm_arm_smmu_decode_event(struct arm_smmu_device *smmu, u64 *raw,
 	event->id = FIELD_GET(EVTQ_0_ID, raw[0]);
 	event->sid = FIELD_GET(EVTQ_0_SID, raw[0]);
 	event->ssv = FIELD_GET(EVTQ_0_SSV, raw[0]);
-	event->ssid = event->ssv ? FIELD_GET(EVTQ_0_SSID, raw[0]) : IOMMU_NO_PASID;
+	event->ssid = event->ssv ? FIELD_GET(EVTQ_0_SSID, raw[0]) : 0;
 	event->privileged = FIELD_GET(EVTQ_1_PnU, raw[1]);
 	event->instruction = FIELD_GET(EVTQ_1_InD, raw[1]);
 	event->s2 = FIELD_GET(EVTQ_1_S2, raw[1]);
@@ -1524,12 +1531,8 @@ static int kvm_arm_smmu_handle_event(struct arm_smmu_device *smmu, u64 *evt,
 	}
 
 	smmu_domain = xa_load(&master->domains, event->ssid);
-	if (!smmu_domain) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
-
-	ret = report_iommu_fault(&smmu_domain->domain, master->dev, event->iova,
+	ret = pixel_iommu_report_fault(smmu_domain ? &smmu_domain->domain : NULL,
+				       master->dev, event->iova, event->ssid,
 				 event->read ? IOMMU_FAULT_READ : IOMMU_FAULT_WRITE);
 
 out_unlock:
@@ -1760,75 +1763,15 @@ static int kvm_arm_smmu_device_reset(struct host_arm_smmu_device *host_smmu)
 	return 0;
 }
 
-static int kvm_arm_probe_scmi_pd(struct device_node *scmi_node,
-				 struct kvm_power_domain *pd)
-{
-	int ret;
-	struct resource res;
-	struct of_phandle_args args;
-
-	pd->type = KVM_POWER_DOMAIN_ARM_SCMI;
-
-	ret = of_parse_phandle_with_args(scmi_node, "shmem", NULL, 0, &args);
-	if (ret)
-		return ret;
-
-	ret = of_address_to_resource(args.np, 0, &res);
-	if (ret)
-		goto out_put_nodes;
-
-	ret = of_property_read_u32(scmi_node, "arm,smc-id",
-				   &pd->arm_scmi.smc_id);
-	if (ret)
-		goto out_put_nodes;
-
-	/*
-	 * The shared buffer is unmapped from the host while a request is in
-	 * flight, so it has to be on its own page.
-	 */
-	if (!IS_ALIGNED(res.start, SZ_64K) || resource_size(&res) < SZ_64K) {
-		ret = -EINVAL;
-		goto out_put_nodes;
-	}
-
-	pd->arm_scmi.shmem_base = res.start;
-	pd->arm_scmi.shmem_size = resource_size(&res);
-
-out_put_nodes:
-	of_node_put(args.np);
-	return ret;
-}
-
-/* TODO: Move this. None of it is specific to SMMU */
 static int kvm_arm_probe_power_domain(struct device *dev,
-				      struct kvm_power_domain *pd)
+                                     struct kvm_power_domain *pd)
 {
-	int ret;
-	struct device_node *parent;
-	struct of_phandle_args args;
-
 	if (!of_get_property(dev->of_node, "power-domains", NULL))
-		return 0;
+		dev_warn(dev, "No power-domains, assuming host control\n");
 
-	ret = of_parse_phandle_with_args(dev->of_node, "power-domains",
-					 "#power-domain-cells", 0, &args);
-	if (ret)
-		return ret;
-
-	parent = of_get_parent(args.np);
-	if (parent && of_device_is_compatible(parent, "arm,scmi-smc") &&
-	    args.args_count > 0) {
-		pd->arm_scmi.domain_id = args.args[0];
-		ret = kvm_arm_probe_scmi_pd(parent, pd);
-	} else {
-		dev_warn(dev, "Unknown PM method for %pOF, using HVC\n",
-			 args.np);
-		pd->type = KVM_POWER_DOMAIN_HOST_HVC;
-		pd->device_id = kvm_arm_smmu_cur;
-	}
-	of_node_put(parent);
-	of_node_put(args.np);
-	return ret;
+	pd->type = KVM_POWER_DOMAIN_HOST_HVC;
+	pd->device_id = kvm_arm_smmu_cur;
+	return 0;
 }
 
 static int kvm_arm_smmu_probe(struct platform_device *pdev)
@@ -1889,10 +1832,6 @@ static int kvm_arm_smmu_probe(struct platform_device *pdev)
 	if (!kvm_arm_smmu_validate_features(smmu))
 		return -ENODEV;
 
-	if (kvm_arm_smmu_ops.pgsize_bitmap == -1UL)
-		kvm_arm_smmu_ops.pgsize_bitmap = smmu->pgsize_bitmap;
-	else
-		kvm_arm_smmu_ops.pgsize_bitmap |= smmu->pgsize_bitmap;
 
 	ret = arm_smmu_init_one_queue(smmu, &smmu->cmdq.q, smmu->base,
 				      ARM_SMMU_CMDQ_PROD, ARM_SMMU_CMDQ_CONS,
@@ -1927,8 +1866,10 @@ static int kvm_arm_smmu_probe(struct platform_device *pdev)
 	hyp_smmu->mmio_addr = ioaddr;
 	hyp_smmu->mmio_size = iosize;
 	hyp_smmu->features = smmu->features;
-	hyp_smmu->iommu.power_domain = host_smmu->power_domain;
+	hyp_smmu->power_domain = host_smmu->power_domain;
 	hyp_smmu->ssid_bits = smmu->ssid_bits;
+	hyp_smmu->asid_bits = smmu->asid_bits;
+	hyp_smmu->vmid_bits = smmu->vmid_bits;
 	hyp_smmu->options = smmu->options;
 
 	kvm_arm_smmu_cur++;
@@ -1945,7 +1886,7 @@ static int kvm_arm_smmu_probe(struct platform_device *pdev)
 	if (host_smmu->telemetry)
 		arm_smmu_dev_tlm_rec_dev_id(host_smmu->telemetry, host_smmu->id);
 
-	return arm_smmu_register_iommu(smmu, &kvm_arm_smmu_ops, ioaddr);
+	return 0;
 }
 
 static void kvm_arm_smmu_remove(struct platform_device *pdev)
@@ -1961,7 +1902,8 @@ static void kvm_arm_smmu_remove(struct platform_device *pdev)
 	 */
 	arm_smmu_device_disable(smmu);
 	arm_smmu_update_gbpa(smmu, host_smmu->boot_gbpa, GBPA_ABORT);
-	arm_smmu_unregister_iommu(smmu);
+	if (READ_ONCE(smmu->iommu.ready))
+		arm_smmu_unregister_iommu(smmu);
 	host_arm_smmu_array[host_smmu->id] = NULL;
 	arm_smmu_device_telemetry_free(smmu, PKVM_MODE_DRIVER);
 	host_smmu->telemetry = NULL;
@@ -1974,7 +1916,7 @@ static int kvm_arm_smmu_suspend(struct device *dev)
 
 	dev_dbg(dev, "Suspending device\n");
 	if (host_smmu->power_domain.type == KVM_POWER_DOMAIN_HOST_HVC)
-		return pkvm_iommu_suspend(dev);
+		return pkvm_iommu_suspend(host_smmu->power_domain.device_id);
 	return 0;
 }
 
@@ -1985,7 +1927,7 @@ static int kvm_arm_smmu_resume(struct device *dev)
 
 	dev_dbg(dev, "Resuming device\n");
 	if (host_smmu->power_domain.type == KVM_POWER_DOMAIN_HOST_HVC)
-		return pkvm_iommu_resume(dev);
+		return pkvm_iommu_resume(host_smmu->power_domain.device_id);
 	return 0;
 }
 
@@ -2003,9 +1945,27 @@ static struct platform_driver kvm_arm_smmu_driver = {
 		.name = "kvm-arm-smmu-v3",
 		.of_match_table = arm_smmu_of_match,
 		.pm = &kvm_arm_smmu_pm_ops,
+		.suppress_bind_attrs = true,
 	},
 	.remove = kvm_arm_smmu_remove,
 };
+
+/* Only safe before kvm_iommu_register_hyp_ops() can donate/share pages. */
+static void kvm_arm_smmu_array_free(void)
+{
+	if (kvm_arm_smmu_v3_err) {
+		free_pages_exact(kvm_arm_smmu_v3_err,
+				 NR_CPUS * sizeof(*kvm_arm_smmu_v3_err));
+		kvm_arm_smmu_v3_err = NULL;
+	}
+	if (kvm_arm_smmu_array) {
+		free_pages((unsigned long)kvm_arm_smmu_array,
+			   get_order(kvm_arm_smmu_count * sizeof(*kvm_arm_smmu_array)));
+		kvm_arm_smmu_array = NULL;
+	}
+	kfree(host_arm_smmu_array);
+	host_arm_smmu_array = NULL;
+}
 
 static int kvm_arm_smmu_array_alloc(void)
 {
@@ -2039,35 +1999,23 @@ static int kvm_arm_smmu_array_alloc(void)
 	return 0;
 }
 
-static void kvm_arm_smmu_array_free(void)
-{
-	if (kvm_arm_smmu_v3_err) {
-		free_pages_exact(kvm_arm_smmu_v3_err,
-				 NR_CPUS * sizeof(*kvm_arm_smmu_v3_err));
-		kvm_arm_smmu_v3_err = NULL;
-	}
-	if (kvm_arm_smmu_array) {
-		free_pages((unsigned long)kvm_arm_smmu_array,
-			   get_order(kvm_arm_smmu_count * sizeof(*kvm_arm_smmu_array)));
-		kvm_arm_smmu_array = NULL;
-	}
-	kfree(host_arm_smmu_array);
-	host_arm_smmu_array = NULL;
-}
 
+
+#ifdef MODULE
 extern void __kvm_nvhe_pkvm_ptw_hvc_call(struct user_pt_regs *);
 
-void arm_smmu_telemetry_register_hvc(void)
+static void arm_smmu_telemetry_register_hvc(void)
 {
-	if (ptw_hvc_num >= 0 || !pkvm_module_token)
+	if (ptw_hvc_num >= 0)
 		return;
 
-	ptw_hvc_num = pkvm_register_el2_mod_call((dyn_hcall_t)__kvm_nvhe_pkvm_ptw_hvc_call,
-						 pkvm_module_token);
+	ptw_hvc_num = pkvm_register_el2_mod_call((dyn_hcall_t)__kvm_nvhe_pkvm_ptw_hvc_call);
 	/* Negative return value indicates an error from pKVM registration */
 	if (ptw_hvc_num <= 0)
 		pr_err("Failed to register HVC call for PTW - %d\n", ptw_hvc_num);
 }
+
+#endif
 
 static int kvm_arm_smmu_telemetry_alloc(void)
 {
@@ -2097,69 +2045,9 @@ static int smmu_put_device(struct device *dev, void *data)
 	return 0;
 }
 
-static void smmu_determine_atomic_pages(void)
-{
-	struct sysinfo i;
-	unsigned long totalram_bytes;
 
-	/* Use value set on kernel command line */
-	if (atomic_pages)
-		return;
 
-	si_meminfo(&i);
-	totalram_bytes = i.totalram * i.mem_unit;
 
-	/* 8 GB devices */
-	if (totalram_bytes <= 8UL * SZ_1G)
-		atomic_pages = 4081;
-	/* 12 GB devices */
-	else if (totalram_bytes <= 12UL * SZ_1G)
-		atomic_pages = 5679;
-	/* >=16 GB devices */
-	else
-		atomic_pages = 7676;
-}
-
-static int smmu_alloc_atomic_mc(struct kvm_hyp_memcache *atomic_mc)
-{
-	int ret;
-#ifndef MODULE
-	u64 i;
-	phys_addr_t start, end;
-
-	/*
-	 * Allocate pages to cover mapping with PAGE_SIZE for all memory
-	 * Then allocate extra for 1GB of MMIO.
-	 * Add 10 extra pages as we map the rest with first level blocks
-	 * for PAGE_SIZE = 4KB, that should cover 5TB of address space.
-	 */
-	for_each_mem_range(i, &start, &end) {
-		atomic_pages += __hyp_pgtable_max_pages((end - start) >> PAGE_SHIFT);
-	}
-
-	atomic_pages += __hyp_pgtable_max_pages(SZ_1G >> PAGE_SHIFT) + 10;
-#else
-	smmu_determine_atomic_pages();
-#endif
-
-	/* Module didn't set that parameter. */
-	if (!atomic_pages)
-		return 0;
-
-	/* For PGD*/
-	ret = topup_hyp_memcache(atomic_mc, 1, 3);
-	if (ret)
-		return ret;
-	ret = topup_hyp_memcache(atomic_mc, atomic_pages, 0);
-	if (ret)
-		return ret;
-	pr_info("smmuv3: Allocated %d MiB for atomic usage\n",
-		(atomic_pages << PAGE_SHIFT) / SZ_1M);
-	/* Topup hyp alloc so IOMMU driver can allocate domains. */
-	__pkvm_topup_hyp_alloc(1);
-
-	return ret;
-}
 
 static int smmu_panic_err_dump(struct notifier_block *self,
 			       unsigned long v, void *p)
@@ -2254,9 +2142,16 @@ static int kvm_arm_smmu_v3_init_global_config(void)
 	return kvm_arm_smmu_v3_init_block_region();
 }
 
+static int smmu_register_smmu(struct device *dev, void *data)
+{
+	struct arm_smmu_device *smmu = dev_get_drvdata(dev);
+	struct resource *res = platform_get_resource(to_platform_device(dev), IORESOURCE_MEM, 0);
+
+	return arm_smmu_register_iommu(smmu, &kvm_arm_smmu_ops, res->start);
+}
+
 static int kvm_arm_smmu_v3_init_drv(void)
 {
-	struct kvm_hyp_memcache atomic_mc;
 	int ret;
 
 	if (disable) {
@@ -2268,13 +2163,13 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	 */
 	ret = kvm_arm_smmu_array_alloc();
 	if (ret)
-		goto err_free;
+		goto err;
 	if (!kvm_arm_smmu_count)
 		return 0;
 
 	ret = kvm_arm_smmu_telemetry_alloc();
 	if (ret)
-		goto err_free;
+		goto err;
 
 	ret = platform_driver_probe(&kvm_arm_smmu_driver, kvm_arm_smmu_probe);
 	if (ret)
@@ -2287,14 +2182,13 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	}
 
 #ifdef MODULE
-	ret = pkvm_load_el2_module(kvm_nvhe_sym(smmu_init_hyp_module),
-				   &pkvm_module_token);
+	ret = pkvm_load_el2_module(kvm_nvhe_sym(smmu_init_hyp_module));
 
 	if (ret) {
 		pr_err("Failed to load SMMUv3 IOMMU EL2 module: %d\n", ret);
 		goto unregister_driver;
 	}
-
+	/* The handler address is valid only after the EL2 module has loaded. */
 	arm_smmu_telemetry_register_hvc();
 #endif
 	/*
@@ -2307,10 +2201,7 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	kvm_hyp_arm_smmu_v3_smmus = kvm_arm_smmu_array;
 	kvm_hyp_arm_smmu_v3_count = kvm_arm_smmu_count;
 	kvm_hyp_smmu_last_err = kvm_arm_smmu_v3_err;
-
-	init_hyp_memcache(&atomic_mc);
-
-	ret = smmu_alloc_atomic_mc(&atomic_mc);
+	ret = __pkvm_topup_hyp_alloc(1);
 	if (ret)
 		goto unregister_driver;
 
@@ -2318,33 +2209,32 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	if (ret)
 		goto unregister_driver;
 
-	ret = kvm_iommu_init_hyp(ksym_ref_addr_nvhe(smmu_ops), &atomic_mc);
-	if (ret)
+	ret = kvm_iommu_register_hyp_ops(ksym_ref_addr_nvhe(smmu_ops), &hyp_drv_id);
+	if (ret) {
+		pr_err("pKVM SMMUv3 initialization failed after donating resources: %d\n", ret);
 		return ret;
-
-	/* Preemptively allocate the identity domain. */
-	if (atomic_pages) {
-		ret = kvm_iommu_alloc_domain(KVM_IOMMU_DOMAIN_IDMAP_ID,
-					     KVM_IOMMU_DOMAIN_IDMAP_TYPE);
-		if (ret)
-			return ret;
 	}
-	return kvm_arm_smmu_v3_post_init();
 
+	/* Registration probes clients and can immediately allocate/attach domains. */
+	ret = driver_for_each_device(&kvm_arm_smmu_driver.driver, NULL, NULL,
+				     smmu_register_smmu);
+	if (ret) {
+		pr_err("pKVM SMMUv3 registration failed after donating resources: %d\n", ret);
+		return ret;
+	}
+
+	return kvm_arm_smmu_v3_post_init();
 unregister_driver:
 	platform_driver_unregister(&kvm_arm_smmu_driver);
 free_telemetry:
 	kvm_arm_smmu_telemetry_free();
-err_free:
+err:
 	kvm_arm_smmu_array_free();
+	pr_err("pKVM SMMUv3 init failed with %d\n", ret);
 	return ret;
 }
 
-static void kvm_arm_smmu_v3_remove_drv(void)
-{
-	atomic_notifier_chain_unregister(&panic_notifier_list, &smmu_panic_block);
-	platform_driver_unregister(&kvm_arm_smmu_driver);
-}
+
 
 static pkvm_handle_t kvm_arm_smmu_v3_id(struct device *dev)
 {
@@ -2354,18 +2244,17 @@ static pkvm_handle_t kvm_arm_smmu_v3_id(struct device *dev)
 	return host_smmu->id;
 }
 
-static pkvm_handle_t kvm_arm_v3_id_by_of(struct device_node *np)
+static int kvm_arm_v3_id_by_of(struct device_node *np, pkvm_handle_t *out_id)
 {
 	struct device *dev;
-	pkvm_handle_t id;
 
 	dev = driver_find_device_by_of_node(&kvm_arm_smmu_driver.driver, np);
 	if (!dev)
-		return 0;
+		return -ENODEV;
 
-	id = kvm_arm_smmu_v3_id(dev);
+	*out_id = kvm_arm_smmu_v3_id(dev);
 	put_device(dev);
-	return id;
+	return 0;
 }
 
 static int kvm_arm_smmu_v3_num_ids(struct device *dev)
@@ -2396,7 +2285,6 @@ static int kvm_arm_smmu_v3_device_id(struct device *dev, u32 idx,
 
 static struct kvm_iommu_driver kvm_smmu_v3_ops = {
 	.init_driver = kvm_arm_smmu_v3_init_drv,
-	.remove_driver = kvm_arm_smmu_v3_remove_drv,
 	.get_iommu_id_by_of = kvm_arm_v3_id_by_of,
 	.get_device_iommu_num_ids = kvm_arm_smmu_v3_num_ids,
 	.get_device_iommu_id = kvm_arm_smmu_v3_device_id,
@@ -2407,7 +2295,7 @@ static int kvm_arm_smmu_v3_register(void)
 	if (!is_protected_kvm_enabled())
 		return 0;
 
-	return kvm_iommu_register_driver(&kvm_smmu_v3_ops);
+	return kvm_iommu_register_driver(&kvm_smmu_v3_ops, 1);
 };
 
 /*
