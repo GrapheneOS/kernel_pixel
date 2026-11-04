@@ -215,8 +215,7 @@ static void hardlockup_watchdog_enable(unsigned int cpu)
 	cpumask_set_cpu(cpu, &hardlockup_watchdog.allowed_mask);
 	hrtimer = &pcpu_val->hrtimer;
 
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer->function = hardlockup_watchdog_fn;
+	hrtimer_setup(hrtimer, hardlockup_watchdog_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hrtimer_start(hrtimer, ns_to_ktime(hardlockup_watchdog.sample_period),
 		      HRTIMER_MODE_REL_PINNED);
 
