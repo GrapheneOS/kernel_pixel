@@ -417,8 +417,7 @@ static int google_ehld_start_cpu(u32 cpu)
 	u64 interval = ehld_main.interval * NSEC_PER_MSEC;
 
 	dev_info(ehld_dev.dev, "@%s: cpu%u ehld running with hrtimer\n", __func__, cpu);
-	hrtimer_init(hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hrtimer->function = ehld_value_raw_hrtimer_fn;
+	hrtimer_setup(hrtimer, ehld_value_raw_hrtimer_fn, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	if (google_ehld_value_raw_update(cpu))
 		dev_err(ehld_dev.dev, "cpu%u DRAM updated failed when cpu is onlined\n", cpu);
 
