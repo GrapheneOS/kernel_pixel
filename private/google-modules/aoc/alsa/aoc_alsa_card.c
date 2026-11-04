@@ -1229,10 +1229,12 @@ static int of_parse_one_dai(struct device_node *node, struct device *dev,
 			dai->name);
 	}
 
-	dai->dpcm_playback = of_property_read_bool(node, "playback");
-	dai->dpcm_capture = of_property_read_bool(node, "capture");
 	dai->no_pcm = of_property_read_bool(node, "no-pcm");
 	dai->dynamic = of_property_read_bool(node, "dynamic");
+	if (dai->dynamic || dai->no_pcm) {
+		dai->capture_only = !of_property_read_bool(node, "playback");
+		dai->playback_only = !of_property_read_bool(node, "capture");
+	}
 	dai->ignore_pmdown_time =
 		!of_property_read_bool(node, "require-pmdown-time");
 	dai->ignore_suspend = !of_property_read_bool(node, "require-suspend");
@@ -1298,8 +1300,8 @@ static int aoc_of_parse_dai_link(struct device_node *node,
 #ifdef DUMP_DAI_LINK_INFO
 		pr_info("dai: %s\n", dai_link->name);
 		pr_info("id: %u\n", (uint32_t)dai_link->id);
-		pr_info("playback %u capture %u\n", dai_link->dpcm_playback,
-			dai_link->dpcm_capture);
+		pr_info("playback %u capture %u\n", !dai_link->capture_only,
+			!dai_link->playback_only);
 		pr_info("no-pcm: %u\n", dai_link->no_pcm);
 		pr_info("dynamic: %u\n", dai_link->dynamic);
 		pr_info("\n");
