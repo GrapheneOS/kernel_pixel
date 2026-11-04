@@ -1328,11 +1328,16 @@ static struct edgetpu_device_group *get_group_by_pasid(struct edgetpu_dev *etdev
 	if (pasid == IOMMU_PASID_INVALID || !pasid)
 		return NULL;
 
-	guard(mutex)(&etdev->groups_lock);
-
-	list_for_each_entry(tgroup, &etdev->groups, group_list_node) {
-		if (tgroup->etdomain && tgroup->etdomain->pasid == pasid)
-			return edgetpu_device_group_get(tgroup);
+	/*
+	 * The fault handler holds an SMMU lock needed by attach/detach. Other
+	 * group lookups hold groups_lock while waiting for group->lock, which
+	 * attach/detach callers can hold. Skip optional diagnostics if busy.
+	 */
+	scoped_cond_guard(mutex_try, return NULL, &etdev->groups_lock) {
+		list_for_each_entry(tgroup, &etdev->groups, group_list_node) {
+			if (tgroup->etdomain && tgroup->etdomain->pasid == pasid)
+				return edgetpu_device_group_get(tgroup);
+		}
 	}
 	return NULL;
 }
