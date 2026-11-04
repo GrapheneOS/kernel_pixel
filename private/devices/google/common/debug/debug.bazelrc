@@ -3,7 +3,6 @@
 build:pixel_debug_common --notrim
 build:pixel_debug_common --nokmi_symbol_list_strict_mode
 build:pixel_debug_common --nokmi_symbol_list_violations_check
-build:pixel_debug_common --nouse_prebuilt_kernel
 build:pixel_debug_common --nouse_prebuilt_fips140
 
 # Only one of the debug configs can be used at a time, because only the last --defconfig_fragment takes effect.

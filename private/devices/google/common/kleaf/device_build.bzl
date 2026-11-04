@@ -181,8 +181,8 @@ def device_build(
     else:
         base_build_configs = ["//private/devices/google/common/kleaf/files:build.config.common"]
         base_kconfigs = []
-        base_kconfig_exts = ["//common:kernel_package_kconfig"]
-        base_defconfig_fragments = ["//common:kernel_package_defconfig_fragment"]
+        base_kconfig_exts = []
+        base_defconfig_fragments = []
         base_vendor_ramdisk_modules = select({
             "//private/devices/google/common:use_prebuilt_fips140_is_true": [
                 "//private/devices/google/common:fips140",
@@ -321,6 +321,7 @@ def device_build(
         }),
         "kconfig_ext": target_kconfig_ext,
         "makefile": "//common:Makefile",
+        "defconfig": "//common:arch/arm64/configs/gki_defconfig",
         "post_defconfig_fragments": [target_defconfig_fragments],
     }
 
