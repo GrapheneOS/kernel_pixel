@@ -2165,8 +2165,12 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 		/* NAPI */
 		if (ppa->use_exclusive_irq) {
-			init_dummy_netdev(&q->netdev);
-			netif_napi_add_weight(&q->netdev, &q->napi, pktproc_poll, NAPI_POLL_WEIGHT);
+			q->netdev = alloc_netdev_dummy(0);
+			if (!q->netdev) {
+				ret = -ENOMEM;
+				goto create_error;
+			}
+			netif_napi_add_weight(q->netdev, &q->napi, pktproc_poll, NAPI_POLL_WEIGHT);
 			napi_enable(&q->napi);
 			q->napi_ptr = &q->napi;
 		} else {
@@ -2246,7 +2250,7 @@ static void pktproc_free(struct pktproc_adaptor *ppa)
 		if (!q)
 			continue;
 
-		if (q->napi_ptr == &q->napi) {
+		if (q->netdev) {
 			napi_disable(&q->napi);
 			netif_napi_del(&q->napi);
 #if IS_ENABLED(CONFIG_MCU_IPC)
@@ -2254,6 +2258,7 @@ static void pktproc_free(struct pktproc_adaptor *ppa)
 				cp_mbox_unregister_handler(q->irq_idx, q->mld->irq_cp2ap_msg,
 							   q->irq_handler);
 #endif
+			free_netdev(q->netdev);
 		}
 		if (q->manager)
 			cpif_exit_netrx_mng(q->manager);
