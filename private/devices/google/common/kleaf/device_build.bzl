@@ -9,7 +9,7 @@ load("@bazel_skylib//rules:select_file.bzl", "select_file")
 load(
     "@kleaf//build/kernel/kleaf:kernel.bzl",
     "dtb_image",
-    "dtbo",
+    "dtbo_image",
     "initramfs",
     "kernel_abi",
     "kernel_build",
@@ -720,10 +720,10 @@ def device_build(
         dist_targets.append(target_dtb_image)
 
     if build_dtbo:
-        dtbo(
+        dtbo_image(
             name = target_dtbo_image,
             srcs = [target_dtbos],
-            kernel_build = target_kernel,
+            opts = ["--page_size=4096", "--id=/:board_id", "--rev=/:board_rev"],
             visibility = ["//visibility:private"],
         )
         dist_targets.append(target_dtbo_image)
