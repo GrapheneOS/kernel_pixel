@@ -1393,9 +1393,10 @@ static int s6e3hc4_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct s6e3hc4_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct s6e3hc4_panel, base.bridge,
+				       get_panel_drm_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->base.op_hz = 120;
 	spanel->base.hw_status.vrefresh = 60;
