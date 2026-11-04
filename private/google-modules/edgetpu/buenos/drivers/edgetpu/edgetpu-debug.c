@@ -628,6 +628,7 @@ static int edgetpu_debug_dump_init(struct edgetpu_dev *etdev)
 	return ret;
 
 out_free_sscd_dev:
+	platform_device_put(sscd_dev);
 	devm_kfree(etdev->dev, sscd_dev);
 out_free_pdata:
 	devm_kfree(etdev->dev, sscd_pdata);
