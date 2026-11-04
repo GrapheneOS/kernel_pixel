@@ -196,6 +196,8 @@ void set_next_buddy(struct sched_entity *se)
 	for_each_sched_entity(se) {
 		if (SCHED_WARN_ON(!se->on_rq))
 			return;
+		if (se->sched_delayed)
+			return;
 		if (se_is_idle(se))
 			return;
 		cfs_rq_of(se)->next = se;
@@ -3003,6 +3005,14 @@ void rvh_setscheduler_prio_pixel_mod(void *data, struct task_struct *p)
 	}
 }
 
+static bool can_migrate_fair_task(struct rq *rq, struct task_struct *p)
+{
+	return task_on_rq_queued(p) && p->sched_class == &fair_sched_class &&
+		!task_on_cpu(rq, p) && !task_current_donor(rq, p) &&
+		!p->se.sched_delayed && !task_is_blocked(p) &&
+		!is_migration_disabled(p);
+}
+
 static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 {
 	struct task_struct *p = NULL, *best_task = NULL, *backup_task = NULL;
@@ -3589,6 +3599,9 @@ static inline bool is_latency_overloaded(struct task_struct *p, struct rq *rq)
 
 static inline bool sched_energy_push_task(struct task_struct *p, struct rq *rq)
 {
+	if (p->se.sched_delayed || task_is_blocked(p))
+		return false;
+
 	if (p->nr_cpus_allowed == 1)
 		return false;
 
@@ -3709,7 +3722,7 @@ static bool push_fair_task(struct rq *rq)
 	if (!next_task)
 		return false;
 
-	if (is_migration_disabled(next_task))
+	if (!can_migrate_fair_task(rq, next_task))
 		return true;
 
 	/*
@@ -3733,21 +3746,22 @@ static bool push_fair_task(struct rq *rq)
 
 	new_rq = cpu_rq(new_cpu);
 
-	if (double_lock_balance(rq, new_rq)) {
-		/* The task has already migrated in between */
-		if (task_cpu(next_task) != rq->cpu) {
-			double_unlock_balance(rq, new_rq);
-			goto out;
-		}
-
-		deactivate_task(rq, next_task, 0);
-		set_task_cpu(next_task, new_cpu);
-		activate_task(new_rq, next_task, 0);
-
-		resched_curr(new_rq);
-
+	double_lock_balance(rq, new_rq);
+	/* The source lock may have been dropped while locking the destination. */
+	if (task_cpu(next_task) != rq->cpu ||
+	    !can_migrate_fair_task(rq, next_task) ||
+	    !cpu_active(new_cpu) || !cpumask_test_cpu(new_cpu, next_task->cpus_ptr)) {
 		double_unlock_balance(rq, new_rq);
+		goto out;
 	}
+
+	deactivate_task(rq, next_task, 0);
+	set_task_cpu(next_task, new_cpu);
+	activate_task(new_rq, next_task, 0);
+
+	resched_curr(new_rq);
+
+	double_unlock_balance(rq, new_rq);
 
 out:
 	put_task_struct(next_task);
