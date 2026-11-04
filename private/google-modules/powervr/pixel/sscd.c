@@ -17,7 +17,6 @@ static void sscd_release(struct device *dev)
 
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = { .name = "powervr",
-					   .driver_override = SSCD_NAME,
 					   .id = -1,
 					   .dev = { .platform_data = &sscd_pdata,
 					   .release = sscd_release,
@@ -206,7 +205,13 @@ void gpu_sscd_dump(struct pixel_gpu_device *pixel_dev, PVRSRV_ROBUSTNESS_NOTIFY_
 int gpu_sscd_init(struct pixel_gpu_device *pixel_dev)
 {
 	int ret;
-	ret = platform_device_register(&sscd_dev);
+
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
+	if (ret)
+		platform_device_put(&sscd_dev);
 	return ret;
 }
 
