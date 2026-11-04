@@ -195,6 +195,7 @@ device_build(
         "//private/google-modules/soc/gs/drivers/misc/sscoredump:sscoredump_kunit_test",
         "//private/google-modules/soc/gs/drivers/soc/google/gsa:gsa_core_kunit_test",
         "//private/google-modules/soc/gs/drivers/usb/role-sw:google-role-sw-kunit",
+        "//private/google-modules/soc/rdo/drivers/perf:google_gem_test_module",
         "//private/google-modules/soc/rdo/drivers/soc/google/vdu:google-vdu-test",
     ],
     # TODO: b/447013182 - Remove unused modules.
@@ -364,7 +365,6 @@ device_build(
         "//private/google-modules/misc/sscoredump:sscoredump_test",
         "//private/google-modules/soc/gs/drivers/iommu:iommu_map_benchmark",
         "//private/google-modules/soc/rdo/drivers/irqchip:irq-gia-google-test",
-        "//private/google-modules/soc/rdo/drivers/perf:google_gem_test_module",
         "//private/google-modules/soc/rdo/drivers/soc/google:goog-mba-ebu-iface",
         "//private/google-modules/soc/rdo/ebu:ebu-google",
         "//private/google-modules/trusty:trusty-test",
