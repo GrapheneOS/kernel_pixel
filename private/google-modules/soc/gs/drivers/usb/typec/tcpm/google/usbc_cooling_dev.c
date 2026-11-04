@@ -479,14 +479,13 @@ static int usb_set_cur_state(struct thermal_cooling_device *cooling_dev, unsigne
 	return 0;
 }
 
-static enum alarmtimer_restart unplug_alarm_handler(struct alarm *alarm, ktime_t time)
+static void unplug_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct usb_port_cooling_dev_info *usb_cdev_info =
 		container_of(alarm, struct usb_port_cooling_dev_info, unplug_alarm);
 
 	usb_cdev_changed(usb_cdev_info);
 
-	return ALARMTIMER_NORESTART;
 }
 
 static const struct thermal_cooling_device_ops usb_cdev_ops = {

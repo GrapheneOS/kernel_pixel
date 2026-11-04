@@ -6,6 +6,7 @@
  *
  */
 
+#include <soc/google/thermal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -122,7 +123,7 @@ static int cp_thermal_zone_probe(struct platform_device *pdev)
 
 	for (i = 0; i < temp_manager->num_sensors; ++i) {
 		dev_info(dev, "Registering CP temp sensor %d", i);
-		tzd = devm_thermal_of_zone_register(dev, i,
+		tzd = google_devm_thermal_of_zone_register(dev, i,
 						    &temp_manager->sensor[i],
 						    &cp_thermal_zone_ops);
 		if (IS_ERR(tzd)) {

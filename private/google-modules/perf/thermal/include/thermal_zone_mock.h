@@ -10,6 +10,7 @@
 #define _THERMAL_ZONE_MOCK_H_
 
 #include "thermal_zone_helper.h"
+#include <soc/google/thermal.h>
 
 #if IS_ENABLED(CONFIG_GOOGLE_THERMAL_HELPER_KUNIT_TEST)
 struct thermal_zone_device *mock_devm_thermal_of_zone_register(
@@ -60,7 +61,7 @@ static inline struct thermal_zone_device *register_thermal_zone(
 #if IS_ENABLED(CONFIG_GOOGLE_THERMAL_HELPER_KUNIT_TEST)
 	return mock_devm_thermal_of_zone_register(dev, i, sens, ops);
 #else
-	return devm_thermal_of_zone_register(dev, i, sens, ops);
+	return google_devm_thermal_of_zone_register(dev, i, sens, ops);
 #endif
 }
 

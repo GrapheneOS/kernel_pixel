@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright 2023 Google LLC */
+#include <soc/google/thermal.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -536,7 +537,7 @@ static int google_thermal_platform_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	data->tz = devm_thermal_of_zone_register(dev, 0, data, &google_thermal_ops);
+	data->tz = google_devm_thermal_of_zone_register(dev, 0, data, &google_thermal_ops);
 
 	if (IS_ERR(data->tz)) {
 		dev_err(dev, "Thermal zone register failed\n");
