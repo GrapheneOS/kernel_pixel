@@ -3,7 +3,7 @@
  * Copyright 2024 Google LLC
  */
 #include <linux/debugfs.h>
-#include <core.h>
+#include "drivers/pinctrl/core.h"
 
 #include "pinctrl-debugfs.h"
 #include "common.h"
@@ -743,7 +743,7 @@ DEFINE_SHOW_ATTRIBUTE(pins);
 static int valid_mask_show(struct seq_file *s, void *p)
 {
 	struct google_pinctrl *gctl = s->private;
-	int ret, ngroups, valid_mask_n, tmp_bits_n, i;
+	int ret, ngroups, i;
 	unsigned long flags;
 	const struct google_pingroup *pingroup;
 	u8 reg_val;
@@ -760,28 +760,13 @@ static int valid_mask_show(struct seq_file *s, void *p)
 		return ret;
 	}
 
-	if (!gctl->chip.valid_mask) {
-		seq_puts(s, "NULL\n");
-		ret = 0;
-		goto vms_out;
-	}
-
-	tmp_bits_n = sizeof(*gctl->chip.valid_mask) * 8;
-	valid_mask_n = (ngroups + tmp_bits_n - 1) / tmp_bits_n;
-	for (i = 0; i < valid_mask_n; ++i) {
-		seq_printf(s, "[%5d - %5d]: %#lX\n",
-			   i * tmp_bits_n, (i + 1) * tmp_bits_n, gctl->chip.valid_mask[i]);
-	}
-
-	seq_puts(s, "\n");
 	seq_puts(s, DEBUGFS_VALID_MASK_HEADER);
 	for (i = 0; i < ngroups; ++i) {
 		pingroup = &gctl->info->groups[i];
-		reg_val = !!test_bit(pingroup->num, gctl->chip.valid_mask);
+		reg_val = gpiochip_line_is_valid(&gctl->chip, pingroup->num);
 		seq_printf(s, "%5d %28s %7d\n", pingroup->num, pingroup->name, reg_val);
 	}
 
-vms_out:
 	google_pinctrl_unlock(gctl, &flags);
 
 	google_pinctrl_put_csr_pd(gctl, -1);

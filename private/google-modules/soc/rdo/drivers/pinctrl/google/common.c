@@ -11,10 +11,10 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
-#include <core.h>
+#include "drivers/pinctrl/core.h"
 
 #include "common.h"
-#include "pinctrl-utils.h"
+#include "drivers/pinctrl/pinctrl-utils.h"
 #include "pinctrl-debugfs.h"
 
 #define CREATE_TRACE_POINTS
@@ -628,7 +628,7 @@ static int google_gpio_get(struct gpio_chip *chip, unsigned int group_selector)
 	return (val & BIT(GPIO_PAD_BIT));
 }
 
-static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
+static int google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 			    int value)
 {
 	const struct google_pingroup *g;
@@ -641,7 +641,7 @@ static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 
 	if (group_selector >= gctl->info->num_groups) {
 		dev_err(gctl->dev, "Invalid group selector\n");
-		return;
+		return -EINVAL;
 	}
 	g = &gctl->info->groups[group_selector];
 
@@ -649,7 +649,7 @@ static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 
 	ret = google_pinctrl_get_csr_pd(gctl, group_selector);
 	if (ret < 0)
-		return;
+		return ret;
 
 	ret = google_pinctrl_trylock_cond_aoc(gctl, &flags, get_reg2offset(TXDATA_ID), g);
 	if (!ret) {
@@ -663,6 +663,7 @@ static void google_gpio_set(struct gpio_chip *chip, unsigned int group_selector,
 	}
 
 	google_pinctrl_put_csr_pd(gctl, group_selector);
+	return ret;
 }
 
 static int google_gpio_set_config(struct gpio_chip *chip,
@@ -935,7 +936,7 @@ static int google_pinconf_group_get(struct pinctrl_dev *pctldev,
 		if (!arg)
 			return -EINVAL;
 		break;
-	case PIN_CONFIG_OUTPUT:
+	case PIN_CONFIG_LEVEL:
 		arg = tx_reg.layout.oe;
 		/* Pin is not output */
 		if (!arg)
@@ -1082,7 +1083,7 @@ static int google_pinconf_group_set(struct pinctrl_dev *pctldev,
 		 * Set output value as 0 - DT Property: output-low
 		 * Set output values as 1 - DT Property: output-high
 		 */
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 			tx_reg.layout.oe = 1;
 			tx_reg.layout.dout = arg;
 			dout_val = arg;
