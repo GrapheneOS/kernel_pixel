@@ -13,6 +13,7 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include <gcip/gcip-domain-pool.h>
 #include <gcip/gcip-iommu.h>
@@ -69,6 +70,17 @@ static int __maybe_unused edgetpu_iommu_fault_handler(struct iommu_domain *domai
 		edgetpu_device_group_handle_fault(etdev, iova, pasid,
 						  !!(flags & IOMMU_FAULT_WRITE));
 	/* Tell IOMMU driver we handled the fault, no need to dump SMMU event. */
+	return 0;
+}
+
+static int edgetpu_device_fault_handler(struct device *dev, unsigned long iova,
+				       u32 pasid, int flags, void *token)
+{
+	struct edgetpu_dev *etdev = token;
+
+	if (pasid)
+		edgetpu_device_group_handle_fault(etdev, iova, pasid,
+						  !!(flags & IOMMU_FAULT_WRITE));
 	return 0;
 }
 
@@ -137,6 +149,10 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 		goto err_free_etiommu;
 	}
 
+	ret = pixel_iommu_register_fault_handler(etdev->dev, edgetpu_device_fault_handler, etdev);
+	if (ret)
+		goto err_destroy_pool;
+
 	etiommu->iommu_group = iommu_group_get(etdev->dev);
 	if (etiommu->iommu_group)
 		iommu_group_set_name(etiommu->iommu_group, "edgetpu");
@@ -145,13 +161,17 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 
 	ret = check_default_domain(etdev, etiommu);
 	if (ret)
-		goto err_destroy_pool;
+		goto err_put_group;
 
 
 	/* etiommu initialization done */
 	etdev->mmu_cookie = etiommu;
 	return 0;
 
+err_put_group:
+	pixel_iommu_unregister_fault_handler(etdev->dev);
+	if (etiommu->iommu_group)
+		iommu_group_put(etiommu->iommu_group);
 err_destroy_pool:
 	gcip_domain_pool_exit(&etiommu->domain_pool);
 err_free_etiommu:
@@ -167,6 +187,7 @@ void edgetpu_mmu_detach(struct edgetpu_dev *etdev)
 
 	if (!etiommu)
 		return;
+	pixel_iommu_unregister_fault_handler(etdev->dev);
 
 	for (i = 1; i < EDGETPU_NUM_PASIDS; i++) {
 		if (etiommu->attached_etdomains[i]) {

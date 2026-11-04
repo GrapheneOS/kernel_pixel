@@ -70,6 +70,8 @@ ddk_module(
         "edgetpu-mobile-platform.c",
     ],
     deps = [
+        "//private/google-modules/iommu/arm-smmu-v3:headers",
+        "//private/google-modules/iommu/arm-smmu-v3/drivers/iommu:io-pgtable-pixel",
         "//common:all_headers_aarch64",
         "//private/google-modules/iif",
         "//private/google-modules/iif:iif_headers",

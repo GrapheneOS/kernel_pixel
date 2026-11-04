@@ -89,6 +89,7 @@ static bool check_client_has_available_vd_wakelock(struct gxp_client *client,
 #if IS_ENABLED(CONFIG_SUBSYSTEM_COREDUMP)
 
 static struct sscd_platform_data gxp_sscd_pdata;
+static bool gxp_sscd_registered;
 
 static void gxp_sscd_release(struct device *dev)
 {
@@ -96,7 +97,6 @@ static void gxp_sscd_release(struct device *dev)
 
 static struct platform_device gxp_sscd_dev = {
 	.name = GXP_DRIVER_NAME,
-	.driver_override = SSCD_NAME,
 	.id = -1,
 	.dev = {
 		.platform_data = &gxp_sscd_pdata,

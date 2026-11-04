@@ -7,6 +7,7 @@
  */
 
 #include "lwis_platform_dublin.h"
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include "lwis_commands.h"
 #include "lwis_device.h"

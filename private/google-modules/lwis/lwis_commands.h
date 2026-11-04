@@ -954,7 +954,8 @@ struct lwis_cmd_fence_create {
  * Event payloads
  */
 
-/* For LWIS_ERROR_EVENT_ID_MEMORY_PAGE_FAULT */
+/* For LWIS_ERROR_EVENT_ID_MEMORY_PAGE_FAULT. Keep the legacy IOMMU flag value. */
+#define LWIS_MEM_PAGE_FAULT_ADDRESS_VALID (1ULL << 1)
 struct lwis_mem_page_fault_event_payload {
 	uint64_t fault_address;
 	uint64_t fault_flags;

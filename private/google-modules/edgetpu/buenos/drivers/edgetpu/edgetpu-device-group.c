@@ -1319,7 +1319,7 @@ out:
 
 /*
  * Return the group with pasid @pasid for device @etdev, with a reference held on the group, or
- * NULL if no group with that pasid is found.
+ * NULL if no group with that pasid is found or the group list is busy.
  */
 static struct edgetpu_device_group *get_group_by_pasid(struct edgetpu_dev *etdev, uint pasid)
 {
