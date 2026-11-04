@@ -442,7 +442,8 @@ static int vds_queue_txbuf(struct tipc_virtio_dev *vds,
 	if (vds->state == VDS_ONLINE) {
 		sg_init_one(&sg, mb, mb->wpos);
 		sg_dma_address(&sg) = mb->buf_id;
-		err = virtqueue_add_outbuf(vds->txvq, &sg, 1, mb, GFP_KERNEL);
+	sg_dma_len(&sg) = sg.length;
+		err = virtqueue_add_outbuf_premapped(vds->txvq, &sg, 1, mb, GFP_KERNEL);
 		need_notify = virtqueue_kick_prepare(vds->txvq);
 	} else {
 		err = -ENODEV;
@@ -2082,7 +2083,8 @@ drop_it:
 	/* add the buffer back to the virtqueue */
 	sg_init_one(&sg, rxbuf, rxbuf->buf_sz);
 	sg_dma_address(&sg) = rxbuf->buf_id;
-	err = virtqueue_add_inbuf(vds->rxvq, &sg, 1, rxbuf, GFP_KERNEL);
+	sg_dma_len(&sg) = sg.length;
+	err = virtqueue_add_inbuf_premapped(vds->rxvq, &sg, 1, rxbuf, NULL, GFP_KERNEL);
 	if (err < 0) {
 		dev_err(dev, "failed to add a virtqueue buffer: %d\n", err);
 		return err;
@@ -2196,7 +2198,8 @@ static int tipc_virtio_probe(struct virtio_device *vdev)
 
 		sg_init_one(&sg, rxbuf, rxbuf->buf_sz);
 		sg_dma_address(&sg) = rxbuf->buf_id;
-		err = virtqueue_add_inbuf(vds->rxvq, &sg, 1, rxbuf, GFP_KERNEL);
+	sg_dma_len(&sg) = sg.length;
+		err = virtqueue_add_inbuf_premapped(vds->rxvq, &sg, 1, rxbuf, NULL, GFP_KERNEL);
 		WARN_ON(err); /* sanity check; this can't really happen */
 	}
 
