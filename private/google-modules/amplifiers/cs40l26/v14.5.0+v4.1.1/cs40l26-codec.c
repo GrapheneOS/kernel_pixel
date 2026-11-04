@@ -952,7 +952,7 @@ static int cs40l26_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	struct cs40l26_codec *codec =
 			snd_soc_component_get_drvdata(codec_dai->component);
 
-	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS) {
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
 		dev_err(codec->dev, "Device can not be master\n");
 		return -EINVAL;
 	}
