@@ -8,7 +8,6 @@
 #include <linux/slab.h>
 #include <linux/scatterlist.h>
 #include <linux/sizes.h>
-#include <soc/google/gcma.h>
 
 #include "samsung-dma-heap.h"
 #include "gcma_heap.h"
