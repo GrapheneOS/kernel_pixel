@@ -704,33 +704,40 @@ static void kvm_arm_smmu_free_cd_tables(struct kvm_arm_smmu_master *master)
 			  cd_table->linear.table, cd_table->cdtab_dma);
 }
 
-static int kvm_arm_smmu_clear_cd_entry(struct kvm_arm_smmu_master *master, int ssid)
+static struct hyp_arm_smmu_v3_s1_ctx *kvm_arm_smmu_prepare_ste(
+	struct kvm_arm_smmu_master *master, struct kvm_arm_smmu_domain *domain, ioasid_t pasid);
+
+static int kvm_arm_smmu_attach_stream(struct host_arm_smmu_device *host_smmu,
+	struct kvm_arm_smmu_domain *domain, struct kvm_arm_smmu_master *master,
+	int index, u32 pasid, struct hyp_arm_smmu_v3_s1_ctx *s1_ctx)
 {
-	struct hyp_arm_smmu_v3_cmd *cmd;
-	struct arm_smmu_cd *cdptr = kvm_arm_smmu_get_cd_ptr(master, ssid);
-	int ret;
+	struct kvm_arm_smmu_stream *stream = &master->streams[index];
+	unsigned long flags = 0;
 
-	if (!cdptr)
-		return -EINVAL;
+	if (master->force_cacheable)
+		flags |= ARM_SMMU_FORCE_CACHEABLE;
+	if (master->single_page_size)
+		flags |= ARM_SMMU_DISABLE_CONTPTE;
+	if (stream->tcu_prefetch_forward)
+		flags |= ARM_SMMU_TCU_PREFETCH_FORWARD;
+	else if (stream->tcu_prefetch_backward)
+		flags |= ARM_SMMU_TCU_PREFETCH_BACKWARD;
+	if (index == master->num_streams - 1)
+		flags |= ARM_SMMU_ATTACH_DEV_LAST_SID;
 
-	cmd = kvm_arm_smmu_alloc_hyp_shared_page();
-	if (IS_ERR(cmd))
-		return PTR_ERR(cmd);
+	if (s1_ctx)
+		return kvm_iommu_attach_dev_nested(host_smmu->id, domain->id, stream->id,
+						  pasid, flags, s1_ctx, sizeof(*s1_ctx));
+	return kvm_iommu_attach_dev(host_smmu->id, domain->id, stream->id, pasid,
+				   master->ssid_bits, flags);
+}
 
-	cdptr->data[0] = 0;
-	ret = kvm_arm_smmu_sync_cd_entry(master, cmd, ssid);
-	if (ret)
-		return ret;
-
-	cdptr->data[1] = 0;
-	cdptr->data[2] = 0;
-	cdptr->data[3] = 0;
-
-	ret = kvm_arm_smmu_sync_cd_entry(master, cmd, ssid);
-	if (!ret)
-		master->cd_table.used_ssids--;
-	kvm_arm_smmu_free_hyp_shared_page(cmd);
-	return ret;
+static int kvm_arm_smmu_detach_stream(struct host_arm_smmu_device *host_smmu,
+	struct kvm_arm_smmu_domain *domain, u32 sid, u32 pasid)
+{
+	if (kvm_arm_smmu_is_domain_nested(domain))
+		return kvm_iommu_detach_dev_nested(host_smmu->id, domain->id, sid, pasid);
+	return kvm_iommu_detach_dev(host_smmu->id, domain->id, sid, pasid);
 }
 
 static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
@@ -741,41 +748,41 @@ static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
 	unsigned long flags;
 	struct arm_smmu_device *smmu = &host_smmu->smmu;
 	struct kvm_arm_smmu_domain *domain = xa_load(&master->domains, pasid);
+	struct hyp_arm_smmu_v3_s1_ctx *s1_ctx = NULL;
 
 	if (!domain)
 		return 0;
 
-	spin_lock_irqsave(&domain->masters_lock, flags);
-	for (i = 0; i < MAX_MASTER_DEVICES_PER_DOMAIN; i++) {
-		if (domain->masters[i] == master) {
-			domain->masters[i] = NULL;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&domain->masters_lock, flags);
 	if (kvm_arm_smmu_is_domain_nested(domain)) {
-		/* Ensure other pasids are detached. */
-		if (pasid == 0 && master->cd_table.used_ssids)
+		/* EL2 only supports nested attachments at PASID 0. */
+		if (pasid || master->cd_table.used_ssids)
 			return -EINVAL;
 
-		ret = kvm_arm_smmu_clear_cd_entry(master, pasid);
-		if (ret)
-			dev_err(smmu->dev, "cannot clear CD entry for device %s: %d\n",
-				dev_name(master->dev), ret);
+		/* Allocate rollback state before changing any live stream. */
+		s1_ctx = kvm_arm_smmu_prepare_ste(master, domain, pasid);
+		if (IS_ERR(s1_ctx))
+			return PTR_ERR(s1_ctx);
 	}
 
 	for (i = 0; i < master->num_streams; i++) {
 		int sid = master->streams[i].id;
 
-		if (kvm_arm_smmu_is_domain_nested(domain))
-			ret = kvm_iommu_detach_dev_nested(host_smmu->id, domain->id, sid, pasid);
-		else
-			ret = kvm_iommu_detach_dev(host_smmu->id, domain->id, sid, pasid);
+		ret = kvm_arm_smmu_detach_stream(host_smmu, domain, sid, pasid);
 		if (ret) {
 			dev_err(smmu->dev, "cannot detach device %s (0x%x): %d\n",
 				dev_name(master->dev), sid, ret);
-			break;
+			while (i--)
+				WARN_ON(kvm_arm_smmu_attach_stream(host_smmu, domain, master,
+								  i, pasid, s1_ctx));
+			kvm_arm_smmu_free_hyp_shared_page(s1_ctx);
+			return ret;
 		}
+	}
+
+	if (s1_ctx) {
+		/* Every STE is now detached; no hardware can read this CD. */
+		memset(kvm_arm_smmu_get_cd_ptr(master, 0), 0, sizeof(struct arm_smmu_cd));
+		kvm_arm_smmu_free_hyp_shared_page(s1_ctx);
 	}
 
 	/*
@@ -786,11 +793,19 @@ static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
 	 * the domain doesn't go away while it is being used in the fault reporting
 	 * logic.
 	 */
+	spin_lock_irqsave(&domain->masters_lock, flags);
+	for (i = 0; i < MAX_MASTER_DEVICES_PER_DOMAIN; i++) {
+		if (domain->masters[i] == master && domain->pasid[i] == pasid) {
+			domain->masters[i] = NULL;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&domain->masters_lock, flags);
 	mutex_lock(&smmu->streams_mutex);
 	xa_erase(&master->domains, pasid);
 	mutex_unlock(&smmu->streams_mutex);
 
-	return ret;
+	return 0;
 }
 
 static int kvm_arm_smmu_detach_dev(struct host_arm_smmu_device *host_smmu,
@@ -866,7 +881,7 @@ static struct hyp_arm_smmu_v3_s1_ctx *kvm_arm_smmu_prepare_ste(struct kvm_arm_sm
 	return s1_ctx;
 }
 
-static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
+static int __kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
 				      struct device *dev, ioasid_t pasid)
 {
 	int i, ret;
@@ -874,7 +889,6 @@ static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
 	struct host_arm_smmu_device *host_smmu;
 	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct kvm_arm_smmu_domain *kvm_smmu_domain = to_kvm_smmu_domain(domain);
-	unsigned long flags = 0;
 	struct hyp_arm_smmu_v3_s1_ctx *s1_ctx = NULL;
 
 	if (!master)
@@ -883,23 +897,15 @@ static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
 	smmu = master->smmu;
 	host_smmu = smmu_to_host(smmu);
 
-	ret = kvm_arm_smmu_detach_dev_pasid(host_smmu, master, pasid);
-	if (ret || (domain->type == IOMMU_DOMAIN_BLOCKED))
-		return ret;
-
 	mutex_lock(&kvm_smmu_domain->init_mutex);
 	ret = kvm_arm_smmu_domain_finalize(kvm_smmu_domain, master);
 	mutex_unlock(&kvm_smmu_domain->init_mutex);
 	if (ret)
 		return ret;
 
-	if (master->force_cacheable)
-		flags |= ARM_SMMU_FORCE_CACHEABLE;
-
-	if (master->single_page_size)
-		flags |= ARM_SMMU_DISABLE_CONTPTE;
-
 	if (kvm_arm_smmu_is_domain_nested(kvm_smmu_domain)) {
+		if (pasid)
+			return -EINVAL;
 		s1_ctx = kvm_arm_smmu_prepare_ste(master, kvm_smmu_domain, pasid);
 		if (IS_ERR(s1_ctx))
 			return PTR_ERR(s1_ctx);
@@ -908,38 +914,19 @@ static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
 			 dev_name(master->dev));
 	}
 
+	if (!s1_ctx && master->nested_translations)
+		return -EINVAL;
+
 	for (i = 0; i < master->num_streams; i++) {
-		int sid = master->streams[i].id;
-		unsigned long stream_flags = flags;
-
-		if (master->streams[i].tcu_prefetch_forward)
-			stream_flags |= ARM_SMMU_TCU_PREFETCH_FORWARD;
-		else if (master->streams[i].tcu_prefetch_backward)
-			stream_flags |= ARM_SMMU_TCU_PREFETCH_BACKWARD;
-
-		if (i == master->num_streams - 1)
-			stream_flags |= ARM_SMMU_ATTACH_DEV_LAST_SID;
-
-		if (kvm_arm_smmu_is_domain_nested(kvm_smmu_domain)) {
-			ret = kvm_iommu_attach_dev_nested(host_smmu->id, kvm_smmu_domain->id, sid,
-							  pasid, stream_flags, s1_ctx,
-							  sizeof(*s1_ctx));
-		} else {
-			if (master->nested_translations) {
-				dev_err(smmu->dev, "cannot attach single stage domain to device %s (0x%x) which is configured for nested translation\n",
-					dev_name(dev), sid);
-				ret = -EINVAL;
-				goto out_ret;
-			}
-			ret = kvm_iommu_attach_dev(host_smmu->id, kvm_smmu_domain->id,
-						   sid, pasid, master->ssid_bits, stream_flags);
-		}
+		ret = kvm_arm_smmu_attach_stream(host_smmu, kvm_smmu_domain, master,
+						 i, pasid, s1_ctx);
 		if (ret) {
 			dev_err(smmu->dev, "cannot attach device %s (0x%x): %d\n",
-				dev_name(dev), sid, ret);
+				dev_name(dev), master->streams[i].id, ret);
 			goto out_ret;
 		}
 	}
+
 	ret = xa_insert(&master->domains, pasid, kvm_smmu_domain, GFP_KERNEL);
 	if (!ret) {
 		int i;
@@ -960,9 +947,35 @@ static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
 	}
 
 out_ret:
-	if (ret)
-		kvm_arm_smmu_detach_dev(host_smmu, master);
+	if (ret) {
+		while (i--)
+			WARN_ON(kvm_arm_smmu_detach_stream(host_smmu, kvm_smmu_domain,
+							  master->streams[i].id, pasid));
+	}
 	kvm_arm_smmu_free_hyp_shared_page(s1_ctx);
+	return ret;
+}
+
+static int kvm_arm_smmu_set_dev_pasid(struct iommu_domain *domain,
+				      struct device *dev, ioasid_t pasid)
+{
+	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
+	struct host_arm_smmu_device *host_smmu;
+	struct kvm_arm_smmu_domain *old;
+	int ret;
+
+	if (!master)
+		return -ENODEV;
+	host_smmu = smmu_to_host(master->smmu);
+	old = xa_load(&master->domains, pasid);
+	if (domain->type == IOMMU_DOMAIN_IDENTITY && pasid)
+		return -EINVAL;
+	ret = kvm_arm_smmu_detach_dev_pasid(host_smmu, master, pasid);
+	if (ret || domain->type == IOMMU_DOMAIN_BLOCKED)
+		return ret;
+	ret = __kvm_arm_smmu_set_dev_pasid(domain, dev, pasid);
+	if (ret && old)
+		WARN_ON(__kvm_arm_smmu_set_dev_pasid(&old->domain, dev, pasid));
 	return ret;
 }
 
