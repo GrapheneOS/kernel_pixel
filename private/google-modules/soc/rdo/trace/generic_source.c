@@ -14,7 +14,7 @@ DEFINE_CORESIGHT_DEVLIST(soc_source_devs, "soc_source");
 
 static int soc_source_enable(struct coresight_device *csdev,
 			     struct perf_event *event, enum cs_mode mode,
-			     struct coresight_trace_id_map *id_map)
+			     struct coresight_path *path)
 {
 	if (!coresight_take_mode(csdev, mode))
 		return -EBUSY;
