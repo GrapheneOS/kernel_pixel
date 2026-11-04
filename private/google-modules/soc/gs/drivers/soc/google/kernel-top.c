@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/threads.h>
+#include <linux/vmalloc.h>
 #include <linux/tick.h>
 #include <linux/time.h>
 #include <asm/irq_regs.h>
