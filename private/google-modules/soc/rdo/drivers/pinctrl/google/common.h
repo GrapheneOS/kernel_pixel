@@ -500,7 +500,9 @@ bool google_pinctrl_should_toggle_irq(struct google_pinctrl_irqinfo *info);
  */
 static inline bool google_pinctrl_pin_valid(struct google_pinctrl *gctl, unsigned int pin_nr)
 {
-	return !(gctl->chip.valid_mask && !test_bit(pin_nr, gctl->chip.valid_mask));
+	const unsigned long *valid_mask = gpiochip_query_valid_mask(&gctl->chip);
+
+	return !valid_mask || test_bit(pin_nr, valid_mask);
 }
 
 void google_pinctrl_aoc_ssr_request(bool start);
