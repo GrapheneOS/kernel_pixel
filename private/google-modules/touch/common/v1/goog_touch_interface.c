@@ -5871,10 +5871,7 @@ struct goog_touch_interface *goog_touch_interface_probe(
 		return NULL;
 	}
 
-	gti = devm_drm_bridge_alloc(dev, struct goog_touch_interface, panel_bridge,
-				    &panel_bridge_funcs);
-	if (IS_ERR(gti))
-		return NULL;
+	gti = devm_kzalloc(dev, sizeof(struct goog_touch_interface), GFP_KERNEL);
 	if (gti) {
 		gti->vendor_private_data = private_data;
 		if (dev->bus != NULL && strncmp(dev->bus->name, "spi", 3) == 0) {
@@ -5999,6 +5996,7 @@ int goog_touch_interface_remove(struct goog_touch_interface *gti)
 	}
 
 	touch_sim_remove(gti);
+	devm_kfree(gti->vendor_dev, gti);
 
 	return 0;
 }
