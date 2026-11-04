@@ -1,4 +1,4 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-only
 
-exec tools/build_dist.sh rango --disable_slab_canary "$@"
+exec private/devices/google/common/tools/build_dist.sh rango "$@"
