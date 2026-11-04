@@ -11,22 +11,6 @@
 
 int goog_pcie_msi_host_init(struct dw_pcie_rp *pp);
 
-#define MAX_NR_LANES	16
-#define PCI_EQ_RESV	0xff
-
-enum equalization_preset_type {
-	EQ_PRESET_TYPE_8GTS,
-	EQ_PRESET_TYPE_16GTS,
-	EQ_PRESET_TYPE_32GTS,
-	EQ_PRESET_TYPE_64GTS,
-	EQ_PRESET_TYPE_MAX
-};
-
-struct pci_eq_presets {
-	u16 eq_presets_8gts[MAX_NR_LANES];
-	u8 eq_presets_Ngts[EQ_PRESET_TYPE_MAX - 1][MAX_NR_LANES];
-};
-
 int dw_pcie_link_get_max_link_width(struct dw_pcie *pci);
 
 int of_pci_get_equalization_presets(struct device *dev,
