@@ -71,10 +71,12 @@ static struct arm_smmu_device *
 kvm_arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
 {
 	struct device *dev;
+	struct arm_smmu_device *smmu;
 
 	dev = driver_find_device_by_fwnode(&kvm_arm_smmu_driver.driver, fwnode);
+	smmu = dev ? dev_get_drvdata(dev) : NULL;
 	put_device(dev);
-	return dev ? dev_get_drvdata(dev) : NULL;
+	return smmu;
 }
 
 static struct iommu_ops kvm_arm_smmu_ops;
@@ -2291,14 +2293,15 @@ static pkvm_handle_t kvm_arm_smmu_v3_id(struct device *dev)
 static pkvm_handle_t kvm_arm_v3_id_by_of(struct device_node *np)
 {
 	struct device *dev;
+	pkvm_handle_t id;
 
 	dev = driver_find_device_by_of_node(&kvm_arm_smmu_driver.driver, np);
 	if (!dev)
 		return 0;
 
+	id = kvm_arm_smmu_v3_id(dev);
 	put_device(dev);
-
-	return kvm_arm_smmu_v3_id(dev);
+	return id;
 }
 
 static int kvm_arm_smmu_v3_num_ids(struct device *dev)
