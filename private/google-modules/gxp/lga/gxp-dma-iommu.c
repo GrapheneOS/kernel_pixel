@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <arm-smmu-v3/pixel-iommu-fault.h>
 
 #include <gcip/gcip-domain-pool.h>
 #include <gcip/gcip-iommu.h>
@@ -32,7 +33,19 @@ struct gxp_dma_iommu_manager {
 	struct gcip_iommu_domain *default_domain;
 };
 
-/* Fault handler */
+static int iommu_fault_handler(struct device *dev, unsigned long iova, u32 pasid,
+			       int flags, void *token)
+{
+	if (pasid) {
+		dev_dbg(dev, "IOMMU fault: address=%#lx pasid=%#x access=%#x\n",
+			iova, pasid, flags);
+		return 0;
+	}
+
+	dev_err(dev, "IOMMU fault: address=%#lx pasid=%#x access=%#x\n",
+		iova, pasid, flags);
+	return -EAGAIN;
+}
 
 
 #if GXP_HAS_LAP
@@ -101,11 +114,12 @@ int gxp_dma_init(struct gxp_dev *gxp)
 
 	gxp->dma_mgr = &(mgr->dma_mgr);
 
-	return 0;
+	return pixel_iommu_register_fault_handler(gxp->dev, iommu_fault_handler, NULL);
 }
 
 void gxp_dma_exit(struct gxp_dev *gxp)
 {
+	pixel_iommu_unregister_fault_handler(gxp->dev);
 }
 
 #define EXT_TPU_MBX_SIZE 0x2000
@@ -496,12 +510,4 @@ u64 gxp_dma_encode_gcip_map_flags(uint gxp_dma_flags, unsigned long dma_attrs)
 #endif
 
 	return gcip_iommu_encode_gcip_map_flags(dir, coherent, dma_attrs, restrict_iova, mmio);
-}
-
-int gxp_iommu_fault_handler(struct iommu_domain *domain, struct device *dev, unsigned long iova,
-			    int flags, void *token)
-{
-	dev_dbg(dev, "IOMMU fault on address %08lX. flags = %08X", iova, flags);
-	/* Tell the IOMMU driver we are OK with this fault. */
-	return 0;
 }

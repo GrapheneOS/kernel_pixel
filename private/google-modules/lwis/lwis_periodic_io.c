@@ -106,8 +106,8 @@ static struct lwis_periodic_io_list *periodic_io_list_create_locked(struct lwis_
 	dev_info(lwis_dev->dev, "Created hrtimer with timeout time %lldns", period_ns);
 
 	/* Initialize and start the hrtimer for this periodic io list */
-	hrtimer_init(&periodic_io_list->hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	periodic_io_list->hr_timer.function = &periodic_io_timer_func;
+	hrtimer_setup(&periodic_io_list->hr_timer, periodic_io_timer_func,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	ktime = ktime_set(0, periodic_io_list->period_ns);
 	hrtimer_start(&periodic_io_list->hr_timer, ktime, HRTIMER_MODE_REL);
 

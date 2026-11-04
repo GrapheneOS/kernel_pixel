@@ -109,6 +109,8 @@ ddk_module(
     copts = _COMMON_COPTS,
     kernel_build = "//private/devices/google/common:kernel",
     deps = [
+        "//private/google-modules/iommu/arm-smmu-v3:headers",
+        "//private/google-modules/iommu/arm-smmu-v3/drivers/iommu:io-pgtable-pixel",
         ":common_headers",
         "//private/google-modules/perf/core/google_pm_qos",
         "//private/google-modules/soc/gs:headers",
