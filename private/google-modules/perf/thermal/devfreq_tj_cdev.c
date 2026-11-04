@@ -34,7 +34,7 @@ MODULE_DEVICE_TABLE(of, devfreq_tj_cdev_table);
 
 static struct platform_driver devfreq_tj_cdev_driver = {
 	.probe = devfreq_tj_cdev_probe,
-	.remove_new = devfreq_tj_cdev_exit,
+	.remove = devfreq_tj_cdev_exit,
 	.driver = {
 		.name = "devfreq-tj-cdev",
 		.of_match_table = devfreq_tj_cdev_table,

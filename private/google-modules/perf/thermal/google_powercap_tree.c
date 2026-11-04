@@ -19,7 +19,7 @@ MODULE_DEVICE_TABLE(of, gpowercap_of_match);
 
 static struct platform_driver gpowercap_tree_driver = {
 	.probe = gpowercap_dt_probe,
-	.remove_new = gpowercap_dt_remove,
+	.remove = gpowercap_dt_remove,
 	.driver = {
 		.name = "google-powercap-tree",
 		.of_match_table = gpowercap_of_match,

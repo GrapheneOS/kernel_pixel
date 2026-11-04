@@ -334,7 +334,7 @@ static struct platform_driver thermal_pressure_tj_driver = {
 		.of_match_table = thermal_pressure_match_table,
 	},
 	.probe = thermal_pressure_tj_probe,
-	.remove_new = thermal_pressure_tj_remove,
+	.remove = thermal_pressure_tj_remove,
 };
 module_platform_driver(thermal_pressure_tj_driver);
 
