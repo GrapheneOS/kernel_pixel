@@ -2318,7 +2318,6 @@ static int ufs_google_link_startup_notify(struct ufs_hba *hba,
 static int
 ufs_google_pwr_change_notify(struct ufs_hba *hba,
 			     enum ufs_notify_change_status status,
-			     struct ufs_pa_layer_attr *dev_max_params,
 			     struct ufs_pa_layer_attr *dev_req_params)
 {
 	struct ufs_google_host *host = ufshcd_get_variant(hba);
@@ -2343,7 +2342,7 @@ ufs_google_pwr_change_notify(struct ufs_hba *hba,
 		host_params.hs_rate = host->google_pwr_mode.hs_rate;
 
 		ret = ufshcd_negotiate_pwr_params(&host_params,
-						  dev_max_params,
+						  &hba->max_pwr_info.info,
 						  dev_req_params);
 		if (ret) {
 			dev_err(hba->dev,
