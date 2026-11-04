@@ -33,7 +33,7 @@ static void rvh_swap_read_folio_bdev_sync(void *data, struct block_device *bdev,
 	struct zram *zram;
 	int ret;
 
-	if (PageTransHuge(page))
+	if (folio_test_large(page_folio(page)))
 		return;
 
 	zram = bdev->bd_disk->private_data;
