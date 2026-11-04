@@ -26,6 +26,7 @@ ddk_module(
                 "io-pgtable-arm-common.c",
                 "io-pgtable-arm.c",
                 "io-pgtable.c",
+                "pixel-iommu-fault.c",
             ],
         },
     },

@@ -4,7 +4,8 @@
 
 #include <arm-smmu-v3/arm-smmu-v3-common.h>
 #include <asm/kvm_asm.h>
-#include <kvm/iommu.h>
+#include <asm/kvm_host.h>
+#include <kvm/power_domain.h>
 
 /*
  * Parameters from the trusted host:
@@ -14,7 +15,9 @@
  * Other members are filled and used at runtime by the SMMU driver.
  */
 struct hyp_arm_smmu_v3_device {
-	struct kvm_hyp_iommu	iommu;
+	struct kvm_power_domain	power_domain;
+	u32			lock; /* hyp_spinlock_t, shared layout with EL1 */
+	bool			power_is_off;
 	phys_addr_t		mmio_addr;
 	size_t			mmio_size;
 	unsigned long		features;
@@ -29,6 +32,8 @@ struct hyp_arm_smmu_v3_device {
 	size_t			ias;
 	size_t			pgsize_bitmap;
 	size_t			ssid_bits;
+	u32			asid_bits;
+	u32			vmid_bits;
 	u32			options;
 };
 
@@ -52,8 +57,12 @@ extern struct hyp_arm_smmu_v3_device *kvm_nvhe_sym(kvm_hyp_arm_smmu_v3_smmus);
 	     (smmu) != &kvm_hyp_arm_smmu_v3_smmus[kvm_hyp_arm_smmu_v3_count]; \
 	     (smmu)++)
 
+/* Reserved for the driver-owned host identity page table. */
+#define PIXEL_SMMU_IDMAP_ID 0
+#define PIXEL_SMMU_DOMAIN_DISABLE_CONTPTE BIT(16)
+
 enum kvm_arm_smmu_domain_type {
-	KVM_ARM_SMMU_DOMAIN_BYPASS = KVM_IOMMU_DOMAIN_IDMAP_TYPE,
+	KVM_ARM_SMMU_DOMAIN_BYPASS = -1,
 	KVM_ARM_SMMU_DOMAIN_ANY = KVM_IOMMU_DOMAIN_ANY_TYPE,
 	KVM_ARM_SMMU_DOMAIN_S1,
 	KVM_ARM_SMMU_DOMAIN_S2,
@@ -109,7 +118,7 @@ extern struct hyp_arm_smmu_v3_global_config kvm_nvhe_sym(kvm_hyp_smmu_global_con
  * only domains. This ensures that invalidations for stage-2 mappings only
  * affect stage-1 TLB entries associated with nested domains.
  */
-#define KVM_SMMU_S1_DOMAIN_VMID		(KVM_IOMMU_DOMAIN_NR_START)
+#define KVM_SMMU_S1_DOMAIN_VMID		1
 #define KVM_SMMU_DOMAIN_NR_START	(KVM_SMMU_S1_DOMAIN_VMID + 1)
 
 #endif /* __KVM_ARM_SMMU_V3_H */
