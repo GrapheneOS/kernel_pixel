@@ -131,7 +131,7 @@ static void timed_wakelock_release(struct timed_wakelock *tw, bool force_release
 	if (refcount_read(&tw->active_count) == 0) {
 		/* Wakelock already released, do nothing. */
 	} else if (refcount_dec_and_test(&tw->active_count) || force_release) {
-		del_timer(&tw->timer);
+		timer_delete(&tw->timer);
 		__pm_relax(tw->ws);
 		refcount_set(&tw->active_count, 0);
 	}
@@ -146,7 +146,7 @@ static void timed_wakelock_release(struct timed_wakelock *tw, bool force_release
  */
 static void timed_wakelock_timeout(struct timer_list *t)
 {
-	struct timed_wakelock *tw = from_timer(tw, t, timer);
+	struct timed_wakelock *tw = timer_container_of(tw, t, timer);
 
 	pr_debug("%s timer expired\n", tw->ws->name);
 	timed_wakelock_release(tw, true);
@@ -178,7 +178,7 @@ static void cleanup_timed_wakelock(struct timed_wakelock *tw)
 {
 	if (!tw->ws)
 		return;
-	del_timer_sync(&tw->timer);
+	timer_delete_sync(&tw->timer);
 	wakeup_source_unregister(tw->ws);
 	tw->ws = NULL;
 }

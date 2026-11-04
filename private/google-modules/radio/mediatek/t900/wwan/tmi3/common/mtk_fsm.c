@@ -1027,7 +1027,7 @@ exit:
 
 static void mtk_fsm_dev_state_poller_handler(struct timer_list *t)
 {
-	struct mtk_md_fsm *fsm = from_timer(fsm, t, dev_state_poller);
+	struct mtk_md_fsm *fsm = timer_container_of(fsm, t, dev_state_poller);
 	int ret;
 
 	ret = mtk_fsm_early_bootup_handler(fsm);
@@ -1467,7 +1467,7 @@ static int mtk_fsm_enter_off_state(struct mtk_md_fsm *fsm, struct mtk_fsm_evt *e
 
 	switch (fsm->cfg->sync_mode) {
 	case BOOT_SYNC_MODE_POLLING:
-		del_timer_sync(&fsm->dev_state_poller);
+		timer_delete_sync(&fsm->dev_state_poller);
 		break;
 	case BOOT_SYNC_MODE_INTERRUPT:
 		mtk_dev_mask_dev_evt(mdev, DEV_EVT_D2H_BOOT_FLOW_SYNC);
@@ -2300,7 +2300,7 @@ EXPORT_SYMBOL(mtk_fsm_notifier_unregister);
 
 static void mtk_fsm_evt_timeout(struct timer_list *t)
 {
-	struct mtk_md_fsm *fsm = from_timer(fsm, t, evt_timer);
+	struct mtk_md_fsm *fsm = timer_container_of(fsm, t, evt_timer);
 
 	MTK_WARN(fsm->mdev, "Handling fsm event timeout! Current notifier is %d\n",
 		 fsm->notifier_record);
@@ -2461,7 +2461,7 @@ wake_up:
 			mtk_fsm_evt_finish(fsm, event, FSM_EVT_RET_DONE);
 		}
 
-		del_timer_sync(&fsm->evt_timer);
+		timer_delete_sync(&fsm->evt_timer);
 	}
 
 	if (kthread_should_stop()) {

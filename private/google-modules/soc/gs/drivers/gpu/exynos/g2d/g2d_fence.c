@@ -17,7 +17,7 @@
 
 void g2d_fence_timeout_handler(struct timer_list *arg)
 {
-	struct g2d_task *task = from_timer(task, arg, fence_timer);
+	struct g2d_task *task = timer_container_of(task, arg, fence_timer);
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	struct dma_fence *fence;
 	unsigned long flags;
