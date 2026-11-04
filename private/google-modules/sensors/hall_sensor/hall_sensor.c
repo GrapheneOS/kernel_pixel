@@ -211,16 +211,9 @@ static int hall_sensor_config_gpio(struct hall_sensor_drv_data *hall_data,
 				   int gpio) {
 	struct device *dev = hall_data->dev;
 	int ret = 0;
-	ret = devm_gpio_request(dev, gpio, "hall-gpio");
+	ret = devm_gpio_request_one(dev, gpio, GPIOF_IN, "hall-gpio");
 	if (ret) {
 		dev_err(dev, "Failed to request gpio with error %d.\n", ret);
-		return ret;
-	}
-
-	ret = gpio_direction_input(gpio);
-	if (ret) {
-		dev_err(dev, "Failed to set input direction with error %d.\n",
-			ret);
 		return ret;
 	}
 

@@ -2305,7 +2305,8 @@ static int panel_notifier_call(
 	return 0;
 }
 
-static int panel_bridge_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flags flags)
+static int panel_bridge_attach(struct drm_bridge *bridge, struct drm_encoder *encoder,
+			       enum drm_bridge_attach_flags flags)
 {
 	struct goog_touch_interface *gti = bridge->driver_private;
 
@@ -2366,7 +2367,7 @@ static void panel_bridge_atomic_enable_internal(struct drm_bridge *bridge)
 }
 
 static void panel_bridge_atomic_disable(struct drm_bridge *bridge,
-					__always_unused struct drm_bridge_state *old_state)
+					__always_unused struct drm_atomic_state *state)
 {
 	struct goog_touch_interface *gti = bridge->driver_private;
 
@@ -2459,7 +2460,7 @@ static void panel_bridge_mode_set(struct drm_bridge *bridge,
 }
 
 static void panel_bridge_atomic_enable(struct drm_bridge *bridge,
-				       __always_unused struct drm_bridge_state *old_state)
+				       __always_unused struct drm_atomic_state *state)
 {
 	struct goog_touch_interface *gti = bridge->driver_private;
 	struct drm_connector *connector;
@@ -2568,6 +2569,7 @@ static void unregister_panel_bridge(struct drm_bridge *bridge)
 	}
 	drm_modeset_unlock(&bridge->dev->mode_config.connection_mutex);
 	bridge->dev = NULL;
+	drm_bridge_put(bridge);
 }
 
 /*-----------------------------------------------------------------------------
@@ -5869,7 +5871,10 @@ struct goog_touch_interface *goog_touch_interface_probe(
 		return NULL;
 	}
 
-	gti = devm_kzalloc(dev, sizeof(struct goog_touch_interface), GFP_KERNEL);
+	gti = devm_drm_bridge_alloc(dev, struct goog_touch_interface, panel_bridge,
+				    &panel_bridge_funcs);
+	if (IS_ERR(gti))
+		return NULL;
 	if (gti) {
 		gti->vendor_private_data = private_data;
 		if (dev->bus != NULL && strncmp(dev->bus->name, "spi", 3) == 0) {
@@ -5994,7 +5999,6 @@ int goog_touch_interface_remove(struct goog_touch_interface *gti)
 	}
 
 	touch_sim_remove(gti);
-	devm_kfree(gti->vendor_dev, gti);
 
 	return 0;
 }

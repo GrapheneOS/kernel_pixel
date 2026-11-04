@@ -8,7 +8,6 @@
 #define __GF_SPI_H
 
 #include <linux/types.h>
-#include <linux/notifier.h>
 /**********************************************************/
 enum FP_MODE {
 	GF_IMAGE_MODE = 0,
