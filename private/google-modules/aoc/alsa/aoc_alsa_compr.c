@@ -17,7 +17,7 @@
 #include "aoc_alsa.h"
 #include "aoc_alsa_drv.h"
 
-#define COMMON_KERNEL_HAS_OVERFLOW_FIX (0) /* TODO: b/409961928 - enable when fix is in */
+#define COMMON_KERNEL_HAS_OVERFLOW_FIX (1)
 
 #define UINT32_OVERFLOW (0x100000000ULL)
 
@@ -388,9 +388,8 @@ static int aoc_compr_playback_open(struct snd_compr_stream *cstream)
 	alsa_stream->draining = 0; // set to 1 when partial drain
 
 	alsa_stream->timer_interval_ns = COMPR_OFFLOAD_TIMER_INTERVAL_NANOSECS;
-	hrtimer_init(&(alsa_stream->hr_timer), CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	alsa_stream->hr_timer.function = &aoc_compr_hrtimer_irq_handler;
+	hrtimer_setup(&alsa_stream->hr_timer, aoc_compr_hrtimer_irq_handler,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	dev->prvdata = alsa_stream; /* For interrupt-driven playback */
 
