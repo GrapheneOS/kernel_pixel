@@ -105,7 +105,7 @@ static int kvm_arm_io_pgtable_init(struct io_pgtable_cfg *cfg,
 }
 
 struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
-						  void *cookie,
+						  void *cookie, bool idmapped,
 						  int *out_ret)
 {
 	size_t pgd_size, alignment;
@@ -119,6 +119,7 @@ struct io_pgtable *kvm_arm_io_pgtable_alloc_pixel(struct io_pgtable_cfg *cfg,
 		return NULL;
 	}
 
+	data->idmapped = idmapped;
 	ret = kvm_arm_io_pgtable_init(cfg, data);
 	if (ret)
 		goto out_free;

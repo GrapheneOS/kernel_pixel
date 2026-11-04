@@ -1718,7 +1718,7 @@ static int smmu_domain_finalise(struct hyp_arm_smmu_v3_device *smmu,
 	}
 
 	hyp_spin_lock(&smmu_domain->pgt_lock);
-	smmu_domain->pgtable = kvm_arm_io_pgtable_alloc_pixel(&cfg, domain, &ret);
+	smmu_domain->pgtable = kvm_arm_io_pgtable_alloc_pixel(&cfg, domain, idmapped, &ret);
 	smmu_domain->pgsize_bitmap = cfg.pgsize_bitmap;
 	hyp_spin_unlock(&smmu_domain->pgt_lock);
 	if (ret)
