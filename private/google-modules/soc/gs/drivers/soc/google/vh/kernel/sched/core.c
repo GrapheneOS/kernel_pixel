@@ -190,9 +190,9 @@ void vh_scheduler_tick_pixel_mod_locked(struct rq *rq)
 
 	lockdep_assert_rq_held(rq);
 
-	task_tick_uclamp(rq, rq->curr);
-	__update_util_est_invariance(rq, rq->curr, true);
-	uclamp_st_updated = update_auto_max_uclamp_st(rq->curr);
+	task_tick_uclamp(rq, rq->donor);
+	__update_util_est_invariance(rq, rq->donor, true);
+	uclamp_st_updated = update_auto_max_uclamp_st(rq->donor);
 
 	if (uclamp_st_updated) {
 		/* rq clock is already updated */
@@ -205,7 +205,7 @@ void vh_scheduler_tick_pixel_mod_locked(struct rq *rq)
 void vh_scheduler_tick_pixel_mod_nolock(struct rq *rq)
 {
 	/* Check if an RT task needs to move to a better fitting CPU */
-	check_migrate_rt_task(rq, rq->curr);
+	check_migrate_rt_task(rq, rq->donor);
 
 	/* Should be really done when capacity change */
 	update_auto_fits_capacity();
@@ -612,10 +612,9 @@ void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
 		put_task_struct(from_task);
 }
 
-void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
-	struct task_struct *p)
+void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t)
 {
-	set_performance_inheritance(p, NULL, VI_BINDER);
+	set_performance_inheritance(current, NULL, VI_BINDER);
 }
 
 void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
@@ -664,10 +663,12 @@ static inline void set_binder_task_state(struct task_struct *task, bool is_binde
 	vp->is_binder_task = is_binder;
 }
 
-void vh_binder_looper_state_registered_pixel_mod(void *data, struct binder_thread *thread,
+void vh_binder_wait_for_work_pixel_mod(void *data, bool do_proc_work,
+				     struct binder_thread *thread,
 						 struct binder_proc *proc)
 {
-	set_binder_task_state(thread->task, true);
+	if (do_proc_work)
+		set_binder_task_state(thread->task, true);
 }
 
 void vh_binder_looper_exited_pixel_mod(void *data, struct binder_thread *thread,
