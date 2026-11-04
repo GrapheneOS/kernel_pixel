@@ -1714,7 +1714,7 @@ static void kcpu_force_signal_fence(struct kbase_kcpu_command_queue *kcpu_queue)
 	}
 
 	/* set fence_signal_pending_cnt to 0
-	 * and timer_delete of the kcpu_queue
+	 * and del_timer of the kcpu_queue
 	 * because we signaled all the pending fence in the queue
 	 */
 	atomic_set(&kcpu_queue->fence_signal_pending_cnt, 0);
