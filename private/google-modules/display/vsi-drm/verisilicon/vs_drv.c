@@ -90,6 +90,7 @@ static void vs_drm_postclose(struct drm_device *drm_dev, struct drm_file *file_p
 }
 
 static struct drm_driver vs_drm_driver = {
+	DRM_FBDEV_TTM_DRIVER_OPS,
 	.driver_features = DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_GEM,
 	.postclose = vs_drm_postclose,
 	.gem_prime_import = vs_gem_prime_import,
@@ -100,7 +101,6 @@ static struct drm_driver vs_drm_driver = {
 	.fops = &fops,
 	.name = DRV_NAME,
 	.desc = DRV_DESC,
-	.date = DRV_DATE,
 	.major = DRV_MAJOR,
 	.minor = DRV_MINOR,
 };
@@ -405,7 +405,6 @@ static int vs_drm_bind(struct device *dev)
 	drm_debugfs_add_custom_entries(drm_dev);
 #endif
 
-	drm_fbdev_ttm_setup(drm_dev, 32);
 
 	return 0;
 

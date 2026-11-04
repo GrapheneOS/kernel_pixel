@@ -6,6 +6,7 @@
  */
 #define DEBUG
 
+#include "dptx_audio.h"
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
