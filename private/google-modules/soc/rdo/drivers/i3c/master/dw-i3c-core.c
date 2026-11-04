@@ -1117,7 +1117,7 @@ static int dw_i2c_clk_cfg(struct dw_i3c_master *master)
 	writel(master->i2c_fmp_timing, master->regs + SCL_I2C_FMP_TIMING);
 
 	lcnt = DIV_ROUND_UP(I3C_BUS_I2C_FM_TLOW_MIN_NS, core_period);
-	hcnt = DIV_ROUND_UP(core_rate, I3C_BUS_I2C_FM_SCL_RATE) - lcnt;
+	hcnt = DIV_ROUND_UP(core_rate, I2C_MAX_FAST_MODE_FREQ) - lcnt;
 	master->i2c_fm_timing = SCL_I2C_FM_TIMING_HCNT(hcnt) | SCL_I2C_FM_TIMING_LCNT(lcnt);
 	writel(master->i2c_fm_timing, master->regs + SCL_I2C_FM_TIMING);
 
@@ -1668,7 +1668,7 @@ static void dw_i3c_master_detach_i3c_dev(struct i3c_dev_desc *dev)
 }
 
 static int dw_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
-				   const struct i2c_msg *i2c_xfers,
+				   struct i2c_msg *i2c_xfers,
 				   int i2c_nxfers)
 {
 	struct dw_i3c_i2c_dev_data *data = i2c_dev_get_master_data(dev);
