@@ -104,7 +104,7 @@ static s32 wldev_ioctl(
 	ioc.len = len;
 	ioc.set = set;
 
-	strlcpy(ifr.ifr_name, dev->name, sizeof(ifr.ifr_name));
+	strscpy(ifr.ifr_name, dev->name, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)&ioc;
 
 	GETFS_AND_SETFS_TO_KERNEL_DS(fs);
@@ -259,7 +259,7 @@ wldev_link_mkiovar(u8 link_id, const char *name, const char *data, uint datalen,
 	len += prefix_len;
 
 	/* Update the command name */
-	strlcpy(buf, name, (buflen - len));
+	strscpy(buf, name, (buflen - len));
 	name_len = (strlen(name) + 1);
 	buf += name_len;
 	len += name_len;
@@ -399,7 +399,7 @@ wldev_link_mkioctl(u32 cmd, u8 link_id, const char *data, uint datalen,
 	len += prefix_len;
 
 	/* Update the command name */
-	strlcpy(buf, IOCTL_PREFIX_STR, (buflen - len));
+	strscpy(buf, IOCTL_PREFIX_STR, (buflen - len));
 	name_len = (strlen(IOCTL_PREFIX_STR) + 1);
 	buf += name_len;
 	len += name_len;
@@ -846,21 +846,21 @@ int wldev_get_mode(
 
 	if (band == WL_CHANSPEC_BAND_2G) {
 		if (bss->n_cap)
-			strlcpy(cap, "n", caplen);
+			strscpy(cap, "n", caplen);
 		else
-			strlcpy(cap, "bg", caplen);
+			strscpy(cap, "bg", caplen);
 	} else if (band == WL_CHANSPEC_BAND_5G) {
 		if (bandwidth == WL_CHANSPEC_BW_80)
-			strlcpy(cap, "ac", caplen);
+			strscpy(cap, "ac", caplen);
 		else if ((bandwidth == WL_CHANSPEC_BW_40) || (bandwidth == WL_CHANSPEC_BW_20)) {
 			if ((bss->nbss_cap & 0xf00) && (bss->n_cap))
-				strlcpy(cap, "n|ac", caplen);
+				strscpy(cap, "n|ac", caplen);
 			else if (bss->n_cap)
-				strlcpy(cap, "n", caplen);
+				strscpy(cap, "n", caplen);
 			else if (bss->vht_cap)
-				strlcpy(cap, "ac", caplen);
+				strscpy(cap, "ac", caplen);
 			else
-				strlcpy(cap, "a", caplen);
+				strscpy(cap, "a", caplen);
 		} else {
 			WLDEV_ERROR(("wldev_get_mode: Mode get failed\n"));
 			error = BCME_ERROR;
@@ -884,8 +884,8 @@ int wldev_set_country(
 		return error;
 
 	cspec.rev = revinfo;
-	strlcpy(cspec.country_abbrev, country_code, WL_CCODE_LEN + 1);
-	strlcpy(cspec.ccode, country_code, WL_CCODE_LEN + 1);
+	strscpy(cspec.country_abbrev, country_code, WL_CCODE_LEN + 1);
+	strscpy(cspec.ccode, country_code, WL_CCODE_LEN + 1);
 	dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
 	error = wldev_iovar_setbuf(dev, "country", &cspec, sizeof(cspec),
 		smbuf, sizeof(smbuf), NULL);

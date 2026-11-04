@@ -155,7 +155,7 @@ wl_cfgscan_listen_on_channel(struct bcm_cfg80211 *cfg, struct wireless_dev *wdev
 extern void wl_cfgscan_listen_complete_work(struct work_struct *work);
 extern s32 wl_cfgscan_notify_listen_complete(struct bcm_cfg80211 *cfg);
 extern s32 wl_cfgscan_cancel_listen_on_channel(struct bcm_cfg80211 *cfg, bool notify_user);
-#if defined(WL_PMSR) || defined(WL_PMSR_BKPORT)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0) || defined(WL_PMSR) || defined(WL_PMSR_BKPORT)
 extern s32 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
 	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie, const u8 *rx_addr);
 #elif defined(WL_CFG80211_P2P_DEV_IF)
