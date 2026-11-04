@@ -187,6 +187,9 @@ static char boot_mode_string[64];
 module_param_string(mode, boot_mode_string, sizeof(boot_mode_string), 0440);
 MODULE_PARM_DESC(mode, "Android bootmode");
 
+static bool modparam_disable_cc_toggling_by_default;
+module_param_named(disable_cc_toggling_by_default, modparam_disable_cc_toggling_by_default, bool, 0444);
+
 static u32 partner_src_caps[PDO_MAX_OBJECTS];
 static unsigned int nr_partner_src_caps;
 static bool limit_src_cap_enable;
@@ -314,18 +317,9 @@ static ssize_t cc_toggle_enable_show(struct device *dev, struct device_attribute
 	return scnprintf(buf, PAGE_SIZE, "%d\n", chip->toggle_disable_status ? 0 : 1);
 };
 
-static ssize_t cc_toggle_enable_store(struct device *dev, struct device_attribute *attr,
-				      const char *buf, size_t count)
+static int cc_toggle_enable_set(struct max77759_plat *chip, int val)
 {
-	struct max77759_plat *chip = max777x9_get_drvdata(dev);
-	int val, ret;
-
-	__pm_stay_awake(chip->cc_toggle_ws);
-
-	if (kstrtoint(buf, 10, &val) < 0) {
-		__pm_relax(chip->cc_toggle_ws);
-		return -EINVAL;
-	}
+	int ret;
 
 	logbuffer_logk(chip->log, LOGLEVEL_INFO, "Requesting CC toggle, cc state: curr=%s next=%s",
 		       !chip->toggle_disable_status ? "on" : "off", val ? "on" : "off");
@@ -335,6 +329,24 @@ static ssize_t cc_toggle_enable_store(struct device *dev, struct device_attribut
 				 MAX77759_ENABLE_TOGGLE : MAX77759_DISABLE_TOGGLE);
 	if (ret < 0)
 		dev_err(chip->dev, "Cannot set TOGGLE DISABLE=%d (%d)", val, ret);
+
+	return ret;
+}
+
+static ssize_t cc_toggle_enable_store(struct device *dev, struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct max77759_plat *chip = max777x9_get_drvdata(dev);
+	int val;
+
+	__pm_stay_awake(chip->cc_toggle_ws);
+
+	if (kstrtoint(buf, 10, &val) < 0) {
+		__pm_relax(chip->cc_toggle_ws);
+		return -EINVAL;
+	}
+
+	cc_toggle_enable_set(chip, val);
 
 	__pm_relax(chip->cc_toggle_ws);
 	return count;
@@ -4123,6 +4135,11 @@ int max77759_register(struct max777x9_desc *desc, enable_otg_direct client_otg_c
 	if (!of_property_read_u32(dn, "ext-bst-ovp-clear-mv", &chip->ext_bst_ovp_clear_mv))
 		LOG(LOG_LVL_DEBUG, chip->log, "ext_bst_ovp_clear_mv set to %u",
 		    chip->ext_bst_ovp_clear_mv);
+
+	if (modparam_disable_cc_toggling_by_default)
+		cc_toggle_enable_set(chip, 0);
+
+	chip->data_path_enabled = true;
 
 	for (i = 0; max77759_device_attrs[i]; i++) {
 		ret = device_create_file(dev, max77759_device_attrs[i]);
