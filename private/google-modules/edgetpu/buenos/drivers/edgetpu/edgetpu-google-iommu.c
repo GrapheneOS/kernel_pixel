@@ -153,6 +153,8 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 	return 0;
 
 err_destroy_pool:
+	if (etiommu->iommu_group)
+		iommu_group_put(etiommu->iommu_group);
 	gcip_domain_pool_exit(&etiommu->domain_pool);
 err_free_etiommu:
 	kfree(etiommu);
