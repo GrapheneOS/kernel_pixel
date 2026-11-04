@@ -12,7 +12,7 @@
 #include <linux/mutex.h>
 #include <linux/kref.h>
 #include <linux/list.h>
-#include <soc/google/gcma.h>
+#include <linux/gcma.h>
 #include "gcma_heap.h"
 
 #include "gcma_arbitrator.h"
@@ -95,7 +95,7 @@ static struct gcma_region *gcma_get_or_create_region(struct device_node *rmem_np
 		goto out_destroy_pool;
 
 	list_add(&region->list, &gcma_region_list);
-	register_pixel_gcma_area(rmem->name, rmem->base, rmem->size);
+	register_gcma_area(rmem->name, rmem->base, rmem->size);
 
 	mutex_unlock(&gcma_region_list_lock);
 	return region;
