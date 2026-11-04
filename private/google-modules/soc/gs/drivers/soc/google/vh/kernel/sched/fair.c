@@ -425,7 +425,7 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 	 * our priority decreased, or if we are not currently running on
 	 * this runqueue and our priority is higher than the current's
 	 */
-	if (task_current(rq, p)) {
+	if (task_current_donor(rq, p)) {
 		if (p->prio > oldprio)
 			resched_curr(rq);
 	} else
@@ -754,7 +754,7 @@ static inline void update_vendor_group_util_blocked(u64 now, struct rq *rq)
 	struct sched_avg *sa;
 
 	sa = &vendor_cfs_util[UG_BG][rq->cpu].avg;
-	if ((available_idle_cpu(rq->cpu) || rt_or_dl_task_policy(rq->curr)) &&
+	if ((available_idle_cpu(rq->cpu) || rt_or_dl_task_policy(rq->donor)) &&
 	    (sa->util_avg != 0 || sa->util_sum != 0)) {
 		raw_spin_lock_irqsave(&vendor_cfs_util[UG_BG][rq->cpu].lock, irqflags);
 		if (___update_load_sum(now, sa, 0, 0, 0))
@@ -1585,6 +1585,8 @@ static void prio_changed(struct task_struct *p, int old_prio, int new_prio)
 
 	if (p->sched_class->reweight_task)
 		p->sched_class->reweight_task(rq, p, &lw);
+	else
+		p->se.load = lw;
 
 	if (queued)
 		p->sched_class->enqueue_task(rq, p, ENQUEUE_RESTORE | ENQUEUE_NOCLOCK);
@@ -3003,6 +3005,8 @@ void rvh_setscheduler_prio_pixel_mod(void *data, struct task_struct *p)
 
 		if (p->sched_class->reweight_task)
 			p->sched_class->reweight_task(task_rq(p), p, &lw);
+		else
+			p->se.load = lw;
 	}
 }
 
@@ -3025,10 +3029,7 @@ static struct task_struct *detach_important_task(struct rq *src_rq, int dst_cpu)
 		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
 
-		if (task_on_cpu(src_rq, p))
-			continue;
-
-		if (task_current_donor(src_rq, p))
+		if (!can_migrate_fair_task(src_rq, p))
 			continue;
 		/*
 		 * Do not pull tasks in skip mask unless it is ADPF task.
