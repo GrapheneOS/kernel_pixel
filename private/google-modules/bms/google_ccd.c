@@ -720,7 +720,7 @@ static int google_ccd_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gccd);
 
 	psy_cfg.drv_data = gccd;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 
 	gccd->psy = devm_power_supply_register(gccd->device,
 					       &gccd_psy_desc.psy_dsc, &psy_cfg);
