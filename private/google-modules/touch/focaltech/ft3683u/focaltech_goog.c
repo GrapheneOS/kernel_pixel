@@ -419,7 +419,6 @@ exit:
 }
 
 // Reference: proc_test_sraw_show
-extern int fts_test_get_scap_raw(int *scap_raw, u8 tx, u8 rx, int *fwcheck);
 static int goog_selftest_test_scap_raw(bool is_ical)
 {
     int ret = 0;
@@ -1029,8 +1028,6 @@ static int gti_set_sensing_mode(void *private_data, struct gti_sensing_cmd *cmd)
     return 0;
 }
 
-extern int fts_test_get_strength(u8 *base_raw, u16 base_raw_size);
-extern void transpose_raw(u8 *src, u8 *dist, int tx, int rx, bool big_endian);
 static int gti_get_mutual_or_self_sensor_data(void *private_data, struct gti_sensor_data_cmd *cmd)
 {
     struct fts_ts_data *ts_data = private_data;

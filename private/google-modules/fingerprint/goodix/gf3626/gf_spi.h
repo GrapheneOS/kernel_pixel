@@ -8,7 +8,6 @@
 #define __GF_SPI_H
 
 #include <linux/types.h>
-#include <linux/notifier.h>
 /**********************************************************/
 enum FP_MODE {
 	GF_IMAGE_MODE = 0,
@@ -80,7 +79,6 @@ struct gf_ioc_chip_info {
 };
 
 #include <linux/pm_wakeup.h>
-#include <linux/fb.h>
 #include <linux/timer.h>
 #include <linux/refcount.h>
 #include <linux/spinlock.h>
@@ -158,9 +156,7 @@ struct gf_dev {
 	struct fasync_struct *async;
 #endif
 	struct regulator *vdd_io;
-	struct notifier_block notifier;
 	char device_available;
-	char fb_black;
 	struct timed_wakelock ioctl_wakelock;
 };
 
