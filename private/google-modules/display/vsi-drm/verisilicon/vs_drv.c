@@ -8,6 +8,7 @@
 #include <linux/of_graph.h>
 #include <linux/vmalloc.h>
 
+#include <drm/clients/drm_client_setup.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>
@@ -405,6 +406,7 @@ static int vs_drm_bind(struct device *dev)
 	drm_debugfs_add_custom_entries(drm_dev);
 #endif
 
+	drm_client_setup_with_color_mode(drm_dev, 32);
 
 	return 0;
 
