@@ -3493,6 +3493,7 @@ static int __init aoc_init(void)
 	}
 
 	if (platform_device_register(&sscd_dev) != 0) {
+		platform_device_put(&sscd_dev);
 		pr_err("failed to register AoC coredump device\n");
 		goto err_aoc_coredump;
 	}
