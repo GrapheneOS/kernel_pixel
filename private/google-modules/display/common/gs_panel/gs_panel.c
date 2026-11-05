@@ -7,6 +7,7 @@
  * https://opensource.org/licenses/MIT.
  */
 
+#include <linux/platform_device.h>
 #include "gs_panel/gs_panel.h"
 
 #include <linux/delay.h>
@@ -1891,7 +1892,6 @@ int gs_dsi_panel_common_init(struct mipi_dsi_device *dsi, struct gs_panel *ctx)
 	}
 
 	/* Attach bridge funcs */
-	ctx->bridge.funcs = get_panel_drm_bridge_funcs();
 	ctx->sw_status.te.option = TEX_OPT_CHANGEABLE;
 	ctx->sw_status.te.rate_hz = 60;
 
@@ -1933,9 +1933,10 @@ int gs_dsi_panel_common_probe(struct mipi_dsi_device *dsi)
 {
 	struct gs_panel *ctx;
 
-	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
+	ctx = devm_drm_bridge_alloc(&dsi->dev, struct gs_panel, bridge,
+				    get_panel_drm_bridge_funcs());
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 
 	return gs_dsi_panel_common_init(dsi, ctx);
 }
