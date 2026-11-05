@@ -486,7 +486,7 @@ static int pogo_transport_probe(struct platform_device *pdev)
 	}
 	platform_set_drvdata(pdev, pogo_transport);
 
-	pogo_transport->wq = kthread_create_worker(0, "wq-pogo-transport");
+	pogo_transport->wq = kthread_run_worker(0, "wq-pogo-transport");
 	if (IS_ERR_OR_NULL(pogo_transport->wq)) {
 		ret = PTR_ERR(pogo_transport->wq);
 		goto unreg_logbuffer;
@@ -552,7 +552,7 @@ free_np:
 	return ret;
 }
 
-static int pogo_transport_remove(struct platform_device *pdev)
+static void pogo_transport_remove(struct platform_device *pdev)
 {
 	struct pogo_transport *pogo_transport = platform_get_drvdata(pdev);
 
@@ -562,7 +562,6 @@ static int pogo_transport_remove(struct platform_device *pdev)
 	kthread_destroy_worker(pogo_transport->wq);
 	logbuffer_unregister(pogo_transport->log);
 
-	return 0;
 }
 
 #define POGO_TRANSPORT_RO_ATTR(_name)                                                           \
