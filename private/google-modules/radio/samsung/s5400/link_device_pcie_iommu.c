@@ -153,6 +153,10 @@ void *cpif_pcie_iommu_map_va(struct pktproc_queue *q, unsigned long src_pa,
 		if (ret) {
 			mif_err("map failure idx:%u src_pa:0x%lX va:0x%p size:0x%lX\n",
 				ioc->map_idx, ioc->map_src_pa, ioc->map_page_va, map_size);
+			page_frag_free(addr_des);
+			__page_frag_cache_drain(virt_to_page(ioc->pf_cache.va),
+						ioc->pf_cache.pagecnt_bias);
+			ioc->pf_cache.va = NULL;
 			return NULL;
 		}
 		ioc->mapped_cnt++;
