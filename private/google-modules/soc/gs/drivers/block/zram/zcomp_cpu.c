@@ -78,7 +78,6 @@ int zcomp_cpu_compress(struct zcomp *comp, struct page *page,
 					stream->buffer, &comp_len);
 	kunmap_atomic(src);
 	if (unlikely(err)) {
-		zcomp_stream_put(comp);
 		pr_err("Compression failed! err=%d\n", err);
 	}
 
