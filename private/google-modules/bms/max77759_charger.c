@@ -831,15 +831,18 @@ static int max77759_get_usecase(struct max77759_foreach_cb_data *cb_data,
 static void max77759_set_pogo_ovp_en(struct max77759_usecase_data *uc_data,
 				     const int enabled)
 {
-	const int gpio_en = gpiod_get_value_cansleep(uc_data->pogo_ovp_en);
-	const bool pogo_ovp_en = !!gpio_en;
+	const int gpio_en = gpio_get_value_cansleep(uc_data->pogo_ovp_en);
+	const bool pogo_ovp_en = uc_data->pogo_ovp_en_act_low ?
+				 (gpio_en == 0) : (gpio_en == 1);
 
 	/* return if pogo_ovp_en has been set */
 	if ((enabled && pogo_ovp_en) || (!enabled && !pogo_ovp_en))
 		return;
 
 	/* turn on/off pogo_ovp_en */
-	gpiod_set_value_cansleep(uc_data->pogo_ovp_en, !!enabled);
+	gpio_set_value_cansleep(uc_data->pogo_ovp_en, enabled ?
+				!uc_data->pogo_ovp_en_act_low :
+				uc_data->pogo_ovp_en_act_low);
 }
 
 /*
@@ -897,8 +900,8 @@ static int max77759_set_insel(struct max77759_chgr_data *data,
 		/* always disable WCIN when pogo power out */
 		insel_value &= ~MAX77759_CHG_CNFG_12_WCINSEL;
 		/* turn off pogo_ovp */
-		if (!IS_ERR(uc_data->pogo_ovp_en))
-			gpiod_set_value_cansleep(uc_data->pogo_ovp_en, 0);
+		if (uc_data->pogo_ovp_en > 0)
+			gpio_set_value_cansleep(uc_data->pogo_ovp_en, uc_data->pogo_ovp_en_act_low);
 	} else if (cb_data->pogo_vin && !cb_data->wlcin_off) {
 		/* always disable USB when Dock is present */
 		insel_value &= ~MAX77759_CHG_CNFG_12_CHGINSEL;
@@ -1742,7 +1745,7 @@ static void max77759_wcin_inlim_work_en(struct max77759_chgr_data *data, bool en
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int max77759_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int max77759_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1750,7 +1753,7 @@ static int max77759_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct max77759_chgr_data *data = gpiochip_get_data(chip);
 	int ret = 0;
@@ -1770,6 +1773,7 @@ static void max77759_gpio_set(struct gpio_chip *chip, unsigned int offset, int v
 		dev_err(data->dev, "GPIO %d: value=%d ret:%d\n", offset, value, ret);
 	else
 		dev_dbg(data->dev, "GPIO %d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void max77759_gpio_init(struct max77759_chgr_data *data)
@@ -2064,7 +2068,7 @@ static int max77759_init_wcin_psy(struct max77759_chgr_data *data)
 	int ret;
 
 	wcin_cfg.drv_data = data;
-	wcin_cfg.of_node = dev->of_node;
+	wcin_cfg.fwnode = of_fwnode_handle(dev->of_node);
 
 	if (of_property_read_bool(dev->of_node, "max77759,dc-psy-type-wireless"))
 		max77759_wcin_psy_desc.psy_dsc.type = POWER_SUPPLY_TYPE_WIRELESS;
@@ -3221,8 +3225,7 @@ done_relax:
 
 #define MAX77759_FCCM_UPPERBD_VOL 4600
 #define MAX77759_FCCM_LOWERBD_VOL 3600
-static int max77759_charger_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int max77759_charger_probe(struct i2c_client *client)
 {
 	struct power_supply_config chgr_psy_cfg = { 0 };
 	struct device *dev = &client->dev;

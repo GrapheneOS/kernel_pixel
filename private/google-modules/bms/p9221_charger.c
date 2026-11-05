@@ -5,6 +5,7 @@
  *
  */
 
+#include <linux/gpio/consumer.h>
 #include <linux/device.h>
 #include <linux/crc8.h>
 #include <linux/pm.h>
@@ -19,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/alarmtimer.h>
+#include <linux/timer.h>
 #include "p9221_charger.h"
 #include "p9221-dt-bindings.h"
 #include "google_dc_pps.h"
@@ -1264,7 +1266,7 @@ static void p9221_set_offline(struct p9221_charger_data *charger)
 		feature_update_session(charger, WLCF_DISABLE_ALL_FEATURE);
 	p9221_uevent(charger, UEVENT_WLC);
 	p9221_icl_ramp_reset(charger);
-	del_timer(&charger->vrect_timer);
+	timer_delete(&charger->vrect_timer);
 
 	p9221_vote_defaults(charger);
 	if (charger->enabled)
@@ -1296,7 +1298,7 @@ static void p9221_tx_work(struct work_struct *work)
 
 static void p9221_vrect_timer_handler(struct timer_list *t)
 {
-	struct p9221_charger_data *charger = from_timer(charger,
+	struct p9221_charger_data *charger = timer_container_of(charger,
 							t, vrect_timer);
 
 	if (charger->align == WLC_ALIGN_CHECKING) {
@@ -1318,7 +1320,7 @@ static void p9221_vrect_timer_handler(struct timer_list *t)
 
 static void p9221_align_timer_handler(struct timer_list *t)
 {
-	struct p9221_charger_data *charger = from_timer(charger,
+	struct p9221_charger_data *charger = timer_container_of(charger,
 							t, align_timer);
 
 	charger->align = WLC_ALIGN_ERROR;
@@ -3425,7 +3427,7 @@ static int p9221_set_dc_icl(struct p9221_charger_data *charger)
 	return ret;
 }
 
-static enum alarmtimer_restart p9221_auth_dc_icl_alarm_cb(struct alarm *alarm,
+static void p9221_auth_dc_icl_alarm_cb(struct alarm *alarm,
 							  ktime_t now)
 {
 	struct p9221_charger_data *charger =
@@ -3435,7 +3437,6 @@ static enum alarmtimer_restart p9221_auth_dc_icl_alarm_cb(struct alarm *alarm,
 	/* Alarm is in atomic context, schedule work to complete the task */
 	dev_info(&charger->client->dev, "Auth timeout, reset DC_ICL\n");
 	schedule_delayed_work(&charger->auth_dc_icl_work, msecs_to_jiffies(100));
-	return ALARMTIMER_NORESTART;
 }
 
 /*
@@ -3526,7 +3527,7 @@ bool is_ping_freq_fixed_at(struct p9221_charger_data *charger, u32 khz)
 	return true;
 }
 
-static enum alarmtimer_restart p9221_icl_ramp_alarm_cb(struct alarm *alarm,
+static void p9221_icl_ramp_alarm_cb(struct alarm *alarm,
 						       ktime_t now)
 {
 	struct p9221_charger_data *charger =
@@ -3535,7 +3536,7 @@ static enum alarmtimer_restart p9221_icl_ramp_alarm_cb(struct alarm *alarm,
 
 	/* should not schedule icl_ramp_work if charge on rtx phone */
 	if (charger->chg_on_rtx)
-		return ALARMTIMER_NORESTART;
+		return;
 
 	dev_info(&charger->client->dev, "ICL ramp alarm, ramp=%d\n",
 		 charger->icl_ramp);
@@ -3544,7 +3545,6 @@ static enum alarmtimer_restart p9221_icl_ramp_alarm_cb(struct alarm *alarm,
 	pm_stay_awake(charger->dev);
 	schedule_delayed_work(&charger->icl_ramp_work, msecs_to_jiffies(100));
 
-	return ALARMTIMER_NORESTART;
 }
 
 static void p9221_icl_ramp_work(struct work_struct *work)
@@ -3832,7 +3832,7 @@ static void p9221_notifier_check_dc(struct p9221_charger_data *charger)
 	 * will be set by this function.
 	 */
 	cancel_delayed_work(&charger->dcin_work);
-	del_timer(&charger->vrect_timer);
+	timer_delete(&charger->vrect_timer);
 
 	mutex_lock(&charger->irq_det_lock);
 	if (charger->online_spoof && dc_in == 1) {
@@ -3924,7 +3924,7 @@ static bool p9221_notifier_check_det(struct p9221_charger_data *charger)
 {
 	bool relax = true;
 
-	del_timer(&charger->vrect_timer);
+	timer_delete(&charger->vrect_timer);
 
 	if (charger->online && !charger->ben_state)
 		goto done;
@@ -6178,7 +6178,7 @@ static struct attribute *p9221_attributes[] = {
 };
 
 static ssize_t p9221_rxdata_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
 	struct p9221_charger_data *charger;
@@ -6199,7 +6199,7 @@ static struct bin_attribute bin_attr_rxdata = {
 };
 
 static ssize_t p9221_txdata_read(struct file *filp, struct kobject *kobj,
-				 struct bin_attribute *bin_attr,
+				 const struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
 	struct p9221_charger_data *charger;
@@ -6210,7 +6210,7 @@ static ssize_t p9221_txdata_read(struct file *filp, struct kobject *kobj,
 }
 
 static ssize_t p9221_txdata_write(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
+				  const struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t size)
 {
 	struct p9221_charger_data *charger;
@@ -6230,7 +6230,7 @@ static struct bin_attribute bin_attr_txdata = {
 	.size  = P9221R5_DATA_SEND_BUF_SIZE,
 };
 
-static struct bin_attribute *p9221_bin_attributes[] = {
+static const struct bin_attribute *p9221_bin_attributes[] = {
 	&bin_attr_txdata,
 	&bin_attr_rxdata,
 	NULL,
@@ -7055,7 +7055,7 @@ static irqreturn_t p9221_irq_det_thread(int irq, void *irq_data)
 			      align_status_str[charger->align]);
 	}
 
-	del_timer(&charger->align_timer);
+	timer_delete(&charger->align_timer);
 
 	/*
 	 * This interrupt will wake the device if it's suspended,
@@ -8036,7 +8036,7 @@ static void p9221_soc_work(struct work_struct *work)
 	if (!charger->batt_psy) {
 		static struct power_supply *psy[2];
 
-		err = power_supply_get_by_phandle_array(charger->dev->of_node,
+		err = power_supply_get_by_reference_array(of_fwnode_handle(charger->dev->of_node),
 							"idt,fuel-gauge",
 							psy, ARRAY_SIZE(psy));
 		if (err < 0 || IS_ERR_OR_NULL(psy[0])) {
@@ -8097,8 +8097,7 @@ static bool p9xxx_find_votable(struct p9221_charger_data *charger)
 	       (charger->pdata->ldo_en_gpio && charger->wlc_spoof_votable != NULL);
 }
 
-static int p9221_charger_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int p9221_charger_probe(struct i2c_client *client)
 {
 	struct device_node *dn, *of_node = client->dev.of_node;
 	struct p9221_charger_data *charger;
@@ -8260,7 +8259,7 @@ static int p9221_charger_probe(struct i2c_client *client,
 	charger->cust_id = 5;
 
 	psy_cfg.drv_data = charger;
-	psy_cfg.of_node = charger->dev->of_node;
+	psy_cfg.fwnode = of_fwnode_handle(charger->dev->of_node);
 	charger->wc_psy = devm_power_supply_register(charger->dev,
 						     &p9221_psy_desc.psy_dsc,
 						     &psy_cfg);
@@ -8558,8 +8557,8 @@ static void p9221_charger_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&charger->icl_stable_work);
 	alarm_try_to_cancel(&charger->icl_ramp_alarm);
 	alarm_try_to_cancel(&charger->auth_dc_icl_alarm);
-	del_timer_sync(&charger->vrect_timer);
-	del_timer_sync(&charger->align_timer);
+	timer_delete_sync(&charger->vrect_timer);
+	timer_delete_sync(&charger->align_timer);
 	disable_irq_wake(charger->pdata->irq_int);
 	device_init_wakeup(charger->dev, false);
 	cancel_delayed_work_sync(&charger->notifier_work);

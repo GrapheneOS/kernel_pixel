@@ -4396,7 +4396,7 @@ static int of_hl7132_dt(struct device *dev,
 #ifdef CONFIG_THERMAL
 static int hl7132_usb_tz_read_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct hl7132_charger *hl7132 = tzd->devdata;
+	struct hl7132_charger *hl7132 = thermal_zone_device_priv(tzd);
 
 	if (!hl7132)
 		return -ENODEV;
@@ -4765,8 +4765,7 @@ static int hl7132_create_fs_entries(struct hl7132_charger *chip)
 }
 
 
-static int hl7132_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int hl7132_probe(struct i2c_client *client)
 {
 	static char *battery[] = { "hl7132-battery" };
 	struct power_supply_config mains_cfg = {};
@@ -4903,7 +4902,7 @@ static int hl7132_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_THERMAL)
 	if (pdata->usb_tz_name) {
 		hl7132_chg->usb_tzd =
-			thermal_zone_device_register(pdata->usb_tz_name, 0, 0,
+			thermal_zone_device_register_with_trips(pdata->usb_tz_name, NULL, 0,
 						     hl7132_chg,
 						     &hl7132_usb_tzd_ops,
 						     NULL, 0, 0);
