@@ -977,7 +977,7 @@ static int gvotable_get_current_reason_unlocked(struct gvotable_election *el,
 	if (max_len < 0)
 		return -EINVAL;
 	strscpy(reason, r, max_len);
-	/* Preserve the source-length return value of the former strlcpy(). */
+	/* Preserve the source-length return value of the former strscpy(). */
 	return strlen(r);
 }
 
