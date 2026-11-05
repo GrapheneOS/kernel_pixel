@@ -42,6 +42,27 @@
 #include <max77779.h>
 #include <max777x9_bcl.h>
 
+struct bcl_trip_update {
+	struct thermal_zone_device *tz;
+	int temperature;
+};
+
+static int bcl_update_first_trip(struct thermal_trip *trip, void *data)
+{
+	struct bcl_trip_update *update = data;
+
+	thermal_zone_set_trip_temp(update->tz, trip, update->temperature);
+	return 1;
+}
+
+static void bcl_set_trip_temp(struct thermal_zone_device *tz, int temperature)
+{
+	struct bcl_trip_update update = { tz, temperature };
+
+	/* The iterator holds the zone lock while updating its first trip. */
+	thermal_zone_for_each_trip(tz, bcl_update_first_trip, &update);
+}
+
 const unsigned int clk_stats_offset[] = {
 	CPUCL0_CLKDIVSTEP_STAT,
 	CLKDIVSTEP_STAT,
@@ -1280,7 +1301,7 @@ static ssize_t uvlo1_lvl_store(struct device *dev,
 		return ret;
 	bcl_dev->zone[UVLO1]->bcl_lvl = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
 	if (bcl_dev->zone[UVLO1]->tz) {
-		bcl_dev->zone[UVLO1]->tz->trips[0].temperature = VD_BATTERY_VOLTAGE - value;
+		bcl_set_trip_temp(bcl_dev->zone[UVLO1]->tz, VD_BATTERY_VOLTAGE - value);
 		thermal_zone_device_update(bcl_dev->zone[UVLO1]->tz, THERMAL_EVENT_UNSPECIFIED);
 	}
 	return size;
@@ -1346,7 +1367,7 @@ static ssize_t uvlo2_lvl_store(struct device *dev,
 		return ret;
 	bcl_dev->zone[UVLO2]->bcl_lvl = VD_BATTERY_VOLTAGE - value - THERMAL_HYST_LEVEL;
 	if (bcl_dev->zone[UVLO2]->tz) {
-		bcl_dev->zone[UVLO2]->tz->trips[0].temperature = VD_BATTERY_VOLTAGE - value;
+		bcl_set_trip_temp(bcl_dev->zone[UVLO2]->tz, VD_BATTERY_VOLTAGE - value);
 		thermal_zone_device_update(bcl_dev->zone[UVLO2]->tz, THERMAL_EVENT_UNSPECIFIED);
 	}
 	return size;
@@ -1462,7 +1483,7 @@ static ssize_t batoilo_lvl_store(struct device *dev,
 		return ret;
 	bcl_dev->zone[BATOILO1]->bcl_lvl = value - THERMAL_HYST_LEVEL;
 	if (bcl_dev->zone[BATOILO1]->tz) {
-		bcl_dev->zone[BATOILO1]->tz->trips[0].temperature = value;
+		bcl_set_trip_temp(bcl_dev->zone[BATOILO1]->tz, value);
 		thermal_zone_device_update(bcl_dev->zone[BATOILO1]->tz, THERMAL_EVENT_UNSPECIFIED);
 	}
 	return size;
@@ -1518,7 +1539,7 @@ static ssize_t batoilo2_lvl_store(struct device *dev,
 		return ret;
 	bcl_dev->zone[BATOILO2]->bcl_lvl = value - THERMAL_HYST_LEVEL;
 	if (bcl_dev->zone[BATOILO2]->tz) {
-		bcl_dev->zone[BATOILO2]->tz->trips[0].temperature = value;
+		bcl_set_trip_temp(bcl_dev->zone[BATOILO2]->tz, value);
 		thermal_zone_device_update(bcl_dev->zone[BATOILO2]->tz, THERMAL_EVENT_UNSPECIFIED);
 	}
 	return size;
@@ -1588,7 +1609,7 @@ static ssize_t smpl_lvl_store(struct device *dev,
 	bcl_dev->zone[SMPL_WARN]->bcl_lvl = SMPL_BATTERY_VOLTAGE - val - THERMAL_HYST_LEVEL;
 
 	if (bcl_dev->zone[SMPL_WARN]->tz) {
-		bcl_dev->zone[SMPL_WARN]->tz->trips[0].temperature = SMPL_BATTERY_VOLTAGE - val;
+		bcl_set_trip_temp(bcl_dev->zone[SMPL_WARN]->tz, SMPL_BATTERY_VOLTAGE - val);
 		thermal_zone_device_update(bcl_dev->zone[SMPL_WARN]->tz, THERMAL_EVENT_UNSPECIFIED);
 	}
 	irq_safe_config_extended(bcl_dev->zone[SMPL_WARN], false /* disabled */,
@@ -1646,7 +1667,7 @@ static int set_ocp_lvl(struct bcl_device *bcl_dev, u64 val, u8 addr, u8 pmic, u8
 	if (!ret)
 		bcl_dev->zone[id]->bcl_lvl = val - THERMAL_HYST_LEVEL;
 	if (bcl_dev->zone[id]->tz) {
-		bcl_dev->zone[id]->tz->trips[0].temperature = val;
+		bcl_set_trip_temp(bcl_dev->zone[id]->tz, val);
 		thermal_zone_device_update(bcl_dev->zone[id]->tz, THERMAL_EVENT_UNSPECIFIED);
 	}
 	irq_safe_config_extended(bcl_dev->zone[id], false /* disabled */,
@@ -4415,7 +4436,7 @@ static struct attribute *irq_config_attrs[] = {
 	NULL,
 };
 
-int get_final_mitigation_module_ids(struct bcl_device *bcl_dev) {
+static int get_final_mitigation_module_ids(struct bcl_device *bcl_dev) {
 	int mitigation_module_ids = atomic_read(&bcl_dev->mitigation_module_ids);
 	int w = hweight32(mitigation_module_ids);
 
@@ -4486,14 +4507,14 @@ static DEVICE_ATTR(uvlo1_triggered, 0444, uvlo1_triggered_show, NULL);
 static DEVICE_ATTR(uvlo2_triggered, 0444, uvlo2_triggered_show, NULL);
 static DEVICE_ATTR(smpl_triggered, 0444, smpl_triggered_show, NULL);
 
-void bunch_mitigation_threshold_addr(struct bcl_mitigation_conf *mitigation_conf,
+static void bunch_mitigation_threshold_addr(struct bcl_mitigation_conf *mitigation_conf,
 					unsigned int *addr[METER_CHANNEL_MAX]) {
 	int i;
 	for (i = 0; i < METER_CHANNEL_MAX; i++)
 		addr[i] = &mitigation_conf[i].threshold;
 }
 
-void bunch_mitigation_module_id_addr(struct bcl_mitigation_conf *mitigation_conf,
+static void bunch_mitigation_module_id_addr(struct bcl_mitigation_conf *mitigation_conf,
 					unsigned int *addr[METER_CHANNEL_MAX]) {
 	int i;
 	for (i = 0; i < METER_CHANNEL_MAX; i++)
@@ -4740,7 +4761,7 @@ static struct attribute *br_stats_attrs[] = {
 };
 
 static ssize_t max_odpm_stats_dump_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -4759,14 +4780,14 @@ static ssize_t max_odpm_stats_dump_read(struct file *filp,
 	return count;
 }
 
-static struct bin_attribute max_odpm_stats_dump_attr = {
+static const struct bin_attribute max_odpm_stats_dump_attr = {
 	.attr = { .name = "max_odpm_stats", .mode = 0444 },
 	.read = max_odpm_stats_dump_read,
 	.size = sizeof(struct max_odpm_stats),
 };
 
 static ssize_t br_stats_dump_read(struct file *filp,
-				  struct kobject *kobj, struct bin_attribute *attr,
+				  struct kobject *kobj, const struct bin_attribute *attr,
 				  char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -4783,13 +4804,13 @@ static ssize_t br_stats_dump_read(struct file *filp,
 	return count;
 }
 
-static struct bin_attribute br_stats_dump_attr = {
+static const struct bin_attribute br_stats_dump_attr = {
 	.attr = { .name = "stats", .mode = 0444 },
 	.read = br_stats_dump_read,
 	.size = sizeof(struct brownout_stats),
 };
 
-static struct bin_attribute *br_stats_bin_attrs[] = {
+static const struct bin_attribute * const br_stats_bin_attrs[] = {
 	&br_stats_dump_attr,
 	&max_odpm_stats_dump_attr,
 	NULL,
