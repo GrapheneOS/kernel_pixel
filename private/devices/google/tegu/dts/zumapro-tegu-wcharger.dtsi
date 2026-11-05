@@ -57,7 +57,7 @@
 	pinctrl-0 = <&wc_irq &wc_en &det_int>;
 
 	google,wcin_inlim_en = <&max77779_gpio 0 GPIO_ACTIVE_HIGH>;
-	idt,gpio_wlc_en = <&max77779_sgpio 1 GPIO_ACTIVE_LOW>; /* QI_EN_L */
+	idt,wlc_en-gpios = <&max77779_sgpio 1 GPIO_ACTIVE_LOW>; /* QI_EN_L */
 	idt,gpio_qien = <&max77779_sgpio 1 GPIO_ACTIVE_LOW>; /* QI_EN_L */
 	idt,irq_det_gpio = <&max77779_sgpio 2 GPIO_ACTIVE_LOW>; /* QI_PDET_OD_L */
 	idt,irq_gpio = <&max77779_sgpio 4 GPIO_ACTIVE_LOW>; /* QI_INT_ODL */

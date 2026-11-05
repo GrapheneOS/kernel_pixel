@@ -25,6 +25,9 @@ max77759tcpc: max77759tcpc@25 {
 	pullup-supply = <&m_ldo19_reg>;
 
 	conn: connector {
+		sink-wait-cap-time-ms = <450>;
+		ps-source-off-time-ms = <870>;
+		cc-debounce-time-ms = <170>;
 		compatible = "usb-c-connector";
 		label = "USB-C";
 		data-role = "dual";
