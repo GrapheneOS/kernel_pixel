@@ -208,7 +208,7 @@ static void telemetry_worker(struct work_struct *work)
 		if (tel->header->head != tel->header->tail) {
 			read_lock(&tel->ctx_lock);
 			if (tel->ctx)
-				eventfd_signal(tel->ctx, 1);
+				eventfd_signal(tel->ctx);
 			else
 				tel->fallback_fn(tel);
 			read_unlock(&tel->ctx_lock);

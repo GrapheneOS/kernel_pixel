@@ -30,6 +30,7 @@ kernel_module(
     ]) + [
         "Kbuild",
         "Makefile",
+        "gcip-kernel-driver/drivers/gcip/objects.mk",
         "gcip-kernel-driver/drivers/gcip/Makefile",
         "//private/google-modules/power/mitigation:headers",
         "//private/google-modules/soc/gs:gs_soc_headers",

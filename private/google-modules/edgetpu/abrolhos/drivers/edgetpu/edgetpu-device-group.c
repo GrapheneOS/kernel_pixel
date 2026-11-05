@@ -477,7 +477,7 @@ void edgetpu_group_notify(struct edgetpu_device_group *group, uint event_id)
 		  group->workload_id, event_id);
 	read_lock(&group->events.lock);
 	if (group->events.eventfds[event_id])
-		eventfd_signal(group->events.eventfds[event_id], 1);
+		eventfd_signal(group->events.eventfds[event_id]);
 	read_unlock(&group->events.lock);
 }
 

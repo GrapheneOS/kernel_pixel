@@ -14,6 +14,7 @@ kernel_module(
         "**/*.h",
     ]) + [
         "Makefile",
+        "gcip-kernel-driver/drivers/gcip/objects.mk",
         "gcip-kernel-driver/drivers/gcip/Makefile",
         "//private/google-modules/edgetpu/rio/drivers/edgetpu:headers",
         "//private/google-modules/power/mitigation:headers",

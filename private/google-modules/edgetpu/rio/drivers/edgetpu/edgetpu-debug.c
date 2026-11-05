@@ -331,7 +331,7 @@ void edgetpu_debug_dump_cpu_regs(struct edgetpu_dev *etdev)
 		return;
 
 	/* Ensure the TPU block and control cluster are powered. */
-	if (pm_runtime_get_if_active(etdev->dev, false) <= 0) {
+	if (pm_runtime_get_if_in_use(etdev->dev) <= 0) {
 		etdev_info(etdev, "pm_runtime not active, skip CPU registers dump.");
 		return;
 	}
@@ -500,10 +500,7 @@ static int sscd_ctx_report_and_release(struct sscd_segments_context *ctx, const 
 	return ret;
 }
 
-static void sscd_release(struct device *dev)
-{
-	pr_debug(DRIVER_NAME " release\n");
-}
+
 
 static int mobile_sscd_collect_etdev_info(struct edgetpu_dev *etdev,
 					  struct sscd_segments_context *ctx)
@@ -600,34 +597,31 @@ static int edgetpu_debug_dump_init(struct edgetpu_dev *etdev)
 	if (!sscd_pdata)
 		return -ENOMEM;
 
-	sscd_dev = devm_kzalloc(etdev->dev, sizeof(*sscd_dev), GFP_KERNEL);
+	sscd_dev = platform_device_alloc(DRIVER_NAME, PLATFORM_DEVID_NONE);
 	if (!sscd_dev) {
 		ret = -ENOMEM;
 		goto out_free_pdata;
 	}
-
-	*sscd_dev = (struct platform_device) {
-		.name = DRIVER_NAME,
-		.driver_override = SSCD_NAME,
-		.id = PLATFORM_DEVID_NONE,
-		.dev = {
-			.platform_data = sscd_pdata,
-			.release = sscd_release,
-		},
-	};
-	/* Register SSCD platform device */
-	ret = platform_device_register(sscd_dev);
+	ret = platform_device_add_data(sscd_dev, sscd_pdata, sizeof(*sscd_pdata));
+	if (ret)
+		goto out_put_device;
+	ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
+	if (ret)
+		goto out_put_device;
+	ret = platform_device_add(sscd_dev);
 	if (ret) {
 		etdev_err(etdev, "SSCD platform device registration failed: %d", ret);
-		goto out_free_sscd_dev;
+		goto out_put_device;
 	}
+	devm_kfree(etdev->dev, sscd_pdata);
+	sscd_pdata = dev_get_platdata(&sscd_dev->dev);
 	pdev->sscd_info.pdata = sscd_pdata;
 	pdev->sscd_info.dev = sscd_dev;
 	edgetpu_setup_debug_dump_fs(etdev);
 	return ret;
 
-out_free_sscd_dev:
-	devm_kfree(etdev->dev, sscd_dev);
+out_put_device:
+	platform_device_put(sscd_dev);
 out_free_pdata:
 	devm_kfree(etdev->dev, sscd_pdata);
 	return ret;
@@ -635,7 +629,8 @@ out_free_pdata:
 
 static void edgetpu_debug_dump_exit(struct edgetpu_dev *etdev)
 {
-	platform_device_unregister(to_mobile_dev(etdev)->sscd_info.dev);
+	if (to_mobile_dev(etdev)->sscd_info.dev)
+		platform_device_unregister(to_mobile_dev(etdev)->sscd_info.dev);
 }
 
 #else /* IS_ENABLED(CONFIG_SUBSYSTEM_COREDUMP) || IS_ENABLED(CONFIG_EDGETPU_TEST) */
