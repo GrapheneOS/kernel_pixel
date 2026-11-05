@@ -586,9 +586,8 @@ static int slg51000_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int slg51000_pinctrl_remove(struct platform_device *pdev)
+static void slg51000_pinctrl_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct platform_device_id slg51000_pinctrl_id[] = {
