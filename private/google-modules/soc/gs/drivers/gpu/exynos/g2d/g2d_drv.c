@@ -868,8 +868,10 @@ static int g2d_probe(struct platform_device *pdev)
 		} else {
 			g2d_dev->noncoherent_dev = devm_kzalloc(&pdev->dev, sizeof(struct device),
 								GFP_KERNEL);
-			if (!g2d_dev->noncoherent_dev)
-				return -ENOMEM;
+			if (!g2d_dev->noncoherent_dev) {
+				ret = -ENOMEM;
+				goto err_dt;
+			}
 			device_initialize(g2d_dev->noncoherent_dev);
 		}
 	}
