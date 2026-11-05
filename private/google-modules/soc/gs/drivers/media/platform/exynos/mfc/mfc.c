@@ -1385,4 +1385,4 @@ MODULE_SOFTDEP("pre: samsung_dma_heap");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kamil Debski <k.debski@samsung.com>");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");

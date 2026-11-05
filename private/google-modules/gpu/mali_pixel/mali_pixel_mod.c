@@ -5,7 +5,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Pixel platform integration for GPU");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_AUTHOR("<sidaths@google.com>");
 MODULE_VERSION("1.0");
 MODULE_SOFTDEP("pre: slc_pmon");

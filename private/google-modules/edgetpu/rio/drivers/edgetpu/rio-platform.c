@@ -58,7 +58,7 @@ static void __exit edgetpu_platform_exit(void)
 }
 
 MODULE_DESCRIPTION("Google Edge TPU platform driver");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_LICENSE("GPL");
 module_init(edgetpu_platform_init);
 module_exit(edgetpu_platform_exit);
