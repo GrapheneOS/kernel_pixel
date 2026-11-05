@@ -173,7 +173,7 @@ static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		break;
 	default:
 		dev_err(data->chip->dev, "Unsupported GPIO offset %d\n", offset);
-		return;
+		goto out;
 	}
 
 	ret = regmap_write(data->regmap, addr, val);
@@ -181,6 +181,7 @@ static void slg51002_gpio_set(struct gpio_chip *chip, unsigned int offset,
 		dev_err(data->chip->dev, "Failed on GPIO offset %d\n", offset);
 	}
 
+out:
 	if (data->chip->exit_sw_test_mode)
 		data->chip->exit_sw_test_mode(data->regmap);
 }
