@@ -45,11 +45,17 @@
 }
 
 int max77759_read16(struct regmap *regmap, unsigned int reg,
+		    u16  *val);
+
+int max77759_read16(struct regmap *regmap, unsigned int reg,
 		    u16  *val)
 {
 	MAX77759_RW(read, regmap, reg, u16, val);
 }
 EXPORT_SYMBOL_GPL(max77759_read16);
+
+int max77759_write16(struct regmap *regmap, unsigned int reg,
+		     u16 val);
 
 int max77759_write16(struct regmap *regmap, unsigned int reg,
 		     u16 val)
@@ -59,11 +65,17 @@ int max77759_write16(struct regmap *regmap, unsigned int reg,
 EXPORT_SYMBOL_GPL(max77759_write16);
 
 int max77759_read8(struct regmap *regmap, unsigned int reg,
+		   u8 *val);
+
+int max77759_read8(struct regmap *regmap, unsigned int reg,
 		   u8 *val)
 {
 	MAX77759_RW(read, regmap, reg, u8, val);
 }
 EXPORT_SYMBOL_GPL(max77759_read8);
+
+int max77759_write8(struct regmap *regmap, unsigned int reg,
+		    u8 val);
 
 int max77759_write8(struct regmap *regmap, unsigned int reg,
 		    u8 val)
@@ -73,11 +85,17 @@ int max77759_write8(struct regmap *regmap, unsigned int reg,
 EXPORT_SYMBOL_GPL(max77759_write8);
 
 int max77759_update_bits16(struct regmap *regmap, unsigned int reg, u16 mask,
+			   u16 val);
+
+int max77759_update_bits16(struct regmap *regmap, unsigned int reg, u16 mask,
 			   u16 val)
 {
 	MAX77759_UPDATE_BITS(16, regmap, reg, mask, val);
 }
 EXPORT_SYMBOL_GPL(max77759_update_bits16);
+
+int max77759_update_bits8(struct regmap *regmap, unsigned int reg, u8 mask,
+			  u8 val);
 
 int max77759_update_bits8(struct regmap *regmap, unsigned int reg, u8 mask,
 			  u8 val)

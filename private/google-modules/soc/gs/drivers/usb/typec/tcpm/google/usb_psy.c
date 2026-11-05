@@ -175,7 +175,7 @@ void init_vote(struct usb_vote *vote, const char *reason,
 }
 EXPORT_SYMBOL_GPL(init_vote);
 
-int usb_find_chg_psy(struct usb_psy_data *usb)
+static int usb_find_chg_psy(struct usb_psy_data *usb)
 {
 	struct i2c_client *client = usb->tcpc_client;
 
@@ -635,18 +635,13 @@ static enum power_supply_property usb_psy_data_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
 };
 
-static enum power_supply_usb_type usb_psy_data_types[] = {
-	POWER_SUPPLY_USB_TYPE_UNKNOWN,
-	POWER_SUPPLY_USB_TYPE_SDP,
-	POWER_SUPPLY_USB_TYPE_CDP,
-	POWER_SUPPLY_USB_TYPE_DCP,
-};
-
 static const struct power_supply_desc usb_psy_desc = {
 	.name = "usb",
 	.type = POWER_SUPPLY_TYPE_USB,
-	.usb_types = usb_psy_data_types,
-	.num_usb_types = ARRAY_SIZE(usb_psy_data_types),
+	.usb_types = BIT(POWER_SUPPLY_USB_TYPE_UNKNOWN) |
+		BIT(POWER_SUPPLY_USB_TYPE_SDP) |
+		BIT(POWER_SUPPLY_USB_TYPE_CDP) |
+		BIT(POWER_SUPPLY_USB_TYPE_DCP),
 	.properties = usb_psy_data_props,
 	.num_properties = ARRAY_SIZE(usb_psy_data_props),
 	.get_property = usb_psy_data_get_prop,
@@ -986,12 +981,11 @@ void apply_sdp_enum_failure_wa(void *usb_psy)
 }
 EXPORT_SYMBOL_GPL(apply_sdp_enum_failure_wa);
 
-static enum alarmtimer_restart sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t now)
+static void sdp_timeout_alarm_cb(struct alarm *alarm, ktime_t now)
 {
 	struct usb_psy_data *usb = container_of(alarm, struct usb_psy_data, sdp_timeout_alarm);
 
 	apply_sdp_enum_failure_wa(usb);
-	return ALARMTIMER_NORESTART;
 }
 
 void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
@@ -1025,7 +1019,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->update_sdp_enum_timeout = false;
 	usb->disable_sdp_enum_timeout = false;
 
-	usb->usb_type_wq = kthread_create_worker(0, "wq-tcpm-usb-psy-usb-type");
+	usb->usb_type_wq = kthread_run_worker(0, "wq-tcpm-usb-psy-usb-type");
 	if (IS_ERR_OR_NULL(usb->usb_type_wq)) {
 		dev_err(&client->dev, "wq-tcpm-usb-psy-usb-type failed to create\n");
 		return usb->usb_type_wq;
@@ -1054,7 +1048,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	usb->main_chg_psy_name = (char *)of_get_property(dn, "main-chg-psy-name", NULL);
 
 	usb_cfg.drv_data = usb;
-	usb_cfg.of_node =  dev->of_node;
+	usb_cfg.fwnode = dev_fwnode(dev);
 	usb->usb_psy = power_supply_register(dev, &usb_psy_desc, &usb_cfg);
 	if (IS_ERR(usb->usb_psy)) {
 		dev_err(dev, "usb: Power supply register failed");
@@ -1128,7 +1122,7 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	gvotable_set_vote2str(usb->dead_battery_el, gvotable_v2s_uint);
 	gvotable_set_default(usb->dead_battery_el, (void *)1);
 
-	usb->wq = kthread_create_worker(0, "wq-tcpm-usb-psy");
+	usb->wq = kthread_run_worker(0, "wq-tcpm-usb-psy");
 	if (IS_ERR_OR_NULL(usb->wq)) {
 		ret = usb->wq;
 		goto unreg_dead_battery_el;
@@ -1141,7 +1135,11 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	/* vote default value after icl_work is initialized */
 	gvotable_use_default(usb->dead_battery_el, true);
 
-	devm_mutex_init(dev, &usb->lock);
+	retval = devm_mutex_init(dev, &usb->lock);
+	if (retval) {
+		ret = ERR_PTR(retval);
+		goto unreg_dead_battery_el;
+	}
 	retval = device_add_groups(dev, usb_psy_sysfs_groups);
 	if (retval < 0) {
 		logbuffer_logk(usb->log, LOGLEVEL_INFO,
