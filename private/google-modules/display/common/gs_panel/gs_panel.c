@@ -1880,7 +1880,9 @@ int gs_dsi_panel_common_init(struct mipi_dsi_device *dsi, struct gs_panel *ctx)
 #if IS_ENABLED(CONFIG_OF)
 	ctx->bridge.of_node = ctx->gs_connector->kdev->of_node;
 #endif
-	devm_drm_bridge_add(dev, &ctx->bridge);
+	ret = devm_drm_bridge_add(dev, &ctx->bridge);
+	if (ret)
+		goto err_panel;
 
 	/* Parse device tree - Backlight */
 	ret = gs_panel_of_parse_backlight(ctx);
