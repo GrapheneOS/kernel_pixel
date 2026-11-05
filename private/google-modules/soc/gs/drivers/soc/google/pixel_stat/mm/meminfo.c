@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/vmalloc.h>
 #include <soc/google/meminfo.h>
 #include "../../../../dma-buf/heaps/samsung/samsung-dma-heap.h"
 
