@@ -25,7 +25,7 @@
 
 #include <linux/bitops.h>
 #include <linux/string.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include "ufs-pixel-fips_sha256.h"
 
 static inline u32 Ch(u32 x, u32 y, u32 z)

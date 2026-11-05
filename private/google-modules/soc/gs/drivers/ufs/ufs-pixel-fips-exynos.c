@@ -10,7 +10,7 @@
 #define ISE_VERSION_MINOR(x)		(((x) >> 8) & 0xFF)
 #define ISE_VERSION_REVISION(x)		((x) & 0xFF)
 
-void ufs_report_ise_version_once(struct ufs_hba *hba)
+static void __maybe_unused ufs_report_ise_version_once(struct ufs_hba *hba)
 {
 	struct exynos_ufs *ufs = to_exynos_ufs(hba);
 	struct ufs_vs_handle *handle = &ufs->handle;

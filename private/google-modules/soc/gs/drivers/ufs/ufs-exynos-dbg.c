@@ -26,6 +26,7 @@
 #include "ufs-vs-regs.h"
 #include "ufs-exynos-dbg.h"
 #include "ufs-dump.h"
+#include "ufs-exynos-gs.h"
 
 /* Structure for ufs cmd logging */
 #define MAX_CMD_LOGS    32
