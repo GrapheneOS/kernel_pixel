@@ -303,7 +303,7 @@ static ssize_t cmd_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	strlcpy(cmd.cmd, buf, sizeof(cmd.cmd));
+	strscpy(cmd.cmd, buf, sizeof(cmd.cmd));
 
 	mutex_lock(&data->fifo_lock);
 	queue_size = (kfifo_len(&data->cmd_queue) / sizeof(struct command));
