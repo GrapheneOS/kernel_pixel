@@ -26,6 +26,7 @@
  * QM35 UCI over HSSPI protocol
  */
 
+#include <linux/of.h>
 #include <linux/version.h>
 #include <linux/bitfield.h>
 #include <linux/interrupt.h>
