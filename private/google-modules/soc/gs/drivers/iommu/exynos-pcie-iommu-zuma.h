@@ -658,6 +658,9 @@ static inline struct exynos_iovmm *exynos_get_iovmm(struct device *dev)
 }
 
 struct exynos_vm_region *find_iovm_region(struct exynos_iovmm *vmm,
+					  dma_addr_t iova);
+
+struct exynos_vm_region *find_iovm_region(struct exynos_iovmm *vmm,
 					  dma_addr_t iova)
 {
 	return NULL;
