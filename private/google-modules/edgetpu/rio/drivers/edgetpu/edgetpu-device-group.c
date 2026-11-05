@@ -1476,7 +1476,9 @@ static struct edgetpu_device_group *get_group_by_pasid(struct edgetpu_dev *etdev
 	if (pasid == IOMMU_PASID_INVALID || !pasid)
 		return NULL;
 
-	mutex_lock(&etdev->groups_lock);
+	/* Fault reporting can hold an IOMMU lock needed by attach/detach. */
+	if (!mutex_trylock(&etdev->groups_lock))
+		return NULL;
 	etdev_for_each_group(etdev, g, tgroup) {
 		if (tgroup->etdomain && tgroup->etdomain->pasid == pasid) {
 			group = edgetpu_device_group_get(tgroup);
