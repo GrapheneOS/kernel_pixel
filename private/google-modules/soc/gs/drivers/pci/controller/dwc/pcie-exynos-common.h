@@ -9,6 +9,8 @@
 #ifndef __PCIE_EXYNOS_H
 #define __PCIE_EXYNOS_H
 
+#include <linux/msi.h>
+
 #if IS_ENABLED(CONFIG_SOC_EXYNOS8890)
 #define PCI_DEVICE_ID_EXYNOS	0xa544
 #define GPIO_DEBUG_SFR		0x15601068
@@ -251,6 +253,8 @@ struct exynos_pcie_ops {
 };
 
 struct exynos_pcie {
+	struct msi_parent_ops msi_parent_ops;
+	struct irq_chip msi_irq_chip;
 	struct dw_pcie		*pci;
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct list_head	phys_mem_list;
