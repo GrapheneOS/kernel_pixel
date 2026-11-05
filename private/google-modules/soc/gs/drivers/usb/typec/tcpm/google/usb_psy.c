@@ -1011,6 +1011,10 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	if (!usb)
 		return ERR_PTR(-ENOMEM);
 
+	retval = devm_mutex_init(dev, &usb->lock);
+	if (retval)
+		return ERR_PTR(retval);
+
 	usb->tcpc_client = client;
 	usb->log = log;
 	usb->psy_ops = ops;
@@ -1135,22 +1139,22 @@ void *usb_psy_setup(struct i2c_client *client, struct logbuffer *log,
 	/* vote default value after icl_work is initialized */
 	gvotable_use_default(usb->dead_battery_el, true);
 
-	retval = devm_mutex_init(dev, &usb->lock);
-	if (retval) {
-		ret = ERR_PTR(retval);
-		goto unreg_dead_battery_el;
-	}
 	retval = device_add_groups(dev, usb_psy_sysfs_groups);
 	if (retval < 0) {
 		logbuffer_logk(usb->log, LOGLEVEL_INFO,
 			       "usb_psy: Unable to create sysfs attr groups, ret=%d",
 			       retval);
 		ret = ERR_PTR(retval);
-		goto unreg_dead_battery_el;
+		goto destroy_wq;
 	}
 
 	return usb;
 
+destroy_wq:
+	kthread_cancel_delayed_work_sync(&usb->sdp_icl_work);
+	kthread_cancel_delayed_work_sync(&usb->bc_icl_work);
+	kthread_cancel_delayed_work_sync(&usb->icl_work);
+	kthread_destroy_worker(usb->wq);
 unreg_dead_battery_el:
 	gvotable_destroy_election(usb->dead_battery_el);
 unreg_icl_proto_el:
