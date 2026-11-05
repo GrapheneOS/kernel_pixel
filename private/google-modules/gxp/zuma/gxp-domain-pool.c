@@ -41,7 +41,6 @@ gxp_domain_pool_alloc(struct gcip_domain_pool *pool)
 
 	if (IS_ERR_OR_NULL(gdomain))
 		return NULL;
-	iommu_set_fault_handler(gdomain->domain, gxp_iommu_fault_handler, NULL);
 
 	return gdomain;
 }
