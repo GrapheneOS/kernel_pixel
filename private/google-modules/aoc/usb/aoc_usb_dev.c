@@ -310,7 +310,7 @@ static int aoc_usb_notify(struct notifier_block *this,
 	return ret;
 }
 
-static int aoc_usb_match(struct device *dev, void *data)
+static int aoc_usb_match(struct device *dev, const void *data)
 {
 	if (sysfs_streq(dev_driver_string(dev), "xhci-hcd-exynos"))
 		return 1;

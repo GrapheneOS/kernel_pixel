@@ -345,6 +345,7 @@ static int snd_aoc_alsa_probe(void)
 	err = aoc_dp_init();
 	if (err) {
 		pr_err("ERR: fail to init aoc dp driver\n");
+		aoc_usb_exit();
 		goto out;
 	}
 
@@ -357,6 +358,7 @@ out:
 static int snd_aoc_alsa_remove(void)
 {
 	aoc_dp_exit();
+	aoc_usb_exit();
 	aoc_voip_exit();
 	aoc_incall_exit();
 	aoc_nohost_exit();
