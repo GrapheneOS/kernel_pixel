@@ -3097,7 +3097,7 @@ static int pogo_transport_probe(struct platform_device *pdev)
 	spin_lock_init(&pogo_transport->pogo_event_lock);
 	mutex_init(&pogo_transport->reboot_lock);
 
-	pogo_transport->wq = kthread_create_worker(0, "wq-pogo-transport");
+	pogo_transport->wq = kthread_run_worker(0, "wq-pogo-transport");
 	if (IS_ERR_OR_NULL(pogo_transport->wq)) {
 		ret = PTR_ERR(pogo_transport->wq);
 		goto unreg_logbuffer;
