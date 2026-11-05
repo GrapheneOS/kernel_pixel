@@ -776,7 +776,7 @@ struct te2_data {
 struct ready_signal_t {
 	int gpio;
 	int irq;
-	enum of_gpio_flags gpio_flags;
+	bool active_low;
 	struct completion detected;
 };
 
@@ -1303,6 +1303,8 @@ static inline void exynos_panel_send_cmd_set(struct exynos_panel *ctx,
 }
 void exynos_panel_set_lp_mode(struct exynos_panel *ctx, const struct exynos_panel_mode *pmode);
 void exynos_panel_set_binned_lp(struct exynos_panel *ctx, const u16 brightness);
+const struct drm_bridge_funcs *exynos_panel_get_bridge_funcs(void);
+
 int exynos_panel_common_init(struct mipi_dsi_device *dsi,
 				struct exynos_panel *ctx);
 int exynos_dcs_write_delay(struct exynos_panel *ctx, const void *data, size_t len,

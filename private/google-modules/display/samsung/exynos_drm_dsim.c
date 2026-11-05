@@ -13,7 +13,8 @@
 
 #define pr_fmt(fmt)  "%s: " fmt, __func__
 
-#include <asm/unaligned.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/unaligned.h>
 
 #include <drm/drm_of.h>
 #include <drm/drm_crtc_helper.h>
@@ -179,8 +180,7 @@ void dsim_dump(struct dsim_device *dsim, struct drm_printer *p)
 	struct drm_printer printer, *pointer;
 
 	if (!p) {
-		printer = is_console_enabled() ?
-			drm_debug_printer("[drm]") : drm_info_printer(dsim->dev);
+		printer = exynos_drm_dump_printer(dsim->dev);
 			pointer = &printer;
 	} else {
 		pointer = p;
@@ -1686,7 +1686,7 @@ static int dsim_add_mipi_dsi_device(struct dsim_device *dsim,
 				scnprintf(info.type, sizeof(info.type),
 					"%d:%s", idx, name);
 			else
-				strlcpy(info.type, name, sizeof(info.type));
+				strscpy(info.type, name, sizeof(info.type));
 			info.node = of_node_get(node);
 		}
 	}
@@ -3057,7 +3057,7 @@ static ssize_t hs_clock_store(struct device *dev,
 		goto out;
 	}
 
-	strlcpy(params, buf, sizeof(params));
+	strscpy(params, buf, sizeof(params));
 	hs_clk_str = strsep(&p, " ");
 	apply_now_str = strsep(&p, " ");
 
@@ -3272,7 +3272,7 @@ err:
 	return ret;
 }
 
-static int dsim_remove(struct platform_device *pdev)
+static void dsim_remove(struct platform_device *pdev)
 {
 	struct dsim_device *dsim = platform_get_drvdata(pdev);
 
@@ -3298,7 +3298,7 @@ static int dsim_remove(struct platform_device *pdev)
 		dsim->log = NULL;
 	}
 #endif
-	return 0;
+	return;
 }
 
 #ifdef CONFIG_PM

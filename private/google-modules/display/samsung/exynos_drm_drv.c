@@ -1005,6 +1005,7 @@ static const struct drm_ioctl_desc exynos_ioctls[] = {
 
 static const struct file_operations exynos_drm_driver_fops = {
 	.owner		= THIS_MODULE,
+	.fop_flags	= FOP_UNSIGNED_OFFSET,
 	.open		= drm_open,
 	.mmap		= exynos_drm_gem_mmap,
 	.poll		= drm_poll,
@@ -1030,7 +1031,7 @@ static struct drm_driver exynos_drm_driver = {
 	.fops			   = &exynos_drm_driver_fops,
 	.name			   = DRIVER_NAME,
 	.desc			   = DRIVER_DESC,
-	.date			   = DRIVER_DATE,
+
 	.major			   = DRIVER_MAJOR,
 	.minor			   = DRIVER_MINOR,
 };
@@ -1201,7 +1202,7 @@ static int exynos_drm_bind(struct device *dev)
 	 *	drm framework supports only one irq handler.
 	 */
 #if IS_ENABLED(CONFIG_DRM_LEGACY)
-	drm->irq_enabled = true;
+
 #endif
 
 	/* init kms poll for handling hpd */
@@ -1269,10 +1270,10 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 					       match);
 }
 
-static int exynos_drm_platform_remove(struct platform_device *pdev)
+static void exynos_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &exynos_drm_ops);
-	return 0;
+	return;
 }
 
 static void exynos_drm_platform_shutdown(struct platform_device *pdev)
