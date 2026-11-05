@@ -81,7 +81,7 @@ extern struct mfc_ctrls_ops decoder_ctrls_ops;
 extern struct vb2_ops mfc_dec_qops;
 extern struct mfc_fmt dec_formats[];
 
-void mfc_butler_worker(struct work_struct *work)
+static void mfc_butler_worker(struct work_struct *work)
 {
 	struct mfc_dev *dev;
 	struct mfc_ctx *ctx;
@@ -420,7 +420,7 @@ static int mfc_open(struct file *file)
 
 	v4l2_fh_init(&ctx->fh, vdev);
 	file->private_data = &ctx->fh;
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, file);
 
 	ctx->dev = dev;
 
@@ -539,7 +539,7 @@ err_ctx_init:
 	dev->ctx[ctx->num] = 0;
 
 err_ctx_num:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 
 err_vdev:
@@ -579,7 +579,7 @@ static int mfc_release(struct file *file)
 	MFC_TRACE_CTX_LT("[INFO] release is called (ctx:%d, total:%d)\n", ctx->num, dev->num_inst);
 
 	/* Free resources */
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, file);
 	v4l2_fh_exit(&ctx->fh);
 
 	maincore = mfc_get_main_core_wait(dev, ctx);
@@ -719,12 +719,44 @@ static int mfc_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 /* v4l2 ops */
+/*
+ * S_CTRL also queues per-frame encoder controls, while S_EXT_CTRLS sets
+ * initial parameters. Keep the two existing userspace operations distinct
+ * now that v4l2_ioctl_ops no longer has a single-control setter.
+ */
+static long mfc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
+	struct v4l2_control ctrl;
+	int ret;
+
+	if (cmd != VIDIOC_S_CTRL)
+		return video_ioctl2(file, cmd, arg);
+
+	if (copy_from_user(&ctrl, (void __user *)arg, sizeof(ctrl)))
+		return -EFAULT;
+	if (mutex_lock_interruptible(vdev->lock))
+		return -ERESTARTSYS;
+	if (!video_is_registered(vdev))
+		ret = -ENODEV;
+	else if (ctx->type == MFCINST_ENCODER)
+		ret = mfc_enc_s_ctrl(file, NULL, &ctrl);
+	else
+		ret = mfc_dec_s_ctrl(file, NULL, &ctrl);
+	mutex_unlock(vdev->lock);
+
+	if (!ret && copy_to_user((void __user *)arg, &ctrl, sizeof(ctrl)))
+		return -EFAULT;
+	return ret;
+}
+
 static const struct v4l2_file_operations mfc_fops = {
 	.owner = THIS_MODULE,
 	.open = mfc_open,
 	.release = mfc_release,
 	.poll = mfc_poll,
-	.unlocked_ioctl = video_ioctl2,
+	.unlocked_ioctl = mfc_ioctl,
 	.mmap = mfc_mmap,
 };
 
@@ -1200,7 +1232,7 @@ err_res_mem:
 }
 
 /* Remove the driver */
-static int mfc_remove(struct platform_device *pdev)
+static void mfc_remove(struct platform_device *pdev)
 {
 	struct mfc_dev *dev = platform_get_drvdata(pdev);
 
@@ -1228,7 +1260,6 @@ static int mfc_remove(struct platform_device *pdev)
 	mfc_dev_debug(2, "Will now deinit HW\n");
 
 	dev_dbg(&pdev->dev, "%s--\n", __func__);
-	return 0;
 }
 
 static void mfc_shutdown(struct platform_device *pdev)

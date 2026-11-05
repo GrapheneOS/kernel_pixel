@@ -236,7 +236,7 @@ static int __mfc_get_rgb_format_ctrl(struct mfc_ctx *ctx, struct mfc_enc_params 
 	return ret;
 }
 
-void __mfc_set_video_signal_type(struct mfc_core *core, struct mfc_ctx *ctx)
+static void __mfc_set_video_signal_type(struct mfc_core *core, struct mfc_ctx *ctx)
 {
 	struct mfc_dev *dev = ctx->dev;
 	struct mfc_enc *enc = ctx->enc_priv;

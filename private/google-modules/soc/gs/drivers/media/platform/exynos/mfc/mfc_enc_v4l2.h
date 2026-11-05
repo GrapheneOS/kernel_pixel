@@ -15,6 +15,8 @@
 
 #include "mfc_common.h"
 
+int mfc_enc_s_ctrl(struct file *file, void *priv, struct v4l2_control *ctrl);
+
 const struct v4l2_ioctl_ops *mfc_get_enc_v4l2_ioctl_ops(void);
 
 #endif /* __MFC_ENC_V4L2_H */

@@ -674,7 +674,7 @@ static struct mfc_ctrl_cfg mfc_ctrl_list[] = {
 	},
 	{	/* average QP of current frame */
 		.type = MFC_CTRL_TYPE_GET_DST,
-		.id = V4L2_CID_MPEG_VIDEO_AVERAGE_QP,
+		.id = V4L2_CID_MPEG_MFC_VIDEO_AVERAGE_QP,
 		.is_volatile = 1,
 		.mode = MFC_CTRL_MODE_SFR,
 		.addr = MFC_REG_E_NAL_DONE_INFO,
@@ -1828,7 +1828,7 @@ static int mfc_enc_get_buf_ctrls_val_nal_q(struct mfc_ctx *ctx,
 		case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_STATUS:
 			value = !enc->in_slice;
 			break;
-		case V4L2_CID_MPEG_VIDEO_AVERAGE_QP:
+		case V4L2_CID_MPEG_MFC_VIDEO_AVERAGE_QP:
 			value = pOutStr->NalDoneInfo;
 			break;
 		case V4L2_CID_MPEG_VIDEO_SUM_SKIP_MB:

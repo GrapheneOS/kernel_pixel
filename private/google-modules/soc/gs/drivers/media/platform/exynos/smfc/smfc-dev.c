@@ -6,6 +6,7 @@
  * The main source file of Samsung Exynos SMFC Driver
  */
 
+#include <linux/samsung-iommu-fault.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -97,7 +98,7 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 	suspending = !!(smfc->flags & SMFC_DEV_SUSPENDING);
 	if (!!(smfc->flags & SMFC_DEV_OTF_EMUMODE))
-		del_timer(&smfc->timer);
+		timer_delete(&smfc->timer);
 	smfc->flags &= ~(SMFC_DEV_RUNNING | SMFC_DEV_OTF_EMUMODE);
 
 	spin_unlock(&smfc->flag_lock);
@@ -161,7 +162,7 @@ static irqreturn_t exynos_smfc_irq_handler(int irq, void *priv)
 
 static void smfc_timedout_handler(struct timer_list *arg)
 {
-	struct smfc_dev *smfc = from_timer(smfc, arg, timer);
+	struct smfc_dev *smfc = timer_container_of(smfc, arg, timer);
 	struct smfc_ctx *ctx;
 	unsigned long flags;
 	bool suspending;
@@ -514,7 +515,7 @@ static int exynos_smfc_open(struct file *filp)
 		goto err_m2m_ctx_init;
 	}
 
-	v4l2_fh_add(&ctx->fh);
+	v4l2_fh_add(&ctx->fh, filp);
 
 	filp->private_data = &ctx->fh;
 
@@ -556,7 +557,7 @@ err_clk:
 err_m2m_ctx_init:
 	v4l2_ctrl_handler_free(&ctx->v4l2_ctrlhdlr);
 err_control:
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, filp);
 	v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	return ret;
@@ -568,7 +569,7 @@ static int exynos_smfc_release(struct file *filp)
 
 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
 	v4l2_ctrl_handler_free(&ctx->v4l2_ctrlhdlr);
-	v4l2_fh_del(&ctx->fh);
+	v4l2_fh_del(&ctx->fh, filp);
 	v4l2_fh_exit(&ctx->fh);
 
 	if (!IS_ERR(ctx->smfc->clk_gate)) {
@@ -874,7 +875,7 @@ static void g2d_pm_qos_remove_request(struct smfc_dev *smfc)
 }
 
 #if IS_ENABLED(CONFIG_EXYNOS_BTS)
-void smfc_get_bandwidth(struct smfc_dev *smfc, struct bts_bw *bw)
+static __maybe_unused void smfc_get_bandwidth(struct smfc_dev *smfc, struct bts_bw *bw)
 {
 	unsigned int bpc = smfc->bpc;
 	unsigned int core_clk = smfc->core_clk;
@@ -930,7 +931,7 @@ static void g2d_pm_qos_reset_request(struct smfc_dev *smfc)
 }
 #endif
 
-int smfc_iommu_fault_handler(struct iommu_fault *fault, void *token)
+static int smfc_iommu_fault_handler(struct samsung_iommu_fault *fault, void *token)
 {
 	struct smfc_dev *smfc = token;
 
@@ -1084,7 +1085,7 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_v4l2;
 
-	iommu_register_device_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
+	samsung_iommu_register_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
 
 	timer_setup(&smfc->timer, smfc_timedout_handler, 0);
 
@@ -1115,7 +1116,7 @@ static void smfc_deinit_clock(struct smfc_dev *smfc)
 		clk_put(smfc->clk_gate);
 }
 
-static int exynos_smfc_remove(struct platform_device *pdev)
+static void exynos_smfc_remove(struct platform_device *pdev)
 {
 	struct smfc_dev *smfc = platform_get_drvdata(pdev);
 
@@ -1123,9 +1124,8 @@ static int exynos_smfc_remove(struct platform_device *pdev)
 
 	smfc_deinit_clock(smfc);
 
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
