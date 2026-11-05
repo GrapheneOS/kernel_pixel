@@ -111,7 +111,7 @@ static struct platform_device *sscd_register(const char *name)
 
 	if (!pdev)
 		return NULL;
-	ret = driver_set_override(&pdev->dev, &pdev->driver_override, SSCD_NAME, strlen(SSCD_NAME));
+	ret = device_set_driver_override(&pdev->dev, SSCD_NAME);
 	if (ret) {
 		platform_device_put(pdev);
 		return NULL;
