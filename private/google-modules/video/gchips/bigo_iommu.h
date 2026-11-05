@@ -8,6 +8,7 @@
 #ifndef _BIGO_IOMMU_H_
 #define _BIGO_IOMMU_H_
 
+#include <linux/samsung-iommu-fault.h>
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
 
@@ -18,6 +19,6 @@ int bigo_map(struct bigo_core *core, struct bigo_inst *inst,
 	     struct bigo_ioc_mapping *mapping);
 int bigo_unmap(struct bigo_inst *inst, struct bigo_ioc_mapping *mapping);
 int bigo_dma_sync(struct bigo_buf_sync *sync);
-int bigo_iommu_fault_handler(struct iommu_fault *fault, void *param);
+int bigo_iommu_fault_handler(struct samsung_iommu_fault *fault, void *param);
 
 #endif //_BIGO_IOMMU_H_
