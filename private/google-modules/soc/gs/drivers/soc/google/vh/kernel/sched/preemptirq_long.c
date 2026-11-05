@@ -3,6 +3,7 @@
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
  */
 
+#include "preemptirq_long_internal.h"
 #include <linux/sched.h>
 #include <linux/sysctl.h>
 #include <linux/printk.h>
