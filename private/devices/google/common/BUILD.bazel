@@ -1,10 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("@kernel_toolchain_info//:dict.bzl", "VARS")
-load("//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_genrule")
-load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_LIST")
+load("@kleaf//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_genrule")
+load("//private/devices/google/common:constants.bzl", "PIXEL_GKI_MODULES_BASENAMES")
 load("//private/devices/google/common/kleaf:extracted_system_dlkm.bzl", "extracted_system_dlkm")
 
 package(
@@ -32,17 +30,16 @@ config_setting(
     flag_values = {":use_prebuilt_fips140": "1"},
 )
 
-_STRIP = "//prebuilts/clang/host/linux-x86/clang-{}:bin/llvm-strip".format(VARS["CLANG_VERSION"])
+_FIPS140_KO = "//prebuilts/gki/kernel_aarch64_fips140:fips140.ko"
 
 hermetic_genrule(
     name = "fips140",
-    srcs = ["@gki_prebuilt_fips140//fips140.ko"],
+    srcs = [_FIPS140_KO],
     outs = ["fips140.ko"],
     cmd = """
-        $(location {strip}) --strip-debug -o $(location fips140.ko) \\
-                $(location @gki_prebuilt_fips140//fips140.ko)
-    """.format(strip = _STRIP),
-    tools = [_STRIP],
+        llvm-strip --strip-debug -o $(location fips140.ko) $(location {fips140_ko})
+    """.format(fips140_ko = _FIPS140_KO),
+    use_cc_toolchain = True,
 )
 
 # Do not use this flag directly, use --config=testing or --config=kunit,
@@ -80,6 +77,6 @@ filegroup(
 
 extracted_system_dlkm(
     name = "kernel_gki_modules",
-    gki_modules = [paths.basename(m) for m in PIXEL_GKI_MODULES_LIST],
+    gki_modules = PIXEL_GKI_MODULES_BASENAMES,
     images = "//common:kernel_aarch64_images",
 )

@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+"""
+Bionic header tools used by Pixel builds.
+"""
+
+package(
+    default_visibility = [
+        "//visibility:public",
+    ],
+)
+
+filegroup(
+    name = "bionic_clean_header_deps",
+    srcs = [
+        "bionic/libc/kernel/tools/cpp.py",
+        "bionic/libc/kernel/tools/defaults.py",
+        "bionic/libc/kernel/tools/kernel.py",
+        "bionic/libc/kernel/tools/utils.py",
+    ],
+)
+
+filegroup(
+    name = "bionic_clean_header",
+    srcs = [
+        "bionic/libc/kernel/tools/clean_header.py",
+    ],
+)

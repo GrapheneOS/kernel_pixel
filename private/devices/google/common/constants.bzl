@@ -4,14 +4,20 @@
 Common Pixel constants.
 """
 
-load("//common:modules.bzl", "get_gki_modules_list")
+load("@bazel_skylib//lib:paths.bzl", "paths")
+load("//common:bazel/modules.bzl", "get_gki_modules_list")
 
-PIXEL_GKI_MODULES_LIST = [
-    m
-    for m in get_gki_modules_list("arm64")
-    # List of GKI modules to omit
-    if m not in [
-        # keep sorted
-        "drivers/block/zram/zram.ko",
-    ]
+# GKI modules replaced by Pixel modules or omitted from Pixel images.
+_OMITTED_GKI_MODULES = [
+    # keep sorted
+    "drivers/block/zram/zram.ko",
 ]
+
+def _pixel_gki_basename(module):
+    return None if module in _OMITTED_GKI_MODULES else paths.basename(module)
+
+def _pixel_gki_path(module):
+    return None if module in _OMITTED_GKI_MODULES else "^kernel/" + module
+
+PIXEL_GKI_MODULES_BASENAMES = get_gki_modules_list("arm64", map_each = _pixel_gki_basename)
+PIXEL_GKI_MODULES_PATHS = get_gki_modules_list("arm64", map_each = _pixel_gki_path)
