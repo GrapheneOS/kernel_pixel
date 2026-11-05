@@ -514,7 +514,7 @@ static void pt_handle_sysctl_register(struct pt_handle *handle)
 	}
 	handle->sysctl_header =
 		register_sysctl_table(sysctl_table);
-	if (IS_ERR(handle->sysctl_header)) {
+	if (!handle->sysctl_header) {
 		handle->sysctl_header = NULL;
 		kfree(sysctl_table);
 	} else

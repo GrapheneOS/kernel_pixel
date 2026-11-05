@@ -574,7 +574,11 @@ static int adv_tracer_ipc_init(struct platform_device *pdev)
 		eat_ipc->intr_bitoffset = INTR_FLAG_OFFSET;
 
 #ifdef ADV_TRACER_SSCOREDUMP
-	platform_device_register(&sscd_dev);
+	ret = platform_device_register(&sscd_dev);
+	if (ret) {
+		platform_device_put(&sscd_dev);
+		return ret;
+	}
 #endif
 
 	dev_info(&pdev->dev, "%s successful.\n", __func__);

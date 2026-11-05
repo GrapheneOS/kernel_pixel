@@ -599,12 +599,14 @@ EXPORT_SYMBOL_GPL(acpm_ipc_send_data_sync);
 #endif
 
 extern int nr_irqs;
+static unsigned int irq_info_count;
 
 static void acpm_alloc_irq_info(bool usage)
 {
 	kfree(irq_info);
+	irq_info_count = nr_irqs;
 	if (usage)
-		irq_info = kcalloc(nr_irqs, sizeof(struct cpu_irq_info), GFP_KERNEL);
+		irq_info = kcalloc(irq_info_count, sizeof(struct cpu_irq_info), GFP_ATOMIC);
 	else
 		irq_info = NULL;
 }
@@ -652,12 +654,12 @@ static void cpu_irq_info_dump(u32 retry)
 		else
 			name = "???";
 
-		if (irq_info && retry == 1) {
+		if (irq_info && i < irq_info_count && retry == 1) {
 			irq_info[i].irq_num = i;
 			irq_info[i].hwirq_num = desc->irq_data.hwirq;
 			irq_info[i].irq_stat = irq_stat;
 			irq_info[i].name = name;
-		} else if (irq_info && retry == 5) {
+		} else if (irq_info && i < irq_info_count && retry == 5) {
 			delta = irq_stat - irq_info[i].irq_stat;
 			if (delta > 0) {
 				pr_info("irq-%-4d(hwirq-%-3d) delta of irqs: %8u %s\n",
