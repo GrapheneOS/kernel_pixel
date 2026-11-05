@@ -16,7 +16,6 @@
 #include <linux/workqueue.h>
 #include <linux/usb/hcd.h>
 
-#include <trace/hooks/audio_usboffload.h>
 
 #include "aoc_usb.h"
 #include "xhci-exynos.h"
@@ -145,22 +144,17 @@ static void offload_connect_work(struct work_struct *work)
 	notify_offload_state(offload_data->offload_state);
 }
 
-static void usb_audio_vendor_connect(void *unused, struct usb_interface *intf,
-				     struct snd_usb_audio *chip)
+static int usb_audio_offload_notify(struct notifier_block *nb, unsigned long connected,
+				    void *data)
 {
-	if (offload_data) {
-		offload_data->offload_state = true;
-		schedule_work(&offload_data->offload_connect_ws);
-	}
+	offload_data->offload_state = connected;
+	schedule_work(&offload_data->offload_connect_ws);
+	return NOTIFY_OK;
 }
 
-static void usb_audio_vendor_disconnect(void *unused, struct usb_interface *intf)
-{
-	if (offload_data) {
-		offload_data->offload_state = false;
-		schedule_work(&offload_data->offload_connect_ws);
-	}
-}
+static struct notifier_block usb_audio_offload_nb = {
+	.notifier_call = usb_audio_offload_notify,
+};
 
 static int xhci_udev_notify(struct notifier_block *self, unsigned long action,
 			    void *dev)
@@ -219,18 +213,12 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 		goto free_data;
 	}
 
-	xhci_goog_rmem_setup_latecall(dev);
-
-	for (i = 0; i < XHCI_GOOG_DMA_RMEM_MAX; i++) {
-		ret = of_reserved_mem_device_init_by_idx(dev, dev->of_node, i);
-		if (ret) {
-			dev_err(dev, "Could not get reserved memory index %d\n", i);
-			goto release_rmem;
-		}
-	}
-
 	count = of_property_count_elems_of_size(dev->of_node, "memory-region",
 						sizeof(u32));
+	if (count < XHCI_GOOG_DMA_RMEM_MAX) {
+		ret = -EINVAL;
+		goto free_data;
+	}
 
 	for (i = 0; i < count; i++) {
 		np = of_parse_phandle(dev->of_node, "memory-region", i);
@@ -241,6 +229,7 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(dev, "rmem lookup failed.\n");
 			ret = -ENOMEM;
@@ -248,14 +237,16 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 		}
 
 		ret = iommu_map(domain, rmem->base, rmem->base, rmem->size,
-				IOMMU_READ | IOMMU_WRITE);
+				IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
 		if (ret < 0) {
 			dev_err(dev, "iommu_map error: %d\n", ret);
 			goto unmap_iommu;
 		}
 	}
 
-	xhci_goog_setup_dma_ops(dev);
+	ret = xhci_goog_setup_dma_pool(dev);
+	if (ret)
+		goto unmap_iommu;
 
 #else
 
@@ -272,6 +263,8 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 	if (!offload_data->dt_direct_usb_access)
 		dev_warn(dev, "Direct USB access is not supported\n");
 
+	offload_data->xhci = xhci;
+	INIT_WORK(&offload_data->offload_connect_ws, offload_connect_work);
 	offload_data->offload_state = true;
 	offload_data->usb_audio_count = 0;
 
@@ -280,32 +273,25 @@ static int usb_audio_offload_init(struct xhci_hcd *xhci)
 
 	aoc_alsa_usb_callback_register(setup_transfer_ring);
 	usb_register_notify(&xhci_udev_nb);
-	offload_data->xhci = xhci;
-
-	INIT_WORK(&offload_data->offload_connect_ws, offload_connect_work);
+	aoc_alsa_usb_register_notifier(&usb_audio_offload_nb);
 
 	return 0;
 #if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 unmap_iommu:
-	if (i > 0) {
-		for (i = 0; i < count - 1; i++) {
-			np = of_parse_phandle(dev->of_node, "memory-region", i);
-			if (!np)
-				continue;
-
-			rmem = of_reserved_mem_lookup(np);
-			if (!rmem)
-				continue;
-
+	count = i;
+	for (i = 0; i < count; i++) {
+		np = of_parse_phandle(dev->of_node, "memory-region", i);
+		if (!np)
+			continue;
+		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
+		if (rmem)
 			iommu_unmap(domain, rmem->base, rmem->size);
-		}
 	}
-
-release_rmem:
-	of_reserved_mem_device_release(dev);
 
 free_data:
 	kfree(offload_data);
+	offload_data = NULL;
 
 	return ret;
 #endif
@@ -323,14 +309,16 @@ static int usb_audio_offload_setup(struct xhci_hcd *xhci)
 
 static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 {
-#if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 	struct device *dev = xhci_to_hcd(xhci)->self.sysdev;
+#if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
 	struct iommu_domain	*domain;
 	struct reserved_mem	*rmem;
 	struct device_node	*np;
 	int i, count, ret;
 #endif
 
+	aoc_alsa_usb_unregister_notifier(&usb_audio_offload_nb);
+	cancel_work_sync(&offload_data->offload_connect_ws);
 	offload_data->usb_audio_offload = false;
 	offload_data->offload_state = false;
 	offload_data->xhci = NULL;
@@ -341,10 +329,8 @@ static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 	/* Notification for xhci driver removing */
 	usb_host_mode_state_notify(USB_DISCONNECTED);
 
-	cancel_work_sync(&offload_data->offload_connect_ws);
-
 #if IS_ENABLED(CONFIG_USB_XHCI_GOOG_DMA)
-	xhci_goog_restore_dma_ops(dev);
+	xhci_goog_release_dma_pool(dev);
 
 	domain = iommu_get_domain_for_dev(dev);
 
@@ -362,6 +348,7 @@ static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(dev, "rmem lookup failed.\n");
 			continue;
@@ -372,6 +359,7 @@ static void usb_audio_offload_cleanup(struct xhci_hcd *xhci)
 			dev_err(dev, "iommu_map error: %d\n", ret);
 	}
 
+#else
 	of_reserved_mem_device_release(dev);
 #endif
 
@@ -387,16 +375,5 @@ static struct xhci_exynos_ops offload_ops = {
 
 int xhci_offload_helper_init(void)
 {
-	int ret;
-
-	ret = register_trace_android_vh_audio_usb_offload_connect(usb_audio_vendor_connect, NULL);
-	if (ret)
-		pr_err("register_trace_android_vh_audio_usb_offload_connect failed: %d\n", ret);
-
-	ret = register_trace_android_rvh_audio_usb_offload_disconnect(usb_audio_vendor_disconnect,
-								      NULL);
-	if (ret)
-		pr_err("register_trace_android_rvh_audio_usb_offload_disconnect failed: %d\n", ret);
-
 	return xhci_exynos_register_offload_ops(&offload_ops);
 }
