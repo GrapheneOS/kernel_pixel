@@ -3,15 +3,15 @@
 # Makefile for the drm device driver.  This driver provides support for the
 # Direct Rendering Infrastructure (DRI) in XFree86 4.1.0 and higher.
 
-subdir-ccflags-y += -I$(srctree)/$(src)/../common/include
-subdir-ccflags-y += -I$(srctree)/$(src)/include/uapi
+subdir-ccflags-y += -I$(src)/../common/include
+subdir-ccflags-y += -I$(src)/include/uapi
 subdir-ccflags-y += -I$(ROOT_DIR)/private/google-modules/bms
 
-ccflags-y += -I$(srctree)/$(src)/cal_common
+ccflags-y += -I$(src)/cal_common
 ccflags-$(CONFIG_SOC_ZUMA) += -DCONFIG_DRM_LEGACY=1
 
 ifneq ($(filter y, $(CONFIG_SOC_GS101) $(CONFIG_SOC_GS201)),)
-ccflags-y += -I$(srctree)/$(src)/cal_9845
+ccflags-y += -I$(src)/cal_9845
 exynos-drm-y += cal_9845/decon_reg.o
 exynos-drm-y += cal_9845/dsim_reg.o
 exynos-drm-y += cal_9845/dpp_reg.o
@@ -19,7 +19,7 @@ exynos-drm-y += cal_9845/dqe_reg.o
 exynos-drm-y += cal_9845/hdr_reg.o
 endif
 
-ccflags-$(CONFIG_SOC_GS201) += -I$(srctree)/$(src)/cal_9855
+ccflags-$(CONFIG_SOC_GS201) += -I$(src)/cal_9855
 exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/decon_reg.o
 exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/dpp_reg.o
 exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/dqe_reg.o
@@ -27,7 +27,7 @@ ifeq ($(CONFIG_DRM_SAMSUNG_DP),y)
 exynos-drm-$(CONFIG_SOC_GS201) += cal_9855/dp_reg.o
 endif
 
-ccflags-$(CONFIG_SOC_ZUMA) += -I$(srctree)/$(src)/cal_9865
+ccflags-$(CONFIG_SOC_ZUMA) += -I$(src)/cal_9865
 exynos-drm-$(CONFIG_SOC_ZUMA) += cal_9865/decon_reg.o
 exynos-drm-$(CONFIG_SOC_ZUMA) += cal_9865/dsim_reg.o
 exynos-drm-$(CONFIG_SOC_ZUMA) += cal_9865/dpp_reg.o

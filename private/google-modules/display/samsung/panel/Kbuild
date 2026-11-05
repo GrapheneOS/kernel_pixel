@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-ccflags-y += -I$(srctree)/$(src)/../cal_common
+ccflags-y += -I$(src)/../cal_common
 
 obj-$(CONFIG_DRM_PANEL_GOOGLE_COMMON)		+= panel-common.o
 obj-$(CONFIG_DRM_PANEL_SAMSUNG_COMMON)		+= panel-samsung-drv.o

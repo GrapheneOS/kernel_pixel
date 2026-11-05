@@ -3,7 +3,7 @@
 # Makefile for GCMA
 
 # Needed for the trace points
-CFLAGS_gcma_core.o = -I$(srctree)/$(src)
+CFLAGS_gcma_core.o = -I$(src)
 
 obj-$(CONFIG_GCMA) += gcma.o
 
