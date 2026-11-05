@@ -45,14 +45,14 @@ static inline void cfs_rq_tg_path(struct cfs_rq *cfs_rq, char *path, int len)
 	else if (cfs_rq && cfs_rq->tg->css.cgroup)
 		cgroup_path(cfs_rq->tg->css.cgroup, path, len);
 	else
-		strlcpy(path, "(null)", len);
+		strscpy(path, "(null)", len);
 }
 
 static inline char *sched_trace_cfs_rq_path(struct cfs_rq *cfs_rq, char *str, int len)
 {
 	if (!cfs_rq) {
 		if (str)
-			strlcpy(str, "(null)", len);
+			strscpy(str, "(null)", len);
 		else
 			return NULL;
 	}
