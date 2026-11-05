@@ -17,24 +17,8 @@
 
 #define DEVICE_NAME "gnss"
 
-static void sscd_release(struct device *dev);
-
 static struct sscd_platform_data sscd_pdata;
-
-static struct platform_device sscd_dev = {
-	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
-	.id              = -1,
-	.dev             = {
-		.platform_data = &sscd_pdata,
-		.release       = sscd_release,
-		},
-};
-
-static void sscd_release(struct device *dev)
-{
-	gif_info("%s: enter\n", __FUNCTION__);
-}
+static struct platform_device *sscd_dev;
 
 static ssize_t coredump_store(struct device *dev, struct device_attribute *attr, const char *buf,
 			      size_t count)
@@ -162,9 +146,9 @@ static int gnss_remove(struct platform_device *pdev)
 
 	gpio_free(gc->gpio_gnss2ap_spi.num);
 
-	platform_device_unregister(&sscd_dev);
-
 	device_remove_file(&pdev->dev, &dev_attr_coredump);
+	platform_device_unregister(sscd_dev);
+	sscd_dev = NULL;
 
 	return 0;
 }
@@ -194,11 +178,26 @@ static int gnss_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata);
 	}
 
+	/* Register SSCD before acquiring resources or publishing the misc device. */
+	sscd_dev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
+	if (!sscd_dev)
+		return -ENOMEM;
+	ret = platform_device_add_data(sscd_dev, &sscd_pdata, sizeof(sscd_pdata));
+	if (!ret)
+		ret = driver_set_override(&sscd_dev->dev, &sscd_dev->driver_override, SSCD_NAME, strlen(SSCD_NAME));
+	if (!ret)
+		ret = platform_device_add(sscd_dev);
+	if (ret) {
+		platform_device_put(sscd_dev);
+		sscd_dev = NULL;
+		return ret;
+	}
+
 	gc = create_ctl_device(pdev);
 	if (!gc) {
 		gif_err("%s: Could not create gc\n", pdata->name);
 		ret = -ENOMEM;
-		goto probe_fail;
+		goto unregister_sscd;
 	}
 
 	ld = create_link_device(pdev);
@@ -226,8 +225,6 @@ static int gnss_probe(struct platform_device *pdev)
 		goto free_ld;
 	}
 
-	platform_device_register(&sscd_dev);
-
 	if (device_create_file(dev, &dev_attr_coredump))
 		gif_err("Unable to create sysfs coredump entry");
 
@@ -242,6 +239,9 @@ free_ld:
 	devm_kfree(dev, ld);
 free_gc:
 	devm_kfree(dev, gc);
+unregister_sscd:
+	platform_device_unregister(sscd_dev);
+	sscd_dev = NULL;
 probe_fail:
 	gif_err("%s: xxx\n", pdata->name);
 
@@ -272,14 +272,17 @@ module_platform_driver(gnss_driver);
 
 int gnss_set_coredump(const char *buf, int buf_len, const char *info)
 {
-	struct sscd_platform_data *pdata = dev_get_platdata(&sscd_dev.dev);
+	struct sscd_platform_data *pdata;
 	struct sscd_segment seg;
 
+	if (!sscd_dev)
+		return -ENODEV;
+	pdata = dev_get_platdata(&sscd_dev->dev);
 	if (pdata->sscd_report) {
 		memset(&seg, 0, sizeof(seg));
 		seg.addr = (void *)buf;
 		seg.size = buf_len;
-		pdata->sscd_report(&sscd_dev, &seg, 1, 0, info);
+		pdata->sscd_report(sscd_dev, &seg, 1, 0, info);
 	}
 	return 0;
 }
