@@ -448,7 +448,7 @@ static ssize_t sec_ts_enter_recovery_store(struct device *dev,
 		gpio_free(pdata->irq_gpio);
 
 		if (gpio_is_valid(pdata->irq_gpio)) {
-			ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN,
+			ret = gpio_request_one(pdata->irq_gpio, GPIOF_IN,
 						"sec,tsp_int");
 			if (ret) {
 				input_err(true, &ts->client->dev,
