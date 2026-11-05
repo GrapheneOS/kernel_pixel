@@ -109,11 +109,21 @@ static struct platform_device *sscd_register(const char *name)
 	struct sscd_platform_data sscd_pdata = {0};
 	struct platform_device *pdev = platform_device_alloc(name, -1);
 
-	pdev->driver_override = SSCD_NAME;
+	if (!pdev)
+		return NULL;
+	ret = device_set_driver_override(&pdev->dev, SSCD_NAME);
+	if (ret) {
+		platform_device_put(pdev);
+		return NULL;
+	}
 	platform_device_add_data(pdev, &sscd_pdata, sizeof(sscd_pdata));
 	ret = platform_device_add(pdev);
 
 	pr_err("%s: pdev %pK ret %d", __func__, pdev, ret);
+	if (ret) {
+		platform_device_put(pdev);
+		return NULL;
+	}
 	return pdev;
 }
 
