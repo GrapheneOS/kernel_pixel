@@ -2463,7 +2463,7 @@ static void __mfc_core_nal_q_handle_frame_input(struct mfc_core *core, struct mf
 	vb2_buffer_done(&src_mb->vb.vb2_buf, VB2_BUF_STATE_DONE);
 }
 
-void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *core_ctx,
+static void __mfc_core_nal_q_handle_frame(struct mfc_core *core, struct mfc_core_ctx *core_ctx,
 			DecoderOutputStr *pOutStr)
 {
 	struct mfc_ctx *ctx = core_ctx->ctx;
@@ -2660,7 +2660,7 @@ leave_handle_frame:
 	mfc_debug_leave();
 }
 
-int __mfc_core_nal_q_handle_error(struct mfc_core *core, struct mfc_core_ctx *core_ctx,
+static int __mfc_core_nal_q_handle_error(struct mfc_core *core, struct mfc_core_ctx *core_ctx,
 			EncoderOutputStr *pOutStr, int err)
 {
 	struct mfc_ctx *ctx = core_ctx->ctx;

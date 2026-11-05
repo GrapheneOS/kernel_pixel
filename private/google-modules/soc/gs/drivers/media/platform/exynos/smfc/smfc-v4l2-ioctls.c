@@ -756,7 +756,7 @@ static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, othertype);
 	u32 flags;
 
-	if (thisvq->num_buffers > 0) {
+	if (vb2_get_num_buffers(thisvq) > 0) {
 		dev_err(ctx->smfc->dev, "S_FMT after REQBUFS is not allowed\n");
 		return -EBUSY;
 	}
@@ -764,7 +764,7 @@ static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 	flags = smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
 				    is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type));
 
-	if (othervq->num_buffers > 0) { /* REQBUFSed on other vq */
+	if (vb2_get_num_buffers(othervq) > 0) { /* REQBUFSed on other vq */
 		if ((flags & SMFC_CTX_COMPRESS) != (ctx->flags & SMFC_CTX_COMPRESS)) {
 			dev_err(ctx->smfc->dev, "Changing mode is prohibited after reqbufs\n");
 			ctx->flags = flags;
@@ -955,11 +955,11 @@ static int v4l2_smfc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
 
-	if (vq->num_buffers > SMFC_MAX_PLANES) {
+	if (vb2_get_num_buffers(vq) > SMFC_MAX_PLANES) {
 		return -EINVAL;
 	}
 
-	for (index = 0; index < vq->num_buffers; index++) {
+	for (index = 0; index < vb2_get_num_buffers(vq); index++) {
 		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vq->bufs[index]);
 		struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
 		struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
