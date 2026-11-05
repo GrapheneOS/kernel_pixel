@@ -36,7 +36,7 @@ static void handle_tbn_event_response(struct tbn_context *tbn,
 	struct TbnEventResponse *response);
 #endif
 static int tbn_handshaking(struct tbn_context *tbn, enum TbnOperation operation);
-static int tbn_remove(struct platform_device *pdev);
+static void tbn_remove(struct platform_device *pdev);
 
 static struct tbn_context *tbn_context;
 
@@ -411,7 +411,7 @@ void register_tbn_lptw_callback(void* callback, void* cbdata)
 EXPORT_SYMBOL_GPL(register_tbn_lptw_callback);
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_TBN_AOC_CHANNEL_MODE)
-void tbn_aoc_reset_work(struct work_struct *work) {
+static void tbn_aoc_reset_work(struct work_struct *work) {
 	struct tbn_context *tbn = container_of(work, struct tbn_context, aoc_reset_work);
 
 	pr_warn("%s: AOC has been reset", __func__);
@@ -485,7 +485,7 @@ static int tbn_probe(struct platform_device *pdev)
 		tbn->aoc2ap_gpio = of_get_named_gpio(np, "tbn,aoc2ap_gpio", 0);
 		if (gpio_is_valid(tbn->aoc2ap_gpio)) {
 			err = devm_gpio_request_one(tbn->dev, tbn->aoc2ap_gpio,
-				GPIOF_DIR_IN, "tbn,aoc2ap_gpio");
+				GPIOF_IN, "tbn,aoc2ap_gpio");
 			if (err) {
 				pr_err("%s: Unable to request aoc2ap_gpio %d, err %d!\n",
 					__func__, tbn->aoc2ap_gpio, err);
@@ -562,13 +562,13 @@ failed:
 	return err;
 }
 
-static int tbn_remove(struct platform_device *pdev)
+static void tbn_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct tbn_context *tbn = dev_get_drvdata(dev);
 
 	if (tbn == NULL)
-		return 0;
+		return;
 
 	if (tbn->mode == TBN_MODE_GPIO) {
 		free_irq(tbn->aoc2ap_irq, tbn);
@@ -587,7 +587,7 @@ static int tbn_remove(struct platform_device *pdev)
 
 	devm_kfree(dev, tbn);
 	tbn_context = NULL;
-	return 0;
+	return;
 }
 
 static struct of_device_id tbn_of_match_table[] = {

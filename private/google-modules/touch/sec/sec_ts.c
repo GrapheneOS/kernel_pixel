@@ -60,7 +60,7 @@ static void unregister_panel_bridge(struct drm_bridge *bridge);
 int sec_ts_read_information(struct sec_ts_data *ts);
 
 #ifndef I2C_INTERFACE
-u32 sec_ts_spi_delay(u8 reg, u32 data_len)
+static u32 sec_ts_spi_delay(u8 reg, u32 data_len)
 {
 	u32 delay_us = 100;
 
@@ -101,7 +101,7 @@ u32 sec_ts_spi_delay(u8 reg, u32 data_len)
 	return delay_us;
 }
 
-int sec_ts_spi_post_delay(u8 reg)
+static int sec_ts_spi_post_delay(u8 reg)
 {
 	switch (reg) {
 	case SEC_TS_READ_TOUCH_RAWDATA:
@@ -112,6 +112,8 @@ int sec_ts_spi_post_delay(u8 reg)
 	}
 }
 #endif
+
+int sec_ts_write(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
 
 int sec_ts_write(struct sec_ts_data *ts, u8 reg, u8 *data, int len)
 {
@@ -974,30 +976,42 @@ err:
 }
 
 /* Wrapper API for read and write */
+int sec_ts_read(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
+
 int sec_ts_read(struct sec_ts_data *ts, u8 reg, u8 *data, int len)
 {
 	return sec_ts_read_internal(ts, reg, data, len, false);
 }
+
+int sec_ts_read_heap(struct sec_ts_data *ts, u8 reg, u8 *data, int len);
 
 int sec_ts_read_heap(struct sec_ts_data *ts, u8 reg, u8 *data, int len)
 {
 	return sec_ts_read_internal(ts, reg, data, len, true);
 }
 
+int sec_ts_write_burst(struct sec_ts_data *ts, u8 *data, int len);
+
 int sec_ts_write_burst(struct sec_ts_data *ts, u8 *data, int len)
 {
 	return sec_ts_write_burst_internal(ts, data, len, false);
 }
+
+int sec_ts_write_burst_heap(struct sec_ts_data *ts, u8 *data, int len);
 
 int sec_ts_write_burst_heap(struct sec_ts_data *ts, u8 *data, int len)
 {
 	return sec_ts_write_burst_internal(ts, data, len, true);
 }
 
+int sec_ts_read_bulk(struct sec_ts_data *ts, u8 *data, int len);
+
 int sec_ts_read_bulk(struct sec_ts_data *ts, u8 *data, int len)
 {
 	return sec_ts_read_bulk_internal(ts, data, len, false);
 }
+
+int sec_ts_read_bulk_heap(struct sec_ts_data *ts, u8 *data, int len);
 
 int sec_ts_read_bulk_heap(struct sec_ts_data *ts, u8 *data, int len)
 {
@@ -2846,7 +2860,7 @@ static void sec_ts_populate_frame(struct sec_ts_data *ts,
 	}
 }
 
-void sec_ts_enable_ptflib(struct sec_ts_data *ts, bool enable)
+static void sec_ts_enable_ptflib(struct sec_ts_data *ts, bool enable)
 {
 	struct sec_ts_plat_data *pdata = ts->plat_data;
 
@@ -2866,7 +2880,7 @@ void sec_ts_enable_ptflib(struct sec_ts_data *ts, bool enable)
 	}
 }
 
-int sec_ts_enable_fw_grip(struct sec_ts_data *ts, bool enable)
+static int sec_ts_enable_fw_grip(struct sec_ts_data *ts, bool enable)
 {
 	struct sec_ts_plat_data *pdata = ts->plat_data;
 	u8 value;
@@ -3518,6 +3532,8 @@ static void sec_ts_offload_report(void *handle,
 }
 #endif /* CONFIG_TOUCHSCREEN_OFFLOAD */
 
+int get_tsp_status(void);
+
 int get_tsp_status(void)
 {
 	return 0;
@@ -3868,7 +3884,7 @@ static int sec_ts_parse_dt(struct spi_device *client)
 
 	pdata->irq_gpio = of_get_named_gpio(np, "sec,irq_gpio", 0);
 	if (gpio_is_valid(pdata->irq_gpio)) {
-		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN,
+		ret = gpio_request_one(pdata->irq_gpio, GPIOF_IN,
 				       "sec,tsp_int");
 		if (ret) {
 			input_err(true, &client->dev,
@@ -4893,7 +4909,7 @@ static int sec_ts_probe(struct spi_device *client)
 #endif
 
 #ifndef CONFIG_SEC_SYSFS
-	sec_class = class_create(THIS_MODULE, "sec");
+	sec_class = class_create("sec");
 #endif
 
 	device_init_wakeup(&client->dev, true);
@@ -5125,7 +5141,7 @@ static void sec_ts_reset_work(struct work_struct *work)
 }
 #endif
 
-void sec_ts_read_init_info(struct sec_ts_data *ts)
+static void sec_ts_read_init_info(struct sec_ts_data *ts)
 {
 #ifndef CONFIG_SEC_FACTORY
 	struct sec_ts_test_mode mode;
@@ -6167,6 +6183,8 @@ int sec_ts_set_bus_ref(struct sec_ts_data *ts, u16 ref, bool enable)
 
 	return result;
 }
+
+struct drm_connector *get_bridge_connector(struct drm_bridge *bridge);
 
 struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
 {

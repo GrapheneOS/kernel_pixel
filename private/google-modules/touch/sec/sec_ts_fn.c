@@ -2358,7 +2358,7 @@ out_read_channel:
 	return ret;
 }
 
-int sec_ts_save_mutual_raw_to_buffer(struct sec_ts_data *ts,
+static int sec_ts_save_mutual_raw_to_buffer(struct sec_ts_data *ts,
 		struct sec_cmd_data *sec, struct sec_ts_test_mode *mode,
 		char *buff, const unsigned int buff_size)
 {
@@ -2409,7 +2409,7 @@ int sec_ts_save_mutual_raw_to_buffer(struct sec_ts_data *ts,
 	return buff_len;
 }
 
-int sec_ts_save_self_raw_to_buffer(struct sec_ts_data *ts,
+static int sec_ts_save_self_raw_to_buffer(struct sec_ts_data *ts,
 		struct sec_cmd_data *sec, struct sec_ts_test_mode *mode,
 		char *buff, const unsigned int buff_size)
 {
@@ -3660,7 +3660,7 @@ static void run_rawcap_combo_read_all(void *device_data)
 	sec_ts_set_bus_ref(ts, SEC_TS_BUS_REF_SYSFS, false);
 }
 
-int sec_ts_save_self_gap_raw_to_buffer(struct sec_ts_data *ts,
+static int sec_ts_save_self_gap_raw_to_buffer(struct sec_ts_data *ts,
 		struct sec_ts_test_mode *mode, short *gap,
 		char *buff, const unsigned int buff_size)
 {
@@ -3694,7 +3694,7 @@ int sec_ts_save_self_gap_raw_to_buffer(struct sec_ts_data *ts,
 	return buff_len;
 }
 
-int sec_ts_save_mutual_gap_raw_to_buffer(struct sec_ts_data *ts,
+static int sec_ts_save_mutual_gap_raw_to_buffer(struct sec_ts_data *ts,
 		struct sec_ts_test_mode *mode, short *gap_x, short *gap_y,
 		char *buff, const unsigned int buff_size)
 {
@@ -4167,7 +4167,7 @@ static int sec_ts_read_frame_stdev(struct sec_ts_data *ts,
 	const unsigned int buff_size = ts->tx_count * ts->rx_count *
 					CMD_RESULT_WORD_LEN;
 	unsigned int buff_len = 0;
-	char *pBuff;
+	char *pBuff = NULL;
 
 	input_info(true, &ts->client->dev, "%s\n", __func__);
 
@@ -4856,7 +4856,7 @@ out_nvm:
 	return buff[0];
 }
 
-int get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset,
+static int __maybe_unused get_tsp_nvm_data_by_size(struct sec_ts_data *ts, u8 offset,
 			     int length, u8 *data)
 {
 	char *buff = NULL;
