@@ -6,6 +6,7 @@
  * Copyright 2020 Google LLC
  */
 
+#include "cgroup.h"
 #include <linux/sched.h>
 #include <linux/cgroup.h>
 
