@@ -1,4 +1,4 @@
-subdir-ccflags-y += -I$(srctree)/$(src)/../common/
+subdir-ccflags-y += -I$(src)/../common/
 subdir-ccflags-y += -I$(srctree)/arch/arm64/kvm/hyp/include/
 subdir-ccflags-y += -DS2MPU_V9
 
