@@ -331,7 +331,7 @@ void edgetpu_debug_dump_cpu_regs(struct edgetpu_dev *etdev)
 		return;
 
 	/* Ensure the TPU block and control cluster are powered. */
-	if (pm_runtime_get_if_active(etdev->dev, false) <= 0) {
+	if (pm_runtime_get_if_in_use(etdev->dev) <= 0) {
 		etdev_info(etdev, "pm_runtime not active, skip CPU registers dump.");
 		return;
 	}
@@ -605,7 +605,7 @@ static int edgetpu_debug_dump_init(struct edgetpu_dev *etdev)
 	ret = platform_device_add_data(sscd_dev, sscd_pdata, sizeof(*sscd_pdata));
 	if (ret)
 		goto out_put_device;
-	ret = driver_set_override(&sscd_dev->dev, &sscd_dev->driver_override, SSCD_NAME, strlen(SSCD_NAME));
+	ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
 	if (ret)
 		goto out_put_device;
 	ret = platform_device_add(sscd_dev);
