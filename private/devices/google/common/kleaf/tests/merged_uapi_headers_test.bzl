@@ -2,7 +2,7 @@
 
 """Tests for merged_uapi_headers rule"""
 
-load("//build/kernel/kleaf:kernel.bzl", "ddk_uapi_headers")
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_uapi_headers")
 load("//private/devices/google/common/kleaf:merged_uapi_headers.bzl", "merged_uapi_headers")
 load(":utils/failure_test.bzl", "failure_test")
 load(":utils/file_content_test.bzl", "file_content_test")
