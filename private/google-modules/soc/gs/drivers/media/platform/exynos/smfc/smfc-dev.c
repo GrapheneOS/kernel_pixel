@@ -1085,13 +1085,15 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_v4l2;
 
-	samsung_iommu_register_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
+	ret = samsung_iommu_register_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
+	if (ret)
+		goto err_hwver;
 
 	timer_setup(&smfc->timer, smfc_timedout_handler, 0);
 
 	ret = smfc_find_hw_version(&pdev->dev, smfc);
 	if (ret < 0)
-		goto err_hwver;
+		goto err_fault_handler;
 
 	spin_lock_init(&smfc->flag_lock);
 
@@ -1102,6 +1104,8 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 		smfc->qosreq_int_level, smfc->qosreq_mif_level, smfc->core_clk, smfc->bpc);
 	return 0;
 
+err_fault_handler:
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 err_hwver:
 	smfc_deinit_v4l2(&pdev->dev, smfc);
 err_v4l2:
