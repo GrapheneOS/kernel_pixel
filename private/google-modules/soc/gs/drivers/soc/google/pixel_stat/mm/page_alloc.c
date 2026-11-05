@@ -7,6 +7,8 @@
  */
 
 #include <linux/mm.h>
+#include "page_alloc.h"
+#include "pixel_mm.h"
 
 DECLARE_PER_CPU(unsigned long, pgalloc_costly_order);
 DECLARE_PER_CPU(unsigned long, pgalloc_atomic_order_zero);

@@ -7,6 +7,7 @@
  */
 
 #include <linux/fs.h>
+#include "eventpoll.h"
 
 /*****************************************************************************/
 /*                       Modified Code Section                               */
