@@ -381,7 +381,7 @@ static int s2mpg15_pmic_dt_parse_pdata(struct s2mpg15_dev *iodev,
 	of_property_read_u32(pmic_np, "buck_ocp_ctrl7", &pdata->buck_ocp_ctrl7);
 
 	/* parse OCP_WARN information */
-	pdata->b2_ocp_warn_pin = of_get_gpio(pmic_np, 0);
+	pdata->b2_ocp_warn_pin = of_get_named_gpio(pmic_np, "gpios", 0);
 	if (pdata->b2_ocp_warn_pin < 0)
 		dev_err(iodev->dev, "b2_ocp_warn_pin < 0: %d\n",
 			pdata->b2_ocp_warn_pin);
@@ -402,7 +402,7 @@ static int s2mpg15_pmic_dt_parse_pdata(struct s2mpg15_dev *iodev,
 	pdata->b2_ocp_warn_debounce_clk = ret ? 0 : val;
 
 	/* parse SOFT_OCP_WARN information */
-	pdata->b2_soft_ocp_warn_pin = of_get_gpio(pmic_np, 1);
+	pdata->b2_soft_ocp_warn_pin = of_get_named_gpio(pmic_np, "gpios", 1);
 	if (pdata->b2_soft_ocp_warn_pin < 0)
 		dev_err(iodev->dev, "b2_soft_ocp_warn_pin < 0: %d\n",
 			pdata->b2_soft_ocp_warn_pin);
@@ -591,7 +591,7 @@ static ssize_t s2mpg15_pmic_write_show(struct device *dev,
 static DEVICE_ATTR_RW(s2mpg15_pmic_write);
 static DEVICE_ATTR_RW(s2mpg15_pmic_read);
 
-int create_s2mpg15_pmic_sysfs(struct s2mpg15_pmic *s2mpg15)
+static int create_s2mpg15_pmic_sysfs(struct s2mpg15_pmic *s2mpg15)
 {
 	struct device *s2mpg15_pmic = s2mpg15->dev;
 	int err = -ENODEV;
@@ -618,7 +618,7 @@ int create_s2mpg15_pmic_sysfs(struct s2mpg15_pmic *s2mpg15)
 }
 #endif
 
-void s2mpg15_ocp_detection_config(struct s2mpg15_pmic *s2mpg15,
+static void s2mpg15_ocp_detection_config(struct s2mpg15_pmic *s2mpg15,
 				  struct s2mpg15_platform_data *pdata)
 {
 	int ret;
@@ -679,7 +679,7 @@ void s2mpg15_ocp_detection_config(struct s2mpg15_pmic *s2mpg15,
 			"i2c write error. BUCK_OCP_CTRL8: %d\n", ret);
 }
 
-int s2mpg15_ocp_warn(struct s2mpg15_pmic *s2mpg15,
+static int s2mpg15_ocp_warn(struct s2mpg15_pmic *s2mpg15,
 		     struct s2mpg15_platform_data *pdata)
 {
 	u8 val;
@@ -751,7 +751,7 @@ static int s2mpg15_set_sel_vgpio(struct s2mpg15_pmic *s2mpg15,
 	return 0;
 }
 
-int s2mpg15_oi_function(struct s2mpg15_pmic *s2mpg15)
+static int s2mpg15_oi_function(struct s2mpg15_pmic *s2mpg15)
 {
 	int ret = 0;
 	/* add OI configuration code if necessary */
@@ -866,14 +866,13 @@ static int s2mpg15_pmic_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int s2mpg15_pmic_remove(struct platform_device *pdev)
+static void s2mpg15_pmic_remove(struct platform_device *pdev)
 {
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	struct s2mpg15_pmic *s2mpg15 = platform_get_drvdata(pdev);
 
 	pmic_device_destroy(s2mpg15->dev->devt);
 #endif
-	return 0;
 }
 
 static void s2mpg15_pmic_shutdown(struct platform_device *pdev)

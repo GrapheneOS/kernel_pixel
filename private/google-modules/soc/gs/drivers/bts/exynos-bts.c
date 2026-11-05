@@ -2118,12 +2118,11 @@ static int bts_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int bts_remove(struct platform_device *pdev)
+static void bts_remove(struct platform_device *pdev)
 {
 	devm_kfree(&pdev->dev, btsdev);
 	platform_set_drvdata(pdev, NULL);
 
-	return 0;
 }
 
 /* Device tree compatible information */

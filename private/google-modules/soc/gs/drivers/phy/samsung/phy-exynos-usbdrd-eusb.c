@@ -5,6 +5,7 @@
  * Copyright (C) 2022 Samsung Electronics Co., Ltd.
  */
 
+#include <linux/of_platform.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -41,6 +42,8 @@ void __iomem *phycon_base_addr;
 EXPORT_SYMBOL_GPL(phycon_base_addr);
 
 static int (*s2mpu_notify)(struct device *dev, bool on);
+
+int exynos_usbdrd_set_s2mpu_pm_ops(int (*cb)(struct device *dev, bool on));
 
 int exynos_usbdrd_set_s2mpu_pm_ops(int (*cb)(struct device *dev, bool on))
 {
@@ -1660,6 +1663,8 @@ static void exynos_usbdrd_utmi_tune(struct exynos_usbdrd_phy *phy_drd,
 
 }
 
+int exynos_usbdrd_phy_tune(struct phy *phy, int phy_state);
+
 int exynos_usbdrd_phy_tune(struct phy *phy, int phy_state)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
@@ -1675,6 +1680,8 @@ EXPORT_SYMBOL_GPL(exynos_usbdrd_phy_tune);
  * USB LDO control was moved to phy_conn API from OTG
  * without adding one more phy interface
  */
+void exynos_usbdrd_phy_conn(struct phy *phy, int is_conn);
+
 void exynos_usbdrd_phy_conn(struct phy *phy, int is_conn)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
@@ -1691,6 +1698,8 @@ void exynos_usbdrd_phy_conn(struct phy *phy, int is_conn)
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_phy_conn);
 
+int exynos_usbdrd_dp_ilbk(struct phy *phy);
+
 int exynos_usbdrd_dp_ilbk(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
@@ -1701,6 +1710,9 @@ int exynos_usbdrd_dp_ilbk(struct phy *phy)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_dp_ilbk);
+
+int exynos_usbdrd_phy_vendor_set(struct phy *phy, int is_enable,
+				 int is_cancel);
 
 int exynos_usbdrd_phy_vendor_set(struct phy *phy, int is_enable,
 				 int is_cancel)
@@ -1728,6 +1740,8 @@ static void exynos_usbdrd_utmi_set(struct exynos_usbdrd_phy *phy_drd,
 	exynos_usbcon_dp_pullup_en(&phy_drd->usbphy_blkcon_info, option);
 }
 
+int exynos_usbdrd_phy_link_rst(struct phy *phy);
+
 int exynos_usbdrd_phy_link_rst(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
@@ -1737,6 +1751,8 @@ int exynos_usbdrd_phy_link_rst(struct phy *phy)
 	phy_exynos_eusb_reset(&phy_drd->usbphy_info);
 	return 0;
 }
+
+int exynos_usbdrd_phy_set(struct phy *phy, enum phy_mode mode, int submode);
 
 int exynos_usbdrd_phy_set(struct phy *phy, enum phy_mode mode, int submode)
 {
@@ -1856,6 +1872,8 @@ static int exynos_usbdrd_phy_power_off(struct phy *phy)
 	return 0;
 }
 
+int exynos_usbdrd_s2mpu_manual_control(bool on);
+
 int exynos_usbdrd_s2mpu_manual_control(bool on)
 {
 	struct exynos_usbdrd_phy *phy_drd;
@@ -1881,6 +1899,8 @@ int exynos_usbdrd_s2mpu_manual_control(bool on)
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_s2mpu_manual_control);
 
+int exynos_usbdrd_pipe3_enable(struct phy *phy);
+
 int exynos_usbdrd_pipe3_enable(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
@@ -1894,6 +1914,8 @@ int exynos_usbdrd_pipe3_enable(struct phy *phy)
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_pipe3_enable);
 
+int exynos_usbdrd_pipe3_disable(struct phy *phy);
+
 int exynos_usbdrd_pipe3_disable(struct phy *phy)
 {
 	struct phy_usb_instance *inst = phy_get_drvdata(phy);
@@ -1905,6 +1927,8 @@ int exynos_usbdrd_pipe3_disable(struct phy *phy)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_pipe3_disable);
+
+void exynos_usbdrd_usbdp_tca_set(struct phy *phy, int mux, int low_power_en);
 
 void exynos_usbdrd_usbdp_tca_set(struct phy *phy, int mux, int low_power_en)
 {
@@ -1920,6 +1944,8 @@ void exynos_usbdrd_usbdp_tca_set(struct phy *phy, int mux, int low_power_en)
 	phy_exynos_snps_usbdp_tca_set(&phy_drd->usbphy_sub_info, mux, low_power_en);
 }
 EXPORT_SYMBOL_GPL(exynos_usbdrd_usbdp_tca_set);
+
+void exynos_usbdrd_dp_use_notice(int lane);
 
 void exynos_usbdrd_dp_use_notice(int lane)
 {
@@ -1939,7 +1965,7 @@ void exynos_usbdrd_dp_use_notice(int lane)
 EXPORT_SYMBOL_GPL(exynos_usbdrd_dp_use_notice);
 
 static struct phy *exynos_usbdrd_phy_xlate(struct device *dev,
-					   struct of_phandle_args *args)
+					   const struct of_phandle_args *args)
 {
 	struct exynos_usbdrd_phy *phy_drd = dev_get_drvdata(dev);
 

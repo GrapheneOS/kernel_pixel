@@ -5,6 +5,7 @@
  * Copyright (c) 2022 Samsung Electronics Co., Ltd.
  */
 
+#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>

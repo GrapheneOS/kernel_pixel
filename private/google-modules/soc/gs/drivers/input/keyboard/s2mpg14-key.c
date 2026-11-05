@@ -423,7 +423,7 @@ static int power_keys_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int power_keys_remove(struct platform_device *pdev)
+static void power_keys_remove(struct platform_device *pdev)
 {
 	struct power_keys_drvdata *ddata = platform_get_drvdata(pdev);
 	struct input_dev *input = ddata->input;
@@ -434,7 +434,6 @@ static int power_keys_remove(struct platform_device *pdev)
 
 	input_unregister_device(input);
 
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_PM_SLEEP)

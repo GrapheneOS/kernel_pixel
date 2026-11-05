@@ -259,7 +259,7 @@ static void acpm_log_print_helper(unsigned int head, unsigned int arg0,
 	}
 }
 
-void acpm_log_print_buff(struct acpm_log_buff *buffer)
+static void acpm_log_print_buff(struct acpm_log_buff *buffer)
 {
 	unsigned int front, rear;
 	unsigned int head, arg0, arg1, arg2;
@@ -598,13 +598,14 @@ EXPORT_SYMBOL_GPL(acpm_ipc_send_data_sync);
 #define arch_irq_stat() 0
 #endif
 
-extern int nr_irqs;
+static unsigned int irq_info_count;
 
 static void acpm_alloc_irq_info(bool usage)
 {
 	kfree(irq_info);
+	irq_info_count = irq_get_nr_irqs();
 	if (usage)
-		irq_info = kcalloc(nr_irqs, sizeof(struct cpu_irq_info), GFP_KERNEL);
+		irq_info = kcalloc(irq_info_count, sizeof(struct cpu_irq_info), GFP_ATOMIC);
 	else
 		irq_info = NULL;
 }
@@ -642,7 +643,7 @@ static void cpu_irq_info_dump(u32 retry)
 			continue;
 
 		for_each_possible_cpu(cpu)
-			irq_stat += *per_cpu_ptr(desc->kstat_irqs, cpu);
+			irq_stat += per_cpu_ptr(desc->kstat_irqs, cpu)->cnt;
 
 		if (!irq_stat)
 			continue;
@@ -652,12 +653,12 @@ static void cpu_irq_info_dump(u32 retry)
 		else
 			name = "???";
 
-		if (irq_info && retry == 1) {
+		if (irq_info && i < irq_info_count && retry == 1) {
 			irq_info[i].irq_num = i;
 			irq_info[i].hwirq_num = desc->irq_data.hwirq;
 			irq_info[i].irq_stat = irq_stat;
 			irq_info[i].name = name;
-		} else if (irq_info && retry == 5) {
+		} else if (irq_info && i < irq_info_count && retry == 5) {
 			delta = irq_stat - irq_info[i].irq_stat;
 			if (delta > 0) {
 				pr_info("irq-%-4d(hwirq-%-3d) delta of irqs: %8u %s\n",
@@ -676,7 +677,7 @@ static void acpm_ktop_release(void)
 	}
 }
 
-int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w_mode)
+static int __acpm_ipc_send_data(unsigned int channel_id, struct ipc_config *cfg, bool w_mode)
 {
 	volatile unsigned int tx_front, tx_rear, rx_front;
 	unsigned int tmp_index;
@@ -1136,9 +1137,8 @@ int acpm_ipc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-int acpm_ipc_remove(struct platform_device *pdev)
+void acpm_ipc_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 bool acpm_ipc_get_rx_buffer_properties(unsigned int channel_id, void __iomem **base,

@@ -285,7 +285,7 @@ heap_put:
 	return ret;
 }
 
-struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags)
+struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, u32 fd_flags)
 {
 	DEFINE_SAMSUNG_DMA_BUF_EXPORT_INFO(exp_info, buffer->heap->name);
 	struct dma_buf *dmabuf;

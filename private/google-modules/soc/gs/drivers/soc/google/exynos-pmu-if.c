@@ -5,6 +5,7 @@
  * Copyright (c) 2020 Samsung Electronics Co., Ltd.
  */
 
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/smp.h>

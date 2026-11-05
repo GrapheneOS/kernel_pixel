@@ -11,6 +11,12 @@ package(
     ],
 )
 
+filegroup(
+    name = "additional_kmi_symbol_lists",
+    srcs = ["symbols"],
+    visibility = ["//visibility:public"],
+)
+
 label_flag(
     name = "kernel",
     build_setting_default = "//common:kernel_aarch64",

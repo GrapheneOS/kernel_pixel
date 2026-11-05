@@ -5,6 +5,7 @@
  * Contact: Hyesoo Yu <hyesoo.yu@samsung.com>
  */
 
+#include <linux/samsung-iommu-fault.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/iommu.h>
@@ -64,7 +65,7 @@ static int g2d_update_priority(struct g2d_context *ctx, enum g2d_priority priori
 
 void g2d_hw_timeout_handler(struct timer_list *arg)
 {
-	struct g2d_task *task = from_timer(task, arg, hw_timer);
+	struct g2d_task *task = timer_container_of(task, arg, hw_timer);
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	unsigned long flags;
 	u32 state;
@@ -175,7 +176,7 @@ static irqreturn_t g2d_irq_handler(int irq, void *priv)
 	return IRQ_HANDLED;
 }
 
-static int g2d_fault_handler(struct iommu_fault *fault, void *data)
+static int g2d_fault_handler(struct samsung_iommu_fault *fault, void *data)
 {
 	struct g2d_device *g2d_dev = data;
 	struct g2d_task *task;
@@ -626,7 +627,7 @@ static int g2d_parse_dt(struct g2d_device *g2d_dev)
 
 #define MAX_ITMON_STRATTR 4
 
-bool g2d_itmon_check(struct g2d_device *g2d_dev, char *str_itmon, char *str_attr)
+static bool g2d_itmon_check(struct g2d_device *g2d_dev, char *str_itmon, char *str_attr)
 {
 	const char *name[MAX_ITMON_STRATTR];
 	int size, i;
@@ -648,7 +649,7 @@ bool g2d_itmon_check(struct g2d_device *g2d_dev, char *str_itmon, char *str_attr
 	return false;
 }
 
-int g2d_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
+static int g2d_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
 {
 	struct g2d_device *g2d_dev = container_of(nb, struct g2d_device, itmon_nb);
 	struct itmon_notifier *itmon_info = nb_data;
@@ -843,7 +844,7 @@ static int g2d_probe(struct platform_device *pdev)
 	}
 
 	/* it is okay if fault handler is not registered since it is just for debugging */
-	ret = iommu_register_device_fault_handler(&pdev->dev, g2d_fault_handler, g2d_dev);
+	ret = samsung_iommu_register_fault_handler(&pdev->dev, g2d_fault_handler, g2d_dev);
 	if (ret)
 		perrdev(g2d_dev, "Failed to register IOMMU fault handler (%d)", ret);
 
@@ -949,7 +950,7 @@ err_misc:
 err:
 	pm_runtime_disable(&pdev->dev);
 err_dt:
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 
 	perrdev(g2d_dev, "Failed to probe FIMG2D");
 
@@ -968,7 +969,7 @@ static void g2d_shutdown(struct platform_device *pdev)
 	g2d_stamp_task(NULL, G2D_STAMP_STATE_SHUTDOWN, 1);
 }
 
-static int g2d_remove(struct platform_device *pdev)
+static void g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
 
@@ -983,7 +984,6 @@ static int g2d_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
-	return 0;
 }
 
 #ifdef CONFIG_PM

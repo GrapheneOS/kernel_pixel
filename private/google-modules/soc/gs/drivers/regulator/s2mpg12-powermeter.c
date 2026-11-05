@@ -591,7 +591,7 @@ static int s2mpg12_meter_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int s2mpg12_meter_remove(struct platform_device *pdev)
+static void s2mpg12_meter_remove(struct platform_device *pdev)
 {
 	struct s2mpg12_meter *s2mpg12 = platform_get_drvdata(pdev);
 
@@ -605,7 +605,6 @@ static int s2mpg12_meter_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	pmic_device_destroy(s2mpg12->dev->devt);
 #endif
-	return 0;
 }
 
 static void s2mpg12_meter_shutdown(struct platform_device *pdev)

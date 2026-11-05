@@ -35,7 +35,7 @@ static void ensure_eusb_repeater_ready(struct eusb_repeater_data *tud)
 	mutex_unlock(&tud->mutex);
 }
 
-int eusb_repeater_i2c_write(struct eusb_repeater_data *tud, u8 reg, u8 *data, int len)
+static int eusb_repeater_i2c_write(struct eusb_repeater_data *tud, u8 reg, u8 *data, int len)
 {
 	u8 buf[I2C_WRITE_BUFFER_SIZE + 1];
 	int ret;
@@ -78,7 +78,7 @@ int eusb_repeater_i2c_write(struct eusb_repeater_data *tud, u8 reg, u8 *data, in
 	return -EIO;
 }
 
-int eusb_repeater_i2c_read(struct eusb_repeater_data *tud, u8 reg, u8 *data, int len)
+static int eusb_repeater_i2c_read(struct eusb_repeater_data *tud, u8 reg, u8 *data, int len)
 {
 	u8 buf[4];
 	int ret;
@@ -859,6 +859,8 @@ static const struct of_device_id eusb_repeater_match_table[] = {
 };
 MODULE_DEVICE_TABLE(of, eusb_repeater_match_table);
 
+void eusb_repeater_update_usb_state(bool on);
+
 void eusb_repeater_update_usb_state(bool on)
 {
 	struct eusb_repeater_data *tud = g_tud;
@@ -881,6 +883,8 @@ void eusb_repeater_update_usb_state(bool on)
 }
 EXPORT_SYMBOL_GPL(eusb_repeater_update_usb_state);
 
+int eusb_repeater_power_off(void);
+
 int eusb_repeater_power_off(void)
 {
 	struct eusb_repeater_data *tud = g_tud;
@@ -893,6 +897,8 @@ int eusb_repeater_power_off(void)
 	return eusb_repeater_ctrl(false);
 }
 EXPORT_SYMBOL_GPL(eusb_repeater_power_off);
+
+int eusb_repeater_power_on(void);
 
 int eusb_repeater_power_on(void)
 {
@@ -1007,8 +1013,7 @@ static void eusb_repeater_debugfs_remove(struct eusb_repeater_data *tud)
 	return;
 }
 
-static int eusb_repeater_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int eusb_repeater_probe(struct i2c_client *client)
 {
 	struct device_node *of_node = client->dev.of_node;
 	struct eusb_repeater_data *tud;

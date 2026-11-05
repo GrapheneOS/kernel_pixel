@@ -998,7 +998,7 @@ static const struct of_device_id itmon_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, itmon_dt_match);
 
-struct itmon_nodeinfo *itmon_get_nodeinfo_by_group(struct itmon_dev *itmon,
+static struct itmon_nodeinfo *itmon_get_nodeinfo_by_group(struct itmon_dev *itmon,
 						   struct itmon_nodegroup *group,
 						   const char *name)
 {
@@ -1012,7 +1012,7 @@ struct itmon_nodeinfo *itmon_get_nodeinfo_by_group(struct itmon_dev *itmon,
 	return NULL;
 }
 
-struct itmon_nodeinfo *itmon_get_nodeinfo(struct itmon_dev *itmon,
+static struct itmon_nodeinfo *itmon_get_nodeinfo(struct itmon_dev *itmon,
 					  struct itmon_nodegroup *group,
 					  const char *name)
 {
@@ -1037,7 +1037,7 @@ struct itmon_nodeinfo *itmon_get_nodeinfo(struct itmon_dev *itmon,
 	return NULL;
 }
 
-struct itmon_nodeinfo *itmon_get_nodeinfo_group_by_eid(struct itmon_dev *itmon,
+static struct itmon_nodeinfo *itmon_get_nodeinfo_group_by_eid(struct itmon_dev *itmon,
 						       struct itmon_nodegroup *group,
 						       u32 err_id)
 {
@@ -1052,7 +1052,7 @@ struct itmon_nodeinfo *itmon_get_nodeinfo_group_by_eid(struct itmon_dev *itmon,
 	return NULL;
 }
 
-struct itmon_nodeinfo *itmon_get_nodeinfo_by_eid(struct itmon_dev *itmon,
+static struct itmon_nodeinfo *itmon_get_nodeinfo_by_eid(struct itmon_dev *itmon,
 						 struct itmon_nodegroup *group,
 						 int path_type, u32 err_id)
 {
@@ -1075,7 +1075,7 @@ struct itmon_nodeinfo *itmon_get_nodeinfo_by_eid(struct itmon_dev *itmon,
 	return NULL;
 }
 
-struct itmon_nodeinfo *itmon_get_nodeinfo_group_by_tmout_offset(struct itmon_dev *itmon,
+static struct itmon_nodeinfo *itmon_get_nodeinfo_group_by_tmout_offset(struct itmon_dev *itmon,
 								struct itmon_nodegroup *group,
 								u32 tmout_offset)
 {
@@ -1090,7 +1090,7 @@ struct itmon_nodeinfo *itmon_get_nodeinfo_group_by_tmout_offset(struct itmon_dev
 	return NULL;
 }
 
-struct itmon_nodeinfo *itmon_get_nodeinfo_by_tmout_offset(struct itmon_dev *itmon,
+static __maybe_unused struct itmon_nodeinfo *itmon_get_nodeinfo_by_tmout_offset(struct itmon_dev *itmon,
 							  struct itmon_nodegroup *group,
 							  u32 tmout_offset)
 {
@@ -1536,6 +1536,8 @@ static void itmon_set_nodepolicy(struct itmon_dev *itmon,
 		itmon_enable_nodepolicy(itmon, node);
 }
 
+int itmon_en_by_name(const char *name, bool en);
+
 int itmon_en_by_name(const char *name, bool en)
 {
 	struct itmon_nodeinfo *node;
@@ -1630,6 +1632,8 @@ static void itmon_init(struct itmon_dev *itmon, bool en)
 	log_dev_info(itmon->dev, "itmon %sabled\n", pdata->en ? "en" : "dis");
 }
 
+void itmon_pd_sync(const char *pd_name, bool en);
+
 void itmon_pd_sync(const char *pd_name, bool en)
 {
 	struct itmon_dev *itmon = g_itmon;
@@ -1658,6 +1662,8 @@ void itmon_pd_sync(const char *pd_name, bool en)
 }
 EXPORT_SYMBOL(itmon_pd_sync);
 
+void itmon_en(bool en);
+
 void itmon_en(bool en)
 {
 	if (g_itmon)
@@ -1665,7 +1671,7 @@ void itmon_en(bool en)
 }
 EXPORT_SYMBOL(itmon_en);
 
-int itmon_get_dpm_policy(struct itmon_dev *itmon)
+static __maybe_unused int itmon_get_dpm_policy(struct itmon_dev *itmon)
 {
 	struct itmon_platdata *pdata = itmon->pdata;
 	int i, policy = -1;
@@ -2649,10 +2655,9 @@ static int itmon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int itmon_remove(struct platform_device *pdev)
+static void itmon_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -529,7 +529,7 @@ static int ra_req_enable_qch(struct cmucal_clk *clk, unsigned int req)
 	return 0;
 }
 
-int ra_enable_qch(struct cmucal_clk *clk, unsigned int en)
+static int __maybe_unused ra_enable_qch(struct cmucal_clk *clk, unsigned int en)
 {
 	unsigned int reg;
 	/*
@@ -597,7 +597,7 @@ static int ra_enable_fixed_rate(struct cmucal_clk *clk, unsigned int params)
 	return 0;
 }
 
-int ra_enable_clkout(struct cmucal_clk *clk, bool enable)
+static int ra_enable_clkout(struct cmucal_clk *clk, bool enable)
 {
 	struct cmucal_clkout *clkout = to_clkout(clk);
 

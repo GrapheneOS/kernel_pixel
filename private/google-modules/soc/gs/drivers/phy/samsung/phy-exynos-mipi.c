@@ -6,6 +6,7 @@
  *		http://www.samsung.com
  */
 
+#include <linux/of_device.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -938,7 +939,7 @@ static int exynos_mipi_phy_power_off(struct phy *phy)
 }
 
 static struct phy *exynos_mipi_phy_of_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct exynos_mipi_phy *state = dev_get_drvdata(dev);
 
