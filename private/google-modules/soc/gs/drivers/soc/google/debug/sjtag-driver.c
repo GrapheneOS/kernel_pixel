@@ -959,9 +959,8 @@ static int sjtag_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sjtag_remove(struct platform_device *pdev)
+static void sjtag_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct of_device_id sjtag_of_match[] = {

@@ -83,7 +83,7 @@ void samsung_dma_buffer_free(struct samsung_dma_buffer *buffer);
 int samsung_heap_add(struct device *dev, void *priv,
 		     void (*release)(struct samsung_dma_buffer *buffer),
 		     const struct dma_heap_ops *ops);
-struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, unsigned long fd_flags);
+struct dma_buf *samsung_export_dmabuf(struct samsung_dma_buffer *buffer, u32 fd_flags);
 void samsung_track_buffer_destroyed(struct samsung_dma_buffer *buffer);
 
 #define DMA_HEAP_VIDEO_PADDING (512)
