@@ -15,13 +15,6 @@
 
 struct vendor_group_list vendor_group_list[VG_MAX];
 
-#if IS_ENABLED(CONFIG_UCLAMP_STATS)
-extern void update_uclamp_stats(int cpu, u64 time);
-#endif
-
-extern inline void update_misfit_status(struct task_struct *p, struct rq *rq);
-extern int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu,
-		cpumask_t *valid_mask);
 /*
  * Ignore uclamp_min for CFS tasks if
  *
@@ -168,12 +161,12 @@ void vh_scheduler_tick_pixel_mod(void *data, struct rq *rq)
 {
 	struct rq_flags rf;
 	rq_lock(rq, &rf);
-	task_tick_uclamp(rq, rq->curr);
-	__update_util_est_invariance(rq, rq->curr, true);
+	task_tick_uclamp(rq, rq->donor);
+	__update_util_est_invariance(rq, rq->donor, true);
 	rq_unlock(rq, &rf);
 
 	/* Check if an RT task needs to move to a better fitting CPU */
-	check_migrate_rt_task(rq, rq->curr);
+	check_migrate_rt_task(rq, rq->donor);
 
 	/* Should be really done when capacity change */
 	update_auto_fits_capacity();
@@ -217,8 +210,7 @@ void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 
 	if (static_branch_likely(&auto_dvfs_headroom_enable)) {
 		if (vg[get_vendor_group(p)].disable_util_est) {
-			p->se.avg.util_est.enqueued = 0;
-			p->se.avg.util_est.ewma = 0;
+			p->se.avg.util_est = 0;
 		}
 	}
 
@@ -399,10 +391,22 @@ void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
 	set_performance_inheritance(p, current, VI_BINDER);
 }
 
-void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t,
-	struct task_struct *p)
+void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t)
 {
-	set_performance_inheritance(p, NULL, VI_BINDER);
+	set_performance_inheritance(current, NULL, VI_BINDER);
+}
+
+void vh_binder_wait_for_work_pixel_mod(void *data, bool do_proc_work,
+				     struct binder_thread *thread, struct binder_proc *proc)
+{
+	if (do_proc_work)
+		get_vendor_task_struct(thread->task)->is_binder_task = true;
+}
+
+void vh_binder_looper_exited_pixel_mod(void *data, struct binder_thread *thread,
+				     struct binder_proc *proc)
+{
+	get_vendor_task_struct(thread->task)->is_binder_task = false;
 }
 
 void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
@@ -413,6 +417,50 @@ void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
 		proc->default_priority.prio >= NICE_TO_PRIO(-20))
 		proc->default_priority.prio = NICE_TO_PRIO(0);
 }
+
+#if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
+void vh_rust_binder_set_priority_pixel_mod(void *data, rust_binder_transaction t,
+					 struct task_struct *to_task)
+{
+	rust_binder_thread from_thread = rust_binder_transaction_from_thread(t);
+	struct task_struct *from_task;
+
+	if (rust_binder_transaction_flags(t) & TF_ONE_WAY)
+		return;
+
+	/* The hook can run in the receiver, so current need not be the sender. */
+	rcu_read_lock();
+	from_task = rust_binder_thread_task(from_thread);
+	if (from_task)
+		from_task = tryget_task_struct(from_task);
+	rcu_read_unlock();
+
+	set_performance_inheritance(to_task, from_task, VI_BINDER);
+	if (from_task)
+		put_task_struct(from_task);
+}
+
+void vh_rust_binder_restore_priority_pixel_mod(void *data, struct task_struct *task)
+{
+	set_performance_inheritance(task, NULL, VI_BINDER);
+}
+
+void vh_rust_binder_looper_entry_pixel_mod(void *data, rust_binder_thread thread,
+					 unsigned int looper_flags)
+{
+	struct task_struct *task;
+
+	rcu_read_lock();
+	task = rust_binder_thread_task(thread);
+	if (task) {
+		if (looper_flags & RB_LOOPER_EXITED)
+			get_vendor_task_struct(task)->is_binder_task = false;
+		else if (looper_flags & (RB_LOOPER_REGISTERED | RB_LOOPER_ENTERED))
+			get_vendor_task_struct(task)->is_binder_task = true;
+	}
+	rcu_read_unlock();
+}
+#endif
 
 void rvh_rtmutex_prepare_setprio_pixel_mod(void *data, struct task_struct *p,
 	struct task_struct *pi_task)

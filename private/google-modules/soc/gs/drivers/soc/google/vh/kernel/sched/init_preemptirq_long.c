@@ -6,20 +6,13 @@
  * Copyright 2021 Google LLC
  */
 
+#include "preemptirq_long_internal.h"
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <trace/hooks/sched.h>
 #include <trace/hooks/topology.h>
 #include <trace/hooks/preemptirq.h>
 #include <trace/events/sched.h>
-
-extern void note_irq_disable(void *u1, unsigned long u2, unsigned long u3);
-extern void test_irq_disable_long(void *u1, unsigned long u2, unsigned long u3);
-extern void test_preempt_disable_long(void *u1, unsigned long u2, unsigned long u3);
-extern void note_preempt_disable(void *u1, unsigned long u2, unsigned long u3);
-extern void note_context_switch(void *u1, bool u2, struct task_struct *u3,
-				struct task_struct *next, unsigned int prev_state);
-extern int preemptirq_long_init(void);
 
 static int vh_long_preemptirq_init(void)
 {

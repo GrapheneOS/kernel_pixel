@@ -55,7 +55,7 @@ TRACE_EVENT(sched_pelt_cfs,
 
 	TP_fast_assign(
 		__entry->cpu		= cpu;
-		strlcpy(__entry->path, path, PATH_SIZE);
+		strscpy(__entry->path, path, PATH_SIZE);
 		__entry->load		= avg->load_avg;
 		__entry->RBL_LOAD_ENTRY	= avg->RBL_LOAD_MEMBER;
 		__entry->util		= avg->util_avg;
@@ -118,7 +118,7 @@ TRACE_EVENT(sched_cpu_capacity,
 	TP_fast_assign(
 		__entry->cpu			= rq->cpu;
 		__entry->capacity		= rq->cpu_capacity;
-		__entry->capacity_orig		= rq->cpu_capacity_orig;
+		__entry->capacity_orig		= arch_scale_cpu_capacity(rq->cpu);
 	),
 
 	TP_printk("cpu=%d capacity=%lu, capacity_orig=%lu",
@@ -144,8 +144,8 @@ TRACE_EVENT(sched_pelt_se,
 
 	TP_fast_assign(
 		__entry->cpu		= cpu;
-		strlcpy(__entry->path, path, PATH_SIZE);
-		strlcpy(__entry->comm, comm, TASK_COMM_LEN);
+		strscpy(__entry->path, path, PATH_SIZE);
+		strscpy(__entry->comm, comm, TASK_COMM_LEN);
 		__entry->pid		= pid;
 		__entry->load		= avg->load_avg;
 		__entry->RBL_LOAD_ENTRY	= avg->RBL_LOAD_MEMBER;
@@ -171,7 +171,7 @@ TRACE_EVENT(sched_overutilized,
 
 	TP_fast_assign(
 		__entry->overutilized	= overutilized;
-		strlcpy(__entry->span, span, SPAN_SIZE);
+		strscpy(__entry->span, span, SPAN_SIZE);
 	),
 
 	TP_printk("overutilized=%d span=0x%s",
@@ -197,11 +197,11 @@ TRACE_EVENT(sched_util_est_se,
 
 	TP_fast_assign(
 		__entry->cpu		= cpu;
-		strlcpy(__entry->path, path, PATH_SIZE);
-		strlcpy(__entry->comm, comm, TASK_COMM_LEN);
+		strscpy(__entry->path, path, PATH_SIZE);
+		strscpy(__entry->comm, comm, TASK_COMM_LEN);
 		__entry->pid		= pid;
-		__entry->enqueued	= avg->util_est.enqueued & ~UTIL_AVG_UNCHANGED;
-		__entry->ewma		= avg->util_est.ewma;
+		__entry->enqueued	= avg->util_est & ~UTIL_AVG_UNCHANGED;
+		__entry->ewma		= avg->util_est;
 		__entry->util		= avg->util_avg;
 	),
 
@@ -226,9 +226,9 @@ TRACE_EVENT(sched_util_est_cfs,
 
 	TP_fast_assign(
 		__entry->cpu		= cpu;
-		strlcpy(__entry->path, path, PATH_SIZE);
-		__entry->enqueued	= avg->util_est.enqueued & ~UTIL_AVG_UNCHANGED;
-		__entry->ewma		= avg->util_est.ewma;
+		strscpy(__entry->path, path, PATH_SIZE);
+		__entry->enqueued	= avg->util_est & ~UTIL_AVG_UNCHANGED;
+		__entry->ewma		= avg->util_est;
 		__entry->util		= avg->util_avg;
 	),
 
@@ -473,7 +473,7 @@ TRACE_EVENT(sched_cpu_util_cfs,
 		__entry->nr_running         = cpu_rq(cpu)->nr_running;
 		__entry->active             = cpu_active(cpu);
 		__entry->cpu_importance     = cpu_importance;
-		__entry->capacity_orig      = capacity_orig_of(cpu);
+		__entry->capacity_orig      = arch_scale_cpu_capacity(cpu);
 		__entry->cpu_util           = cpu_util;
 		__entry->capacity           = capacity;
 		__entry->wake_util          = wake_util;

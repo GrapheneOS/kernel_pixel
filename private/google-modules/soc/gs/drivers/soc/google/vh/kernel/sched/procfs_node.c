@@ -23,7 +23,6 @@
 #include "sched_priv.h"
 
 #if IS_ENABLED(CONFIG_UCLAMP_STATS)
-extern void reset_uclamp_stats(void);
 DECLARE_PER_CPU(struct uclamp_stats, uclamp_stats);
 #endif
 
@@ -51,30 +50,16 @@ static unsigned long sched_lib_mask_in_val;
 static unsigned long sched_lib_mask_out_val;
 #endif
 
-extern void initialize_vendor_group_property(void);
-
-extern struct vendor_group_property *get_vendor_group_property(enum vendor_group group);
-
-extern void vh_sched_setscheduler_uclamp_pixel_mod(void *data, struct task_struct *tsk,
-		int clamp_id, unsigned int value);
-
 #if IS_ENABLED(CONFIG_USE_VENDOR_GROUP_UTIL)
 int __read_mostly vendor_sched_ug_bg_auto_prio = THREAD_PRIORITY_BACKGROUND;
 
-extern void migrate_vendor_group_util(struct task_struct *p, unsigned int old, unsigned int new);
-extern struct vendor_util_group_property *get_vendor_util_group_property(
-	enum utilization_group group);
 #endif
-
-extern void update_task_prio(struct task_struct *p, struct vendor_task_struct *vp, bool val);
 
 static void apply_uclamp_change(enum vendor_group group, enum uclamp_id clamp_id);
 
 struct uclamp_se uclamp_default[UCLAMP_CNT];
 unsigned int pmu_poll_time_ms = 10;
 bool pmu_poll_enabled;
-extern int pmu_poll_enable(void);
-extern void pmu_poll_disable(void);
 
 extern unsigned int sysctl_sched_uclamp_min_filter_us;
 extern unsigned int sysctl_sched_uclamp_max_filter_divider;
@@ -82,7 +67,6 @@ extern unsigned int sysctl_sched_uclamp_max_filter_divider;
 extern char priority_task_name[LIB_PATH_LENGTH];
 extern spinlock_t priority_task_name_lock;
 
-extern int set_prefer_idle_task_name(void);
 extern char prefer_idle_task_name[LIB_PATH_LENGTH];
 extern spinlock_t prefer_idle_task_name_lock;
 
@@ -665,10 +649,6 @@ static int update_vendor_tunables(const char *buf, int count, int type)
 					goto fail;
 				updated_tunables = sched_per_cpu_iowait_boost_max_value;
 				break;
-			case TEO_UTIL_THRESHOLD:
-				if (val > SCHED_CAPACITY_SCALE)
-					goto fail;
-				break;
 			default:
 				goto fail;
 		}
@@ -681,24 +661,14 @@ static int update_vendor_tunables(const char *buf, int count, int type)
 
 	if (index == 1) {
 		for (index = 0; index < pixel_cpu_num; index++) {
-			if (type != TEO_UTIL_THRESHOLD)
-				updated_tunables[index] = tmp[0];
-			else
-				teo_cpu_set_util_threshold(index, tmp[pixel_cpu_to_cluster[index]]);
+			updated_tunables[index] = tmp[0];
 		}
 	} else if (index == pixel_cluster_num) {
 		for (index = 0; index < pixel_cpu_num; index++) {
-			if (type != TEO_UTIL_THRESHOLD)
-				updated_tunables[index] = tmp[pixel_cpu_to_cluster[index]];
-			else
-				teo_cpu_set_util_threshold(index, tmp[pixel_cpu_to_cluster[index]]);
+			updated_tunables[index] = tmp[pixel_cpu_to_cluster[index]];
 		}
 	} else if (index == pixel_cpu_num) {
-		if (type != TEO_UTIL_THRESHOLD)
-			memcpy(updated_tunables, tmp, sizeof(tmp));
-		else
-			for (index = 0; index < pixel_cpu_num; index++)
-				teo_cpu_set_util_threshold(index, tmp[index]);
+		memcpy(updated_tunables, tmp, sizeof(tmp));
 	} else {
 		goto fail;
 	}
@@ -854,7 +824,7 @@ static inline struct task_struct *get_next_task(int group, struct list_head *hea
 
 		cur = cur->next;
 		vp = list_entry(cur, struct vendor_task_struct, node);
-		p = __container_of(vp, struct task_struct, android_vendor_data1);
+		p = get_task_struct_from_vendor(vp);
 	} while ((!task_on_rq_queued(p) || p->flags & PF_EXITING));
 
 	get_task_struct(p);
@@ -1761,35 +1731,8 @@ static ssize_t dvfs_headroom_store(struct file *filp,
 }
 PROC_OPS_RW(dvfs_headroom);
 
-static int teo_util_threshold_show(struct seq_file *m, void *v)
-{
-	int i;
 
-	for (i = 0; i < pixel_cpu_num; i++) {
-		seq_printf(m, "%lu ", teo_cpu_get_util_threshold(i));
-	}
 
-	seq_printf(m, "\n");
-
-	return 0;
-}
-static ssize_t teo_util_threshold_store(struct file *filp,
-					const char __user *ubuf,
-					size_t count, loff_t *pos)
-{
-	char buf[MAX_PROC_SIZE];
-
-	if (count >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(buf, ubuf, count))
-		return -EFAULT;
-
-	buf[count] = '\0';
-
-	return update_vendor_tunables(buf, count, TEO_UTIL_THRESHOLD);
-}
-PROC_OPS_RW(teo_util_threshold);
 
 static int tapered_dvfs_headroom_enable_show(struct seq_file *m, void *v)
 {
@@ -2582,7 +2525,7 @@ PROC_OPS_RW(max_load_balance_interval);
 
 static int min_granularity_ns_show(struct seq_file *m, void *v)
 {
-	seq_printf(m, "%d\n", sysctl_sched_min_granularity);
+	seq_printf(m, "%d\n", sysctl_sched_base_slice);
 	return 0;
 }
 static ssize_t min_granularity_ns_store(struct file *filp,
@@ -2604,43 +2547,14 @@ static ssize_t min_granularity_ns_store(struct file *filp,
 		return -EINVAL;
 
 	vh_sched_min_granularity_ns = val;
-	vh_sched_wakeup_granularity_ns = val;
-	sysctl_sched_min_granularity = val;
-	sysctl_sched_wakeup_granularity = val;
+	sysctl_sched_base_slice = val;
 
 	return count;
 }
 PROC_OPS_RW(min_granularity_ns);
 
-static int latency_ns_show(struct seq_file *m, void *v)
-{
-	seq_printf(m, "%d\n", sysctl_sched_latency);
-	return 0;
-}
-static ssize_t latency_ns_store(struct file *filp,
-				const char __user *ubuf,
-				size_t count, loff_t *pos)
-{
-	unsigned int val;
-	char buf[MAX_PROC_SIZE];
 
-	if (count >= sizeof(buf))
-		return -EINVAL;
 
-	if (copy_from_user(buf, ubuf, count))
-		return -EFAULT;
-
-	buf[count] = '\0';
-
-	if (kstrtouint(buf, 0, &val))
-		return -EINVAL;
-
-	vh_sched_latency_ns = val;
-	sysctl_sched_latency = val;
-
-	return count;
-}
-PROC_OPS_RW(latency_ns);
 
 static int enable_hrtick_show(struct seq_file *m, void *v)
 {
@@ -3256,7 +3170,7 @@ static ssize_t cpu_skip_mask_store(struct file *filp,
 }
 PROC_OPS_RW(cpu_skip_mask);
 
-int priority_task_name_show(struct seq_file *m, void *v)
+static int priority_task_name_show(struct seq_file *m, void *v)
 {
 	unsigned long irqflags;
 
@@ -3269,7 +3183,7 @@ int priority_task_name_show(struct seq_file *m, void *v)
 /*
  * Accept multiple partial task names with comma separated
  */
-ssize_t priority_task_name_store(struct file *filp, const char __user *ubuf, size_t count,
+static ssize_t priority_task_name_store(struct file *filp, const char __user *ubuf, size_t count,
 				 loff_t *ppos)
 {
 	char tmp[sizeof(priority_task_name)];
@@ -3283,7 +3197,7 @@ ssize_t priority_task_name_store(struct file *filp, const char __user *ubuf, siz
 	tmp[count] = '\0';
 
 	spin_lock_irqsave(&priority_task_name_lock, irqflags);
-	strlcpy(priority_task_name, tmp, sizeof(priority_task_name));
+	strscpy(priority_task_name, tmp, sizeof(priority_task_name));
 	spin_unlock_irqrestore(&priority_task_name_lock, irqflags);
 	return count;
 }
@@ -3320,7 +3234,7 @@ static ssize_t priority_task_boost_value_store(struct file *filp, const char __u
 }
 PROC_OPS_RW(priority_task_boost_value);
 
-int prefer_idle_task_name_show(struct seq_file *m, void *v)
+static int prefer_idle_task_name_show(struct seq_file *m, void *v)
 {
 
 	spin_lock(&prefer_idle_task_name_lock);
@@ -3332,7 +3246,7 @@ int prefer_idle_task_name_show(struct seq_file *m, void *v)
 /*
  * Accept multiple partial task names with comma separated
  */
-ssize_t prefer_idle_task_name_store(struct file *filp, const char __user *ubuf, size_t count,
+static ssize_t prefer_idle_task_name_store(struct file *filp, const char __user *ubuf, size_t count,
 				 loff_t *ppos)
 {
 	char tmp[sizeof(prefer_idle_task_name)];
@@ -3345,7 +3259,7 @@ ssize_t prefer_idle_task_name_store(struct file *filp, const char __user *ubuf, 
 	tmp[count] = '\0';
 
 	spin_lock(&prefer_idle_task_name_lock);
-	strlcpy(prefer_idle_task_name, tmp, sizeof(prefer_idle_task_name));
+	strscpy(prefer_idle_task_name, tmp, sizeof(prefer_idle_task_name));
 	spin_unlock(&prefer_idle_task_name_lock);
 
 	if (set_prefer_idle_task_name())
@@ -3400,7 +3314,7 @@ static ssize_t check_tgid_type_store(struct file *filp,
 		return -EACCES;
 	}
 
-	strlcpy(tgid_comm, p->comm, TASK_COMM_LEN);
+	strscpy(tgid_comm, p->comm, TASK_COMM_LEN);
 	put_task_struct(p);
 	rcu_read_unlock();
 
@@ -3414,7 +3328,7 @@ static ssize_t check_tgid_type_store(struct file *filp,
 }
 PROC_OPS_WO(check_tgid_type);
 
-int boost_at_fork_task_name_show(struct seq_file *m, void *v)
+static int boost_at_fork_task_name_show(struct seq_file *m, void *v)
 {
 	unsigned long irqflags;
 
@@ -3427,7 +3341,7 @@ int boost_at_fork_task_name_show(struct seq_file *m, void *v)
 /*
  * Accepts a single value only.
  */
-ssize_t boost_at_fork_task_name_store(struct file *filp, const char __user *ubuf, size_t count,
+static ssize_t boost_at_fork_task_name_store(struct file *filp, const char __user *ubuf, size_t count,
 				 loff_t *ppos)
 {
 	char tmp[sizeof(boost_at_fork_task_name)];
@@ -3441,7 +3355,7 @@ ssize_t boost_at_fork_task_name_store(struct file *filp, const char __user *ubuf
 	tmp[count] = '\0';
 
 	raw_spin_lock_irqsave(&boost_at_fork_task_name_lock, irqflags);
-	strlcpy(boost_at_fork_task_name, tmp, sizeof(boost_at_fork_task_name));
+	strscpy(boost_at_fork_task_name, tmp, sizeof(boost_at_fork_task_name));
 	raw_spin_unlock_irqrestore(&boost_at_fork_task_name_lock, irqflags);
 	return count;
 }
@@ -3659,15 +3573,12 @@ static struct pentry entries[] = {
 	PROC_ENTRY(tapered_dvfs_headroom_enable),
 	PROC_ENTRY(auto_dvfs_headroom_enable),
 	PROC_ENTRY(adpf_rampup_multiplier),
-	// teo
-	PROC_ENTRY(teo_util_threshold),
 	// iowait boost
 	PROC_ENTRY(per_task_iowait_boost_max_value),
 	PROC_ENTRY(per_cpu_iowait_boost_max_value),
 	// load balance
 	PROC_ENTRY(max_load_balance_interval),
 	PROC_ENTRY(min_granularity_ns),
-	PROC_ENTRY(latency_ns),
 	PROC_ENTRY(enable_hrtick),
 	// auto migration margins
 	PROC_ENTRY(auto_migration_margins_enable),
