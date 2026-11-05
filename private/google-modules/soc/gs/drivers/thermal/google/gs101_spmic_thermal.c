@@ -6,6 +6,7 @@
  *
  */
 
+#include <soc/google/thermal.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -407,7 +408,7 @@ static int gs101_spmic_thermal_register_tzd(struct gs101_spmic_thermal_chip *gs1
 
 	for (i = 0; i < GTHERM_CHAN_NUM; i++) {
 		dev_info(dev, "Registering channel %u\n", i);
-		tzd = devm_thermal_of_zone_register(gs101_spmic_thermal->dev,
+		tzd = google_devm_thermal_of_zone_register(gs101_spmic_thermal->dev,
 						    i,
 						    &gs101_spmic_thermal->sensor[i],
 						    &gs101_spmic_thermal_ops);

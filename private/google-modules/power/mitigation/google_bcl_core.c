@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
 
+#include <soc/google/thermal.h>
 #include <linux/atomic.h>
 #include <linux/completion.h>
 #include <linux/cpu.h>
@@ -377,7 +378,7 @@ static void google_bcl_evaluate_soc(struct work_struct *work)
 
 	bcl_dev->trip_val = battery_percentage_reverse;
 	if (!bcl_dev->soc_tz) {
-		bcl_dev->soc_tz = devm_thermal_of_zone_register(bcl_dev->device,
+		bcl_dev->soc_tz = google_devm_thermal_of_zone_register(bcl_dev->device,
 								PMIC_SOC, bcl_dev,
 								&bcl_dev->soc_tz_ops);
 		if (IS_ERR(bcl_dev->soc_tz)) {
@@ -2396,7 +2397,7 @@ static void google_bcl_init_power_supply(struct bcl_device *bcl_dev)
 		bcl_dev->batt_psy_initialized = true;
 	bcl_dev->soc_tz_ops.get_temp = tz_bcl_read_soc;
 	bcl_dev->soc_tz_ops.set_trips = tz_bcl_set_soc;
-	bcl_dev->soc_tz = devm_thermal_of_zone_register(bcl_dev->device, PMIC_SOC, bcl_dev,
+	bcl_dev->soc_tz = google_devm_thermal_of_zone_register(bcl_dev->device, PMIC_SOC, bcl_dev,
 							&bcl_dev->soc_tz_ops);
 	if (IS_ERR(bcl_dev->soc_tz)) {
 		dev_err(bcl_dev->device, "soc TZ register failed. err:%ld\n",
