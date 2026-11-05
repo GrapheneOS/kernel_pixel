@@ -17,7 +17,7 @@
 
 void g2d_fence_timeout_handler(struct timer_list *arg)
 {
-	struct g2d_task *task = from_timer(task, arg, fence_timer);
+	struct g2d_task *task = timer_container_of(task, arg, fence_timer);
 	struct g2d_device *g2d_dev = task->g2d_dev;
 	struct dma_fence *fence;
 	unsigned long flags;
@@ -28,7 +28,7 @@ void g2d_fence_timeout_handler(struct timer_list *arg)
 	for (i = 0; i < task->num_source; i++) {
 		fence = task->source[i].fence;
 		if (fence) {
-			strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
+			strscpy(name, fence->ops->get_driver_name(fence), sizeof(name));
 			perrfndev(g2d_dev, " SOURCE[%d]:  %s #%llu (%s)", i, name, fence->seqno,
 				  dma_fence_is_signaled(fence) ? "signaled" : "active");
 		}
@@ -36,7 +36,7 @@ void g2d_fence_timeout_handler(struct timer_list *arg)
 
 	fence = task->target.fence;
 	if (fence) {
-		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
+		strscpy(name, fence->ops->get_driver_name(fence), sizeof(name));
 		perrfn(" TARGET:     %s #%llu (%s)", name, fence->seqno,
 		       dma_fence_is_signaled(fence) ? "signaled" : "active");
 	}
@@ -126,10 +126,7 @@ static void g2d_fence_release(struct dma_fence *fence)
 	kfree(fence);
 }
 
-static void g2d_fence_value_str(struct dma_fence *fence, char *str, int size)
-{
-	snprintf(str, size, "%llu", fence->seqno);
-}
+
 
 static struct dma_fence_ops g2d_fence_ops = {
 	.get_driver_name =	g2d_fence_get_driver_name,
@@ -137,7 +134,6 @@ static struct dma_fence_ops g2d_fence_ops = {
 	.enable_signaling =	g2d_fence_enable_signaling,
 	.wait =			dma_fence_default_wait,
 	.release =		g2d_fence_release,
-	.fence_value_str =	g2d_fence_value_str,
 };
 
 struct sync_file *g2d_create_release_fence(struct g2d_device *g2d_dev,
@@ -240,7 +236,7 @@ static bool g2d_fence_has_error(struct g2d_layer *layer, int layer_idx)
 	if (err) {
 		char name[32];
 
-		strlcpy(name, fence->ops->get_driver_name(fence), sizeof(name));
+		strscpy(name, fence->ops->get_driver_name(fence), sizeof(name));
 
 		dev_err(layer->task->g2d_dev->dev,
 			"%s: Error fence of %s%d found: %s#%llu\n", __func__,

@@ -518,6 +518,7 @@ static struct notifier_block exynos_cpuhp_nb = {
 
 static int exynos_cpuhp_probe(struct platform_device *pdev)
 {
+	struct device *root;
 	cpumask_copy(&cpuhp.online_cpus, cpu_online_mask);
 
 	INIT_LIST_HEAD(&cpuhp.users);
@@ -532,9 +533,12 @@ static int exynos_cpuhp_probe(struct platform_device *pdev)
 		pr_err("Failed to create sysfs for CPUHP\n");
 
 	/* Link CPUHP sysfs to /sys/devices/system/cpu/cpuhp */
-	if (sysfs_create_link(&cpu_subsys.dev_root->kobj,
-			      &pdev->dev.kobj, "cpuhp"))
-		pr_err("Failed to link CPUHP sysfs to cpuctrl\n");
+	root = bus_get_dev_root(&cpu_subsys);
+	if (root) {
+		if (sysfs_create_link(&root->kobj, &pdev->dev.kobj, "cpuhp"))
+			pr_err("Failed to link CPUHP sysfs to cpuctrl\n");
+		put_device(root);
+	}
 
 	/* Register pm notifier */
 	register_pm_notifier(&exynos_cpuhp_nb);

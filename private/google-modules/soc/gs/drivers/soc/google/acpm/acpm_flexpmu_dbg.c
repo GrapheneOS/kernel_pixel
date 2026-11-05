@@ -4,6 +4,7 @@
  *
  */
 
+#include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -119,17 +120,23 @@ struct dbgfs_info *flexpmu_dbg_info;
 void __iomem *flexpmu_dbg_base;
 static struct dentry *flexpmu_dbg_root;
 
+u32 acpm_get_mifdn_count(void);
+
 u32 acpm_get_mifdn_count(void)
 {
 	return __raw_readl(flexpmu_dbg_base + (DATA_LINE * DID_MIF_COUNT_SLEEP) + DATA_IDX + 4);
 }
 EXPORT_SYMBOL_GPL(acpm_get_mifdn_count);
 
+u32 acpm_get_apsocdn_count(void);
+
 u32 acpm_get_apsocdn_count(void)
 {
 	return __raw_readl(flexpmu_dbg_base + (DATA_LINE * DID_AP_COUNT_SLEEP) + DATA_IDX + 4);
 }
 EXPORT_SYMBOL_GPL(acpm_get_apsocdn_count);
+
+u32 acpm_get_early_wakeup_count(void);
 
 u32 acpm_get_early_wakeup_count(void)
 {
@@ -139,6 +146,8 @@ EXPORT_SYMBOL_GPL(acpm_get_early_wakeup_count);
 
 #define MIF_REQ_MASK		(0x00FF0000)
 #define MIF_REQ_SHIFT		(16)
+u32 acpm_get_mif_request(void);
+
 u32 acpm_get_mif_request(void)
 {
 	u32 reg = __raw_readl(flexpmu_dbg_base + (DATA_LINE * DID_SW_FLAG) + DATA_IDX + 4);
@@ -433,6 +442,8 @@ static ssize_t exynos_flexpmu_dbg_write(struct file *file, const char __user *us
 	return ret;
 }
 
+void exynos_flexpmu_dbg_log_stop(void);
+
 void exynos_flexpmu_dbg_log_stop(void)
 {
 	pr_info("flexpmu log stop\n");
@@ -498,7 +509,7 @@ err_flexpmu_info:
 	return ret;
 }
 
-static int exynos_flexpmu_dbg_remove(struct platform_device *pdev)
+static void exynos_flexpmu_dbg_remove(struct platform_device *pdev)
 {
 	struct dbgfs_info *flexpmu_dbg_info = platform_get_drvdata(pdev);
 
@@ -506,7 +517,6 @@ static int exynos_flexpmu_dbg_remove(struct platform_device *pdev)
 	kfree(flexpmu_dbg_info);
 	platform_set_drvdata(pdev, NULL);
 
-	return 0;
 }
 
 static const struct of_device_id exynos_flexpmu_dbg_match[] = {

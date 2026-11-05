@@ -77,7 +77,7 @@ module_param(margin_mfc, int, 0);
 module_param(margin_disp, int, 0);
 module_param(margin_bw, int, 0);
 
-void margin_table_init(void)
+static void margin_table_init(void)
 {
 	margin_table[MARGIN_MIF] = &margin_mif;
 	margin_table[MARGIN_INT] = &margin_int;
@@ -97,7 +97,7 @@ void margin_table_init(void)
 	margin_table[MARGIN_BW] = &margin_bw;
 }
 
-int fvmap_set_raw_voltage_table(unsigned int id, int uV)
+static int __maybe_unused fvmap_set_raw_voltage_table(unsigned int id, int uV)
 {
 	struct fvmap_header *fvmap_header;
 	struct rate_volt_header *fv_table;
@@ -139,7 +139,7 @@ int fvmap_get_voltage_table(unsigned int id, unsigned int *table)
 }
 EXPORT_SYMBOL_GPL(fvmap_get_voltage_table);
 
-int fvmap_get_raw_voltage_table(unsigned int id)
+static int __maybe_unused fvmap_get_raw_voltage_table(unsigned int id)
 {
 	struct fvmap_header *fvmap_header;
 	struct rate_volt_header *fv_table;

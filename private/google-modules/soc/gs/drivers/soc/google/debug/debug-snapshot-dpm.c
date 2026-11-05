@@ -44,6 +44,8 @@ bool dbg_snapshot_get_enabled_debug_kinfo(void)
 }
 EXPORT_SYMBOL(dbg_snapshot_get_enabled_debug_kinfo);
 
+void dbg_snapshot_do_dpm(struct pt_regs *regs);
+
 void dbg_snapshot_do_dpm(struct pt_regs *regs)
 {
 	unsigned int esr = read_sysreg(esr_el1);

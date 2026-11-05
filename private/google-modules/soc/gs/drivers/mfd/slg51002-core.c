@@ -5,6 +5,7 @@
  * Copyright (C) 2021 Google, LLC.
  */
 
+#include <linux/pinctrl/consumer.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
@@ -583,8 +584,7 @@ static const struct regmap_config slg51002_regmap_config = {
 	.reg_write = slg51002_reg_write,
 };
 
-static int slg51002_i2c_probe(struct i2c_client *client,
-			      const struct i2c_device_id *id)
+static int slg51002_i2c_probe(struct i2c_client *client)
 {
 	struct slg51002_dev *slg51002;
 	int gpio, ret;

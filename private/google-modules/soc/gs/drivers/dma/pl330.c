@@ -26,7 +26,7 @@
 #include <linux/bug.h>
 #include <linux/cpumask.h>
 #include <linux/of_address.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 
 #include "dmaengine.h"
 
@@ -2987,6 +2987,12 @@ struct dma_async_tx_descriptor *__pl330_prep_dma_cyclic(struct dma_chan *chan,
 							dma_addr_t dma_addr, size_t len,
 							size_t period_len,
 							enum dma_transfer_direction direction,
+							unsigned long flags, void *context);
+
+struct dma_async_tx_descriptor *__pl330_prep_dma_cyclic(struct dma_chan *chan,
+							dma_addr_t dma_addr, size_t len,
+							size_t period_len,
+							enum dma_transfer_direction direction,
 							unsigned long flags, void *context)
 {
 	struct dma_pl330_desc *desc = NULL, *first = NULL;
@@ -3236,6 +3242,8 @@ static irqreturn_t pl330_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 }
 
+int pl330_dma_debug(struct dma_chan *chan);
+
 int pl330_dma_debug(struct dma_chan *chan)
 {
 	struct dma_pl330_chan *pch = to_pchan(chan);
@@ -3293,6 +3301,8 @@ int pl330_dma_debug(struct dma_chan *chan)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pl330_dma_debug);
+
+int pl330_dma_getposition(struct dma_chan *chan, dma_addr_t *src, dma_addr_t *dst);
 
 int pl330_dma_getposition(struct dma_chan *chan, dma_addr_t *src, dma_addr_t *dst)
 {
@@ -3541,9 +3551,7 @@ pl330_probe(struct amba_device *adev, const struct amba_id *id)
 	 * This is the limit for transfers with a buswidth of 1, larger
 	 * buswidths will have larger limits.
 	 */
-	ret = dma_set_max_seg_size(&adev->dev, 1900800);
-	if (ret)
-		dev_err(&adev->dev, "unable to set the seg size\n");
+	dma_set_max_seg_size(&adev->dev, 1900800);
 
 
 	dev_info(&adev->dev,

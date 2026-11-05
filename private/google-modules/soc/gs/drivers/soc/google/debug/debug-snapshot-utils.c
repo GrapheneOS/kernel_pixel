@@ -285,7 +285,7 @@ static void dbg_snapshot_dump_one_task_info(struct task_struct *tsk, bool is_mai
 
 static inline struct task_struct *get_next_thread(struct task_struct *tsk)
 {
-	return container_of(tsk->thread_group.next, struct task_struct, thread_group);
+	return next_thread(tsk);
 }
 
 static void dbg_snapshot_dump_task_info(void)
@@ -308,7 +308,7 @@ static void dbg_snapshot_dump_task_info(void)
 	while (curr_tsk) {
 		dbg_snapshot_dump_one_task_info(curr_tsk,  true);
 		/* threads */
-		if (curr_tsk->thread_group.next != NULL) {
+		if (!thread_group_empty(curr_tsk)) {
 			frst_thr = get_next_thread(curr_tsk);
 			curr_thr = frst_thr;
 			if (frst_thr != curr_tsk) {

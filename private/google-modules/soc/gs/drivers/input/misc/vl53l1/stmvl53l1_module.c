@@ -2197,7 +2197,7 @@ static struct attribute *stmvl53l1_attributes[] = {
 };
 
 static ssize_t calibration_data_read(struct file *filp,
-	struct kobject *kobj, struct bin_attribute *attr,
+	struct kobject *kobj, const struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2243,7 +2243,7 @@ error:
 }
 
 static ssize_t calibration_data_write(struct file *filp,
-	struct kobject *kobj, struct bin_attribute *attr,
+	struct kobject *kobj, const struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2290,7 +2290,7 @@ error:
 static BIN_ATTR_RW(calibration_data, sizeof(struct VL53L1_CalibrationData_t));
 
 static ssize_t zone_calibration_data_read(struct file *filp,
-	struct kobject *kobj, struct bin_attribute *attr,
+	struct kobject *kobj, const struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2336,7 +2336,7 @@ error:
 }
 
 static ssize_t zone_calibration_data_write(struct file *filp,
-	struct kobject *kobj, struct bin_attribute *attr,
+	struct kobject *kobj, const struct bin_attribute *attr,
 	char *buf, loff_t off, size_t count)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -2387,7 +2387,7 @@ error:
 
 static BIN_ATTR_RW(zone_calibration_data, sizeof(stmvl531_zone_calibration_data_t));
 
-static struct bin_attribute *stmvl53l1_bin_attributes[] = {
+static const struct bin_attribute *stmvl53l1_bin_attributes[] = {
 	&bin_attr_calibration_data,
 	&bin_attr_zone_calibration_data,
 	NULL

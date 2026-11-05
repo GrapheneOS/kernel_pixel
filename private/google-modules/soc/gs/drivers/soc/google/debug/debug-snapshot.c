@@ -59,6 +59,8 @@ void __iomem *dbg_snapshot_get_header_vaddr(void)
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_header_vaddr);
 
+unsigned long dbg_snapshot_get_header_paddr(void);
+
 unsigned long dbg_snapshot_get_header_paddr(void)
 {
 	if (dbg_snapshot_get_item_enable(DSS_ITEM_HEADER))

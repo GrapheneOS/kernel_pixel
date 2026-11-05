@@ -703,7 +703,7 @@ static const struct file_operations gsa_cdev_fops = {
 	.owner = THIS_MODULE,
 };
 
-int gsa_cdev_init(void)
+static int gsa_cdev_init(void)
 {
 	int ret = alloc_chrdev_region(&gsa_cdev_base_num, 0, MAX_DEVICES, KBUILD_MODNAME);
 
@@ -712,7 +712,7 @@ int gsa_cdev_init(void)
 		return ret;
 	}
 
-	gsa_cdev_class = class_create(THIS_MODULE, KBUILD_MODNAME);
+	gsa_cdev_class = class_create(KBUILD_MODNAME);
 	if (IS_ERR(gsa_cdev_class)) {
 		ret = PTR_ERR(gsa_cdev_class);
 		unregister_chrdev_region(gsa_cdev_base_num, MAX_DEVICES);
@@ -722,7 +722,7 @@ int gsa_cdev_init(void)
 	return 0;
 }
 
-int gsa_cdev_create(struct device *parent, struct gsa_cdev *cdev_node)
+static int gsa_cdev_create(struct device *parent, struct gsa_cdev *cdev_node)
 {
 	int ret;
 	int minor;
@@ -763,13 +763,13 @@ err_device_create:
 	return ret;
 }
 
-void gsa_cdev_remove(struct gsa_cdev *cdev_node)
+static void gsa_cdev_remove(struct gsa_cdev *cdev_node)
 {
 	cdev_del(&cdev_node->cdev);
 	device_destroy(gsa_cdev_class, cdev_node->device_num);
 }
 
-void gsa_cdev_exit(void)
+static void gsa_cdev_exit(void)
 {
 	class_destroy(gsa_cdev_class);
 	unregister_chrdev_region(gsa_cdev_base_num, MAX_DEVICES);
@@ -778,6 +778,8 @@ void gsa_cdev_exit(void)
 /*
  *  External image authentication interface
  */
+int gsa_authenticate_image(struct device *gsa, dma_addr_t img_meta, phys_addr_t img_body);
+
 int gsa_authenticate_image(struct device *gsa, dma_addr_t img_meta, phys_addr_t img_body)
 {
 	return gsa_send_load_img_cmd(gsa, GSA_MB_CMD_AUTH_IMG, img_meta, img_body);

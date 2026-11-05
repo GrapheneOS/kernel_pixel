@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/io.h>
-#include <linux/cpuidle.h>
+#include <linux/pm_qos.h>
 #include <asm/barrier.h>
 #include <asm/sysreg.h>
 #include <soc/google/debug-snapshot.h>
@@ -143,6 +143,7 @@ struct exynos_etm_info {
 };
 
 static struct exynos_etm_info *ee_info;
+static struct pm_qos_request etm_idle_qos;
 
 static void set_trfcr(bool enable)
 {
@@ -374,36 +375,19 @@ static void bdu_etr_disable(void)
 static void exynos_etm_smp_enable(void *ununsed);
 void exynos_etm_trace_start(void);
 
-static void smp_disable_idle_states(void *ptr)
-{
-	struct cpuidle_driver *drv;
-	bool disable = *(bool *)ptr;
-	int i;
 
-	drv = cpuidle_get_driver();
-
-	if (!drv) {
-		dev_warn(ee_info->dev, "No idle driver registered.\n");
-		return;
-	}
-
-	for (i = 1; i < drv->state_count; i++) {
-		cpuidle_driver_state_disabled(drv, i, disable);
-	}
-}
 
 /*
  * TODO: b/286355474 workaround for ETR_MIU dump to disable C2 idle
- * SMP call each CPU to disable idle states excpet for wfi.
+ * Keep CPUs in the shallow idle state while using the external ETR buffer.
  */
 static void exynos_disable_idle_states(bool disable)
 {
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		smp_call_function_single(cpu, smp_disable_idle_states, &disable, 1);
-	}
+	cpu_latency_qos_update_request(&etm_idle_qos,
+				      disable ? 0 : PM_QOS_DEFAULT_VALUE);
 }
+
+int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size);
 
 int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 {
@@ -452,6 +436,8 @@ int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 }
 EXPORT_SYMBOL_GPL(gs_coresight_etm_external_etr_on);
 
+int gs_coresight_etm_external_etr_off(void);
+
 int gs_coresight_etm_external_etr_off(void)
 {
 	struct etr_info *etr = &ee_info->etr;
@@ -492,10 +478,14 @@ int gs_coresight_etm_external_etr_off(void)
 EXPORT_SYMBOL_GPL(gs_coresight_etm_external_etr_off);
 
 #else
+int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size);
+
 int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 {
 	return -EINVAL;
 }
+
+int gs_coresight_etm_external_etr_off(void);
 
 int gs_coresight_etm_external_etr_off(void)
 {
@@ -953,7 +943,7 @@ static DEVICE_ATTR_RO(port_status);
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 static ssize_t etr_dump_read(struct file *filp,
 			     struct kobject *kobj,
-			     struct bin_attribute *attr,
+			     const struct bin_attribute *attr,
 			     char *buffer,
 			     loff_t pos,
 			     size_t size)
@@ -971,7 +961,7 @@ static ssize_t etr_dump_read(struct file *filp,
 
 static BIN_ATTR_RO(etr_dump, 0);
 
-static struct bin_attribute *exynos_etr_sysfs_attrs[] = {
+static const struct bin_attribute *exynos_etr_sysfs_attrs[] = {
 	&bin_attr_etr_dump,
 	NULL,
 };
@@ -1677,6 +1667,11 @@ err:
 	return ret;
 }
 
+static void exynos_etm_remove_idle_qos(void *data)
+{
+	cpu_latency_qos_remove_request(data);
+}
+
 static int exynos_etm_probe(struct platform_device *pdev)
 {
 	unsigned int i;
@@ -1684,6 +1679,12 @@ static int exynos_etm_probe(struct platform_device *pdev)
 
 	ret = exynos_etm_cs_etm_init_dt(&pdev->dev);
 	if (ret < 0)
+		return ret;
+
+	cpu_latency_qos_add_request(&etm_idle_qos, PM_QOS_DEFAULT_VALUE);
+	ret = devm_add_action_or_reset(&pdev->dev, exynos_etm_remove_idle_qos,
+				      &etm_idle_qos);
+	if (ret)
 		return ret;
 
 	spin_lock_init(&ee_info->trace_lock);

@@ -327,6 +327,8 @@ static int chipid_sysfs_init(void)
 	return ret;
 }
 
+u32 gs_chipid_get_type(void);
+
 u32 gs_chipid_get_type(void)
 {
 	if (!gs_soc_info.initialized)
@@ -335,6 +337,8 @@ u32 gs_chipid_get_type(void)
 	return gs_soc_info.type;
 }
 EXPORT_SYMBOL_GPL(gs_chipid_get_type);
+
+s32 gs_chipid_get_dvfs_version(void);
 
 s32 gs_chipid_get_dvfs_version(void)
 {
@@ -345,6 +349,8 @@ s32 gs_chipid_get_dvfs_version(void)
 }
 EXPORT_SYMBOL_GPL(gs_chipid_get_dvfs_version);
 
+u32 gs_chipid_get_revision(void);
+
 u32 gs_chipid_get_revision(void)
 {
 	if (!gs_soc_info.initialized)
@@ -353,6 +359,8 @@ u32 gs_chipid_get_revision(void)
 	return gs_soc_info.revision;
 }
 EXPORT_SYMBOL_GPL(gs_chipid_get_revision);
+
+u32 gs_chipid_get_product_id(void);
 
 u32 gs_chipid_get_product_id(void)
 {
@@ -469,6 +477,8 @@ static void gs_chipid_get_ap_hw_tune_str(void __iomem *reg)
 	}
 }
 
+int gs_chipid_get_ap_hw_tune_array(const u8 **array);
+
 int gs_chipid_get_ap_hw_tune_array(const u8 **array)
 {
 	if (!gs_soc_info.initialized)
@@ -530,7 +540,7 @@ MODULE_DEVICE_TABLE(of, of_gs_chipid_ids);
  *  gs_chipid_early_init: Early chipid initialization
  *  @dev: pointer to chipid device
  */
-void gs_chipid_early_init(void)
+static void gs_chipid_early_init(void)
 {
 	struct device_node *np;
 	const struct of_device_id *match;

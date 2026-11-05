@@ -9,6 +9,7 @@
 #include <linux/module.h>
 
 #include <linux/i2c.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/init.h>
 #include <linux/time.h>
 #include <linux/interrupt.h>
@@ -1217,11 +1218,11 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 
 	i2c->idle_ip_index = exynos_get_idle_ip_index(dev_name(&pdev->dev));
 
-	strlcpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
+	strscpy(i2c->adap.name, "exynos5-i2c", sizeof(i2c->adap.name));
 	i2c->adap.owner   = THIS_MODULE;
 	i2c->adap.algo    = &exynos5_i2c_algorithm;
 	i2c->adap.retries = 2;
-	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	i2c->adap.class   = I2C_CLASS_HWMON;
 
 	i2c->dev = &pdev->dev;
 	i2c->clk = devm_clk_get(&pdev->dev, "gate_hsi2c_clk");
@@ -1330,7 +1331,7 @@ static int exynos5_i2c_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int exynos5_i2c_remove(struct platform_device *pdev)
+static void exynos5_i2c_remove(struct platform_device *pdev)
 {
 	struct exynos5_i2c *i2c = platform_get_drvdata(pdev);
 
@@ -1338,7 +1339,6 @@ static int exynos5_i2c_remove(struct platform_device *pdev)
 
 	clk_unprepare(i2c->clk);
 
-	return 0;
 }
 
 #ifdef CONFIG_PM
