@@ -31,7 +31,6 @@ static struct sscd_info test_info;
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -112,7 +111,11 @@ static int sscd_sample_test_init(void)
 	/*
 	 * register SSCD platform device
 	 */
-	ret = platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (ret)
+		goto err_put;
+	ret = platform_device_add(&sscd_dev);
 	if (ret)
 		goto err_put;
 	ret = sysfs_create_group(&sscd_dev.dev.kobj, &sscd_test_group);
