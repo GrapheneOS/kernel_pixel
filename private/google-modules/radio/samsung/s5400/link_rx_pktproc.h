@@ -123,7 +123,6 @@ struct pktproc_statistics {
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE_IOMMU)
 struct cpif_pcie_iommu_ctrl {
 	struct page_frag_cache pf_cache;
-	u32 pf_offset;
 	u32 curr_fore;
 
 	/* Will */
@@ -211,7 +210,7 @@ struct pktproc_queue {
 #endif
 
 	/* NAPI */
-	struct net_device netdev;
+	struct net_device *netdev;
 	struct napi_struct napi;
 	struct napi_struct *napi_ptr;
 
