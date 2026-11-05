@@ -11,20 +11,35 @@
 
 #include <sound/core.h>
 #include <linux/usb.h>
-#include <trace/hooks/audio_usboffload.h>
+#include <linux/mutex.h>
 
 #include "aoc_alsa.h"
 #include "card.h"
 #include "usbaudio.h"
 
-struct uaudio_dev {
-	int card_num;
-	struct snd_usb_audio *chip;
-};
+static struct snd_usb_audio *uadev[SNDRV_CARDS];
 
-static struct uaudio_dev uadev[SNDRV_CARDS];
+/*
+ * USB sound's register_mutex serializes connect/disconnect callbacks. This
+ * lock keeps disconnect from returning to USB sound and releasing resources
+ * while an endpoint request uses the chip. Lock order is register_mutex,
+ * aoc_usb_mutex, then chip->mutex.
+ */
+static DEFINE_MUTEX(aoc_usb_mutex);
+static const struct aoc_alsa_usb_ops *aoc_usb_ops;
+static bool aoc_usb_stopping = true;
 
-void (*cb_func)(struct usb_device*, struct usb_host_endpoint*);
+static bool aoc_usb_has_card(void)
+{
+	int i;
+
+	lockdep_assert_held(&aoc_usb_mutex);
+	for (i = 0; i < ARRAY_SIZE(uadev); i++) {
+		if (uadev[i])
+			return true;
+	}
+	return false;
+}
 
 static bool snd_usb_is_implicit_feedback(struct snd_usb_endpoint *ep)
 {
@@ -38,7 +53,7 @@ static struct snd_usb_substream *find_substream(unsigned int card_num,
 	struct snd_usb_substream *subs = NULL;
 	struct snd_usb_audio *chip;
 
-	chip = uadev[card_num].chip;
+	chip = uadev[card_num];
 
 	if (!chip || atomic_read(&chip->shutdown))
 		goto done;
@@ -60,27 +75,33 @@ done:
 	return subs;
 }
 
-void usb_audio_offload_connect(struct snd_usb_audio *chip)
+static void usb_audio_offload_quirks(struct snd_usb_audio *chip)
 {
-	int card_num;
-
-	if (!chip)
-		return;
-
-	card_num = chip->card->number;
-	if (card_num >= SNDRV_CARDS)
-		return;
-
-	pr_info("%s card%d connected", __func__, card_num);
-	mutex_lock(&chip->mutex);
-	uadev[card_num].chip = chip;
-	uadev[card_num].card_num = card_num;
 	chip->quirk_flags &= ~QUIRK_FLAG_GENERIC_IMPLICIT_FB;
 	chip->quirk_flags |= QUIRK_FLAG_SKIP_IMPLICIT_FB;
-	mutex_unlock(&chip->mutex);
 }
 
-void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
+static void usb_audio_offload_connect(struct snd_usb_audio *chip)
+{
+	int card_num;
+
+	if (!chip || atomic_read(&chip->shutdown))
+		return;
+
+	card_num = chip->card->number;
+	if (card_num < 0 || card_num >= SNDRV_CARDS)
+		return;
+
+	guard(mutex)(&aoc_usb_mutex);
+	if (aoc_usb_stopping)
+		return;
+	pr_info("%s card%d connected", __func__, card_num);
+	uadev[card_num] = chip;
+	if (aoc_usb_ops)
+		aoc_usb_ops->connection(true);
+}
+
+static void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 {
 	int card_num;
 
@@ -88,19 +109,15 @@ void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 		return;
 
 	card_num = chip->card->number;
-	if (card_num >= SNDRV_CARDS)
+	if (card_num < 0 || card_num >= SNDRV_CARDS)
 		return;
 
-	mutex_lock(&chip->mutex);
-	pr_info("%s card%d disconnected", __func__, card_num);
-	uadev[card_num].chip = NULL;
-	uadev[card_num].card_num = 0;
-	mutex_unlock(&chip->mutex);
-}
-
-void usb_audio_offload_suspend(struct usb_interface *intf, pm_message_t message)
-{
-	pr_debug("%s", __func__);
+	guard(mutex)(&aoc_usb_mutex);
+	if (aoc_usb_stopping || uadev[card_num] != chip)
+		return;
+	uadev[card_num] = NULL;
+	if (aoc_usb_ops)
+		aoc_usb_ops->connection(aoc_usb_has_card());
 }
 
 int aoc_set_usb_mem_config(struct aoc_chip *achip)
@@ -117,11 +134,14 @@ int aoc_set_usb_mem_config(struct aoc_chip *achip)
 	if (!achip)
 		return -ENODEV;
 
+	guard(mutex)(&aoc_usb_mutex);
+	if (aoc_usb_stopping)
+		return -ENODEV;
 	card_num = achip->usb_card;
 	device = achip->usb_device;
 	direction = achip->usb_direction;
 	if (card_num < SNDRV_CARDS) {
-		chip = uadev[card_num].chip;
+		chip = uadev[card_num];
 	}
 	if (!chip) {
 		pr_err("%s no device connected (card %u device %u, direction %u)",
@@ -133,7 +153,7 @@ int aoc_set_usb_mem_config(struct aoc_chip *achip)
 	if (direction <= SNDRV_PCM_STREAM_CAPTURE) {
 		mutex_lock(&chip->mutex);
 		subs = find_substream(card_num, device, direction);
-		if (!subs) {
+		if (!subs || !subs->data_endpoint) {
 			pr_err("%s subs not found", __func__);
 			mutex_unlock(&chip->mutex);
 			return -ENODEV;
@@ -147,8 +167,8 @@ int aoc_set_usb_mem_config(struct aoc_chip *achip)
 			return -ENODEV;
 		}
 
-		if (cb_func) {
-			cb_func(subs->dev, ep);
+		if (aoc_usb_ops) {
+			aoc_usb_ops->setup_transfer_ring(subs->dev, ep);
 		} else {
 			pr_info("%s call aoc_alsa_usb_callback_register() first, skip", __func__);
 		}
@@ -159,8 +179,8 @@ int aoc_set_usb_mem_config(struct aoc_chip *achip)
 				pr_info("%s sync ep # %d context is null\n",
 						__func__, subs->sync_endpoint->ep_num);
 			} else {
-				if (cb_func) {
-					cb_func(subs->dev, fb_ep);
+				if (aoc_usb_ops) {
+					aoc_usb_ops->setup_transfer_ring(subs->dev, fb_ep);
 				}
 				aoc_set_usb_feedback_endpoint(achip, subs->dev, fb_ep);
 			}
@@ -172,54 +192,64 @@ int aoc_set_usb_mem_config(struct aoc_chip *achip)
 	return 0;
 }
 
-bool aoc_alsa_usb_callback_register(
-			void (*callback)(struct usb_device*, struct usb_host_endpoint*))
+int aoc_alsa_usb_callback_register(const struct aoc_alsa_usb_ops *ops)
 {
-	pr_info("%s usb callback register", __func__);
-	if (callback) {
-		cb_func = callback;
-	} else {
-		pr_err("%s: cb_func register fail", __func__);
-		return false;
-	}
-	return true;
+	if (!ops || !ops->setup_transfer_ring || !ops->connection)
+		return -EINVAL;
+
+	guard(mutex)(&aoc_usb_mutex);
+	if (aoc_usb_stopping)
+		return -ENODEV;
+	if (aoc_usb_ops)
+		return -EBUSY;
+
+	aoc_usb_ops = ops;
+	/* Replay cards connected before the xHCI consumer became ready. */
+	if (aoc_usb_has_card())
+		ops->connection(true);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(aoc_alsa_usb_callback_register);
 
-void aoc_alsa_usb_callback_unregister(void)
+void aoc_alsa_usb_callback_unregister(const struct aoc_alsa_usb_ops *ops)
 {
-	pr_info("%s usb callback unregister", __func__);
-	if (cb_func) {
-		cb_func = NULL;
-	}
+	guard(mutex)(&aoc_usb_mutex);
+	if (aoc_usb_ops == ops)
+		aoc_usb_ops = NULL;
 }
 EXPORT_SYMBOL_GPL(aoc_alsa_usb_callback_unregister);
 
-static void audio_usb_offload_connect(void *unused, struct usb_interface *intf,
-			struct snd_usb_audio *chip)
-{
-	usb_audio_offload_connect(chip);
-}
-
-static void audio_usb_offload_disconnect(void *unused, struct usb_interface *intf)
-{
-	struct snd_usb_audio *chip = usb_get_intfdata(intf);
-
-	usb_audio_offload_disconnect(chip);
-}
+static struct snd_usb_platform_ops aoc_platform_ops = {
+	.quirks_cb = usb_audio_offload_quirks,
+	.connect_cb = usb_audio_offload_connect,
+	.disconnect_cb = usb_audio_offload_disconnect,
+};
 
 int aoc_usb_init(void)
 {
-	int ret = 0;
+	int ret;
 
-	register_trace_android_vh_audio_usb_offload_connect(audio_usb_offload_connect, NULL);
-	register_trace_android_rvh_audio_usb_offload_disconnect(audio_usb_offload_disconnect, NULL);
-
-	return ret;
+	scoped_guard(mutex, &aoc_usb_mutex)
+		aoc_usb_stopping = false;
+	ret = snd_usb_register_platform_ops(&aoc_platform_ops);
+	if (ret) {
+		scoped_guard(mutex, &aoc_usb_mutex)
+			aoc_usb_stopping = true;
+		return ret;
+	}
+	snd_usb_rediscover_devices();
+	return 0;
 }
 
 void aoc_usb_exit(void)
 {
-	unregister_trace_android_vh_audio_usb_offload_connect(audio_usb_offload_connect, NULL);
+	/* Stop lookups while disconnect still serializes card teardown. */
+	scoped_guard(mutex, &aoc_usb_mutex) {
+		if (aoc_usb_stopping)
+			return;
+		aoc_usb_stopping = true;
+		memset(uadev, 0, sizeof(uadev));
+	}
+	snd_usb_unregister_platform_ops();
 }
-
