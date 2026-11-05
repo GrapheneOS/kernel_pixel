@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/debugfs.h>
@@ -1644,10 +1645,27 @@ bool is_console_enabled(void)
 	return exynos_uart_console_enabled();
 }
 
+static void exynos_drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
+{
+	/* Requested error dumps must reach the log even when drm.debug is zero. */
+	printk(KERN_DEBUG "%s %pV", p->prefix, vaf);
+}
+
+struct drm_printer exynos_drm_dump_printer(struct device *dev)
+{
+	struct drm_printer p = {
+		.printfn = exynos_drm_printfn_debug,
+		.prefix = "[drm]",
+	};
+
+	if (!is_console_enabled())
+		return drm_info_printer(dev);
+	return p;
+}
+
 static void buf_dump_all(const struct decon_device *decon)
 {
-	struct drm_printer p = is_console_enabled() ?
-		drm_debug_printer("[drm]") : drm_info_printer(decon->dev);
+	struct drm_printer p = exynos_drm_dump_printer(decon->dev);
 	int i;
 
 	for (i = 0; i < decon->dpp_cnt; ++i)
@@ -2166,8 +2184,7 @@ void decon_dump_all(struct decon_device *decon,
 void decon_dump_event_condition(const struct decon_device *decon,
 		enum dpu_event_condition condition)
 {
-	struct drm_printer p = is_console_enabled() ?
-		drm_debug_printer("[drm]") : drm_info_printer(decon->dev);
+	struct drm_printer p = exynos_drm_dump_printer(decon->dev);
 	u32 print_log_size;
 
 	if (decon_dump_ignore(condition))

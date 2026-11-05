@@ -343,19 +343,19 @@ int gs_panel_test_common_init(struct platform_device *pdev, struct gs_panel_test
 }
 EXPORT_SYMBOL_GPL(gs_panel_test_common_init);
 
-int gs_panel_test_common_remove(struct platform_device *pdev)
+void gs_panel_test_common_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct gs_panel_test *test = dev_get_drvdata(dev);
 
 	if (!test)
-		return 0;
+		return;
 
 	PANEL_ATRACE_BEGIN("panel_test_remove");
 	debugfs_remove_test_folder(test);
 	PANEL_ATRACE_END("panel_test_remove");
 
-	return 0;
+	return;
 }
 EXPORT_SYMBOL_GPL(gs_panel_test_common_remove);
 
