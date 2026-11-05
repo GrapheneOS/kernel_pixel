@@ -1823,9 +1823,10 @@ static int nt37290_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct nt37290_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct nt37290_panel, base.bridge,
+				       exynos_panel_get_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->hw_vrefresh = 60;
 	spanel->hw_idle_vrefresh = 0;
