@@ -1553,6 +1553,8 @@ static inline int gs_dcs_set_brightness(struct gs_panel *ctx, u16 br)
 int gs_panel_first_enable_helper(struct gs_panel *ctx);
 void gs_panel_reset_helper(struct gs_panel *ctx);
 int gs_panel_set_power_helper(struct gs_panel *ctx, bool on);
+const struct drm_bridge_funcs *get_panel_drm_bridge_funcs(void);
+
 /**
  * gs_dsi_panel_common_init - Probe-level initialization for gs_panel
  * @dsi: dsi device pointer for panel
@@ -1562,15 +1564,18 @@ int gs_panel_set_power_helper(struct gs_panel *ctx, bool on);
  * for gs_panel objects, including creating mutexes, parsing the device tree,
  * registering the device data, creating sysfs files, etc.
  *
+ * Allocate the containing object with devm_drm_bridge_alloc(), using ctx->bridge
+ * and get_panel_drm_bridge_funcs(), before calling this function.
+ *
  * Return: Probe results; 0 for success, negative value for error
  */
 int gs_dsi_panel_common_init(struct mipi_dsi_device *dsi, struct gs_panel *ctx);
 /**
- * gs_dsi_panel_common_probe() - Wrapper for gs_dsi_panel_common_init with malloc
+ * gs_dsi_panel_common_probe() - Allocate and initialize a gs_panel
  * @dsi: dsi device pointer for panel
  *
  * For drivers that don't need additional working state data for their panels,
- * this function calls the `kzalloc` function to allocate a `gs_panel` before
+ * this function uses devm_drm_bridge_alloc() to allocate a `gs_panel` before
  * sending that to the `gs_dsi_panel_common_init` function.
  *
  * It is designed to plug directly into the `probe` function of the
