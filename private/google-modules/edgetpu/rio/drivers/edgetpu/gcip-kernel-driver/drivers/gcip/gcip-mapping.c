@@ -1020,4 +1020,4 @@ void gcip_mapping_unmap(struct gcip_mapping *mapping)
 		ops->after_unmap(data);
 }
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
