@@ -17,6 +17,7 @@
 #include "tcpci_max77759.h"
 #include "tcpci_max77759_vendor_reg.h"
 #include "google_tcpci_shim.h"
+#include "max77759_contaminant.h"
 
 /* Updated in MDR2 slide. */
 #define FLADC_1uA_LSB_MV		25
