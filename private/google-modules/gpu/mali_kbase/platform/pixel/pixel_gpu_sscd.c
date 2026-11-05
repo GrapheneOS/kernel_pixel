@@ -30,7 +30,6 @@ static void sscd_release(struct device *dev)
 
 static struct sscd_platform_data sscd_pdata;
 const static struct platform_device sscd_dev_init = { .name = "mali",
-						      .driver_override = SSCD_NAME,
 						      .id = -1,
 						      .dev = {
 							      .platform_data = &sscd_pdata,
@@ -713,17 +712,22 @@ int gpu_sscd_fw_log_init(struct kbase_device *kbdev, u32 level)
 
 /**
  * gpu_sscd_init() - Registers the SSCD platform device.
+ * @kbdev: The GPU device.
  *
- * @kbdev: The &struct kbase_device for the GPU.
- *
- * Context: Process context.
- *
- * Return: On success, returns 0 otherwise returns an error code.
+ * Return: 0 on success or a negative error code.
  */
 int gpu_sscd_init(struct kbase_device *kbdev)
 {
+	int ret;
+
 	sscd_dev = sscd_dev_init;
-	return platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
+	if (ret)
+		platform_device_put(&sscd_dev);
+	return ret;
 }
 
 /**
