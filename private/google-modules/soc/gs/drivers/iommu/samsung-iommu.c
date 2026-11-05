@@ -1023,7 +1023,7 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 	}
 
 	if (iommu_group_get_iommudata(group))
-		return group;
+		return iommu_group_ref_get(group);
 
 	groupdata = kzalloc(sizeof(*groupdata), GFP_KERNEL);
 	if (!groupdata)
@@ -1052,7 +1052,7 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 		}
 	}
 
-	return group;
+	return iommu_group_ref_get(group);
 }
 
 static void samsung_sysmmu_clientdata_release(struct device *dev, void *res)
