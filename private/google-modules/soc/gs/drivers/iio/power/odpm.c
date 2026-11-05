@@ -275,6 +275,8 @@ static int odpm_io_write_lpf_reg(struct odpm_info *info,
 	return s2mpg1415_meter_set_lpf_coefficient(info->chip.hw_id, info->i2c, ch, data);
 }
 
+int odpm_configure_chip(struct odpm_info *info);
+
 int odpm_configure_chip(struct odpm_info *info)
 {
 	int ch;
@@ -310,6 +312,8 @@ int odpm_configure_chip(struct odpm_info *info)
 	return 0;
 }
 
+int odpm_meter_sw_reset(struct odpm_info *info);
+
 int odpm_meter_sw_reset(struct odpm_info *info)
 {
 	int ret = 0;
@@ -338,6 +342,8 @@ int odpm_meter_sw_reset(struct odpm_info *info)
 err:
 	return ret;
 }
+
+int odpm_configure_start_measurement(struct odpm_info *info);
 
 int odpm_configure_start_measurement(struct odpm_info *info)
 {
@@ -372,7 +378,7 @@ int odpm_configure_start_measurement(struct odpm_info *info)
 	return ret;
 }
 
-static enum alarmtimer_restart odpm_alarm_handler(struct alarm *alarm, ktime_t time)
+static void odpm_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct odpm_info *info =
 		container_of(alarm, struct odpm_info, alarmtimer_refresh);
@@ -384,7 +390,6 @@ static enum alarmtimer_restart odpm_alarm_handler(struct alarm *alarm, ktime_t t
 	alarm_start_relative(&info->alarmtimer_refresh,
 			     ms_to_ktime(info->chip.max_refresh_time_ms));
 
-	return ALARMTIMER_NORESTART;
 }
 
 static void odpm_periodic_refresh_work(struct work_struct *work)
@@ -1774,7 +1779,7 @@ static const struct iio_info odpm_iio_info = {
 	.write_raw = odpm_write_raw,
 };
 
-static int odpm_remove(struct platform_device *pdev)
+static void odpm_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&pdev->dev);
 	struct odpm_info *info = iio_priv(indio_dev);
@@ -1798,7 +1803,7 @@ static int odpm_remove(struct platform_device *pdev)
 	if (info->ws)
 		wakeup_source_unregister(info->ws);
 
-	return ret;
+	return;
 }
 
 static void odpm_probe_init_device_specific(struct odpm_info *info, int id)

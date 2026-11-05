@@ -728,6 +728,8 @@ static int proportion_in_1_digit(u64 dividend, u64 divisor)
 	return max(min((int) div64_u64(dividend * 10, divisor), 9), 0);
 }
 
+void s3c2410wdt_print_schedstat(const char *loglvl);
+
 void s3c2410wdt_print_schedstat(const char *loglvl)
 {
 	int cpu;
@@ -1107,6 +1109,8 @@ s3c2410_get_wdt_drv_data(struct platform_device *pdev)
 	return variant;
 }
 
+int s3c2410wdt_set_emergency_stop(int index);
+
 int s3c2410wdt_set_emergency_stop(int index)
 {
 	struct s3c2410_wdt *wdt = s3c_wdt[index];
@@ -1120,6 +1124,8 @@ int s3c2410wdt_set_emergency_stop(int index)
 	return 0;
 }
 EXPORT_SYMBOL(s3c2410wdt_set_emergency_stop);
+
+int s3c2410wdt_keepalive_emergency(bool reset, int index, int sec);
 
 int s3c2410wdt_keepalive_emergency(bool reset, int index, int sec)
 {
@@ -1150,6 +1156,8 @@ static int s3c2410wdt_get_multistage_index(void)
 
 	return -ENODEV;
 }
+
+int s3c2410wdt_keepalive_common(void);
 
 int s3c2410wdt_keepalive_common(void)
 {
@@ -1301,6 +1309,8 @@ static int s3c2410wdt_panic_handler(struct notifier_block *nb,
 
 	return 0;
 }
+
+int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index);
 
 int s3c2410wdt_set_emergency_reset(unsigned int timeout_cnt, int index)
 {
@@ -1895,7 +1905,7 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int s3c2410wdt_remove(struct platform_device *dev)
+static void s3c2410wdt_remove(struct platform_device *dev)
 {
 	int ret = 0;
 	struct s3c2410_wdt *wdt = platform_get_drvdata(dev);
@@ -1903,7 +1913,7 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 	if (wdt->drv_data->pmu_reset_func)
 		ret = wdt->drv_data->pmu_reset_func(wdt, true);
 	if (ret < 0)
-		return ret;
+		return;
 
 	watchdog_unregister_device(&wdt->wdt_device);
 
@@ -1920,7 +1930,7 @@ static int s3c2410wdt_remove(struct platform_device *dev)
 		free_percpu(wdt->schedstat);
 	}
 
-	return ret;
+	return;
 }
 
 static void s3c2410wdt_shutdown(struct platform_device *dev)

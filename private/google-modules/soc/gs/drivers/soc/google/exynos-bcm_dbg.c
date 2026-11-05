@@ -380,6 +380,12 @@ void exynos_bcm_dbg_set_base_info(
 				struct exynos_bcm_ipc_base_info *ipc_base_info,
 				enum exynos_bcm_event_id event_id,
 				enum exynos_bcm_event_dir direction,
+				enum exynos_bcm_ip_range ip_range);
+
+void exynos_bcm_dbg_set_base_info(
+				struct exynos_bcm_ipc_base_info *ipc_base_info,
+				enum exynos_bcm_event_id event_id,
+				enum exynos_bcm_event_dir direction,
 				enum exynos_bcm_ip_range ip_range)
 {
 	ipc_base_info->event_id = event_id;
@@ -399,6 +405,11 @@ static void exynos_bcm_dbg_set_base_cmd(unsigned int *cmd,
 	cmd[0] |= BCM_CMD_SET(ipc_base_info->direction, BCM_ONE_BIT_MASK,
 					BCM_EVT_DIR_SHIFT);
 }
+
+int exynos_bcm_dbg_event_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
+					struct exynos_bcm_event *bcm_event,
+					unsigned int bcm_ip_index,
+					struct exynos_bcm_dbg_data *data);
 
 int exynos_bcm_dbg_event_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					struct exynos_bcm_event *bcm_event,
@@ -626,6 +637,11 @@ out:
 int exynos_bcm_dbg_sample_id_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					struct exynos_bcm_sample_id *sample_id,
 					unsigned int bcm_ip_index,
+					struct exynos_bcm_dbg_data *data);
+
+int exynos_bcm_dbg_sample_id_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
+					struct exynos_bcm_sample_id *sample_id,
+					unsigned int bcm_ip_index,
 					struct exynos_bcm_dbg_data *data)
 {
 	unsigned int cmd[4] = {0, 0, 0, 0};
@@ -736,6 +752,10 @@ out:
 
 int exynos_bcm_dbg_run_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					unsigned int *bcm_run,
+					struct exynos_bcm_dbg_data *data);
+
+int exynos_bcm_dbg_run_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
+					unsigned int *bcm_run,
 					struct exynos_bcm_dbg_data *data)
 {
 	unsigned int cmd[4] = {0, 0, 0, 0};
@@ -818,6 +838,10 @@ EXPORT_SYMBOL(exynos_bcm_dbg_run_ctrl);
 
 int exynos_bcm_dbg_period_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					unsigned int *bcm_period,
+					struct exynos_bcm_dbg_data *data);
+
+int exynos_bcm_dbg_period_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
+					unsigned int *bcm_period,
 					struct exynos_bcm_dbg_data *data)
 {
 	unsigned int cmd[4] = {0, 0, 0, 0};
@@ -886,6 +910,10 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(exynos_bcm_dbg_period_ctrl);
+
+int exynos_bcm_dbg_mode_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
+					unsigned int *bcm_mode,
+					struct exynos_bcm_dbg_data *data);
 
 int exynos_bcm_dbg_mode_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					unsigned int *bcm_mode,
@@ -1009,6 +1037,11 @@ out:
 int exynos_bcm_dbg_ip_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
 					unsigned int *bcm_ip_enable,
 					unsigned int bcm_ip_index,
+					struct exynos_bcm_dbg_data *data);
+
+int exynos_bcm_dbg_ip_ctrl(struct exynos_bcm_ipc_base_info *ipc_base_info,
+					unsigned int *bcm_ip_enable,
+					unsigned int bcm_ip_index,
 					struct exynos_bcm_dbg_data *data)
 {
 	unsigned int cmd[4] = {0, 0, 0, 0};
@@ -1061,6 +1094,11 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(exynos_bcm_dbg_ip_ctrl);
+
+int exynos_bcm_dbg_dump_accumulators_ctrl(
+			struct exynos_bcm_ipc_base_info *ipc_base_info,
+			char *buf, size_t *buf_len, loff_t off, size_t size,
+			struct exynos_bcm_dbg_data *data);
 
 int exynos_bcm_dbg_dump_accumulators_ctrl(
 			struct exynos_bcm_ipc_base_info *ipc_base_info,
@@ -1482,6 +1520,9 @@ static int exynos_bcm_dbg_str(unsigned int suspend,
 
 	return 0;
 }
+
+void exynos_bcm_dbg_set_dump(bool enable_klog, bool enable_file,
+			     struct exynos_bcm_dbg_data *data);
 
 void exynos_bcm_dbg_set_dump(bool enable_klog, bool enable_file,
 			     struct exynos_bcm_dbg_data *data)
@@ -3970,7 +4011,7 @@ err_data:
 	return ret;
 }
 
-static int exynos_bcm_dbg_remove(struct platform_device *pdev)
+static void exynos_bcm_dbg_remove(struct platform_device *pdev)
 {
 	struct exynos_bcm_dbg_data *data =
 					platform_get_drvdata(pdev);
@@ -3982,7 +4023,7 @@ static int exynos_bcm_dbg_remove(struct platform_device *pdev)
 	ret = exynos_bcm_dbg_pd_sync_exit(data);
 	if (ret) {
 		BCM_ERR("%s: failed to pd_sync_exit\n", __func__);
-		return ret;
+		return;
 	}
 
 	exynos_bcm_dbg_ipc_channel_release(data);
@@ -3995,7 +4036,7 @@ static int exynos_bcm_dbg_remove(struct platform_device *pdev)
 
 	BCM_INFO("%s: exynos bcm is removed!!\n", __func__);
 
-	return 0;
+	return;
 }
 
 static struct platform_device_id exynos_bcm_dbg_driver_ids[] = {

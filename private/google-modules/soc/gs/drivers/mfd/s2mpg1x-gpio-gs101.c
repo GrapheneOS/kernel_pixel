@@ -520,9 +520,8 @@ static int s2mpg1x_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int s2mpg1x_gpio_remove(struct platform_device *pdev)
+static void s2mpg1x_gpio_remove(struct platform_device *pdev)
 {
-	return 0;
 }
 
 static const struct platform_device_id s2mpg1x_gpio_id[] = {

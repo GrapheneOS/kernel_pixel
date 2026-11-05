@@ -57,6 +57,8 @@
 static struct shared_i2c_data *shared_i2c_data;
 static DEFINE_MUTEX(shared_i2c_mutex);
 
+bool is_shared_i2c_with_stmvl53l1(struct pinctrl *pinctrl);
+
 bool is_shared_i2c_with_stmvl53l1(struct pinctrl *pinctrl)
 {
 	/* The global shared_i2c_data can be NULL when allocate memory failed.
@@ -71,12 +73,15 @@ bool is_shared_i2c_with_stmvl53l1(struct pinctrl *pinctrl)
 }
 EXPORT_SYMBOL_GPL(is_shared_i2c_with_stmvl53l1);
 
-void shared_i2c_data_release(struct kref *ref)
+static void shared_i2c_data_release(struct kref *ref)
 {
 	struct shared_i2c_data *data =
 		container_of(ref, struct shared_i2c_data, refcount);
 	kfree(data);
 }
+
+int shared_i2c_set_state(struct device *dev, struct pinctrl *pinctrl,
+			 const char *state_str);
 
 int shared_i2c_set_state(struct device *dev, struct pinctrl *pinctrl,
 			 const char *state_str)
@@ -518,8 +523,7 @@ static void stmvl53l1_release_gpios(struct i2c_data *i2c_data)
 	}
 }
 
-static int stmvl53l1_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int stmvl53l1_probe(struct i2c_client *client)
 {
 	int rc = 0;
 	struct stmvl53l1_data *vl53l1_data = NULL;
