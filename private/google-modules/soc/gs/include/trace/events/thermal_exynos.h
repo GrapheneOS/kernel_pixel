@@ -388,7 +388,7 @@ TRACE_EVENT(thermal_exynos_arm_update,
 );
 
 TRACE_EVENT(thermal_exynos_allow_max_power,
-	TP_PROTO(const char *tmu_name, bool is_hardlimited, char *cdev_type, unsigned long state),
+	TP_PROTO(const char *tmu_name, bool is_hardlimited, const char *cdev_type, unsigned long state),
 
 	TP_ARGS(tmu_name, is_hardlimited, cdev_type, state),
 
