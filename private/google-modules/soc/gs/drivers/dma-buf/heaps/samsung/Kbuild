@@ -4,7 +4,7 @@ ccflags-y += -I$(srctree)/drivers/dma-buf
 ccflags-y += -I$(ROOT_DIR)/private/google-modules/trusty/include
 
 # Needed for the trace points
-CFLAGS_samsung_heap.o = -I$(srctree)/$(src)
+CFLAGS_samsung_heap.o = -I$(src)
 
 obj-$(CONFIG_DMABUF_SAMSUNG_HEAPS) += samsung_dma_heap.o
 samsung_dma_heap-y += heap_dma_buf.o samsung_heap.o

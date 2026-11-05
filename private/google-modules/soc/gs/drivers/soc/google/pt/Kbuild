@@ -4,7 +4,7 @@
 #
 
 # Needed for the trace points
-CFLAGS_pt_trace_points.o = -I$(srctree)/$(src)
+CFLAGS_pt_trace_points.o = -I$(src)
 
 obj-$(CONFIG_SLC_PARTITION_MANAGER) += slc_pt.o
 slc_pt-$(CONFIG_SLC_PARTITION_MANAGER) += pt.o pt_trace_points.o
