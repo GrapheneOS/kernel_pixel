@@ -1032,7 +1032,7 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 	mutex_lock(&set_iommudata_mutex);
 	if (iommu_group_get_iommudata(group)) {
 		mutex_unlock(&set_iommudata_mutex);
-		return group;
+		return iommu_group_ref_get(group);
 	}
 
 	list = kzalloc(sizeof(*list), GFP_KERNEL);
@@ -1046,7 +1046,7 @@ static struct iommu_group *samsung_sysmmu_device_group(struct device *dev)
 				  samsung_sysmmu_group_data_release);
 
 	mutex_unlock(&set_iommudata_mutex);
-	return group;
+	return iommu_group_ref_get(group);
 }
 
 static void samsung_sysmmu_clientdata_release(struct device *dev, void *res)
