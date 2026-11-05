@@ -5,7 +5,7 @@ Copy and optionally rename the files.
 """
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_toolchain")
+load("@kleaf//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_toolchain")
 load(":path_relative_to_package.bzl", "path_relative_to_package")
 
 # For strip_prefix, strip all directories.

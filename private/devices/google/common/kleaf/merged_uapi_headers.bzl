@@ -5,8 +5,9 @@ Merges the UAPI headers from merged_kernel_uapi_headers and ddk_uapi_headers.
 """
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("@rules_python//python:py_runtime_info.bzl", "PyRuntimeInfo")
 load("@kernel_toolchain_info//:dict.bzl", "CLANG_VERSION")
-load("//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_toolchain")
+load("@kleaf//build/kernel/kleaf:hermetic_tools.bzl", "hermetic_toolchain")
 
 def _merged_uapi_headers_impl(ctx):
     hermetic_tools = hermetic_toolchain.get(ctx)
@@ -111,22 +112,22 @@ the uapi_headers list have higher priority.
             default = False,
         ),
         "_clean_header_py": attr.label(
-            default = "@bionic//:libc/kernel/tools/clean_header_py",
+            default = "//:bionic_clean_header",
             allow_single_file = True,
         ),
         "_clean_header_deps": attr.label(
-            default = "@bionic//:libc/kernel/tools/clean_header_deps",
+            default = "//:bionic_clean_header_deps",
             allow_files = True,
         ),
         # HACK: Need to load CLANG_VERSION from kernel_toolchain_info() to find out the python3
         # runtime. Don't do this elsewhere!
         "_clang_binaries": attr.label(
-            default = "//prebuilts/clang/host/linux-x86/clang-{}:binaries".format(
+            default = "@kleaf//prebuilts/clang/host/linux-x86/clang-{}:binaries".format(
                 CLANG_VERSION,
             ),
         ),
         "_clang_python3": attr.label(
-            default = "//prebuilts/clang/host/linux-x86/clang-{}:python3".format(
+            default = "@kleaf//prebuilts/clang/host/linux-x86/clang-{}:python3".format(
                 CLANG_VERSION,
             ),
         ),
