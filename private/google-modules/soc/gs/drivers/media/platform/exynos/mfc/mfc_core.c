@@ -754,7 +754,9 @@ static int mfc_core_probe(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_MFC_USE_COREDUMP
-	if (platform_device_register(&mfc_core_sscd_dev)) {
+	ret = platform_device_register(&mfc_core_sscd_dev);
+	if (ret) {
+		platform_device_put(&mfc_core_sscd_dev);
 		dev_err(&pdev->dev, "failed to register sscd_dev\n");
 	} else {
 		core->sscd_dev = &mfc_core_sscd_dev;
@@ -822,7 +824,8 @@ static int mfc_core_remove(struct platform_device *pdev)
 	if (core->dbg_info.addr)
 		vfree(core->dbg_info.addr);
 #ifdef CONFIG_MFC_USE_COREDUMP
-	platform_device_unregister(&mfc_core_sscd_dev);
+	if (core->sscd_dev)
+		platform_device_unregister(core->sscd_dev);
 #endif
 	iommu_unregister_device_fault_handler(&pdev->dev);
 	if (timer_pending(&core->meerkat_timer))
