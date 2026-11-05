@@ -2012,7 +2012,7 @@ static int exynos_pcie_rc_get_pin_state(struct platform_device *pdev,
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	exynos_pcie->perst_gpio = of_get_gpio(np, 0);
+	exynos_pcie->perst_gpio = of_get_named_gpio(np, "gpios", 0);
 	if (exynos_pcie->perst_gpio < 0) {
 		dev_err(&pdev->dev, "cannot get perst_gpio\n");
 	} else {
@@ -5415,7 +5415,7 @@ probe_fail:
 	return ret;
 }
 
-static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
+static void __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct dw_pcie *pci = container_of(&dev, struct dw_pcie, dev);
@@ -5425,7 +5425,6 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 
 	mutex_destroy(&exynos_pcie->power_onoff_lock);
 
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_PM)
