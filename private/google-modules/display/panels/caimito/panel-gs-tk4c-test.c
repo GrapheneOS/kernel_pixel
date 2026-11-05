@@ -69,7 +69,7 @@ struct gs_panel_register_query {
 	int default_result;
 };
 
-int get_query_result_from_register(struct gs_panel_test *test,
+static int get_query_result_from_register(struct gs_panel_test *test,
 				   const struct gs_panel_register_query *query)
 {
 	struct gs_panel *ctx = test->ctx;
@@ -100,7 +100,7 @@ free_mem:
 	return ret;
 }
 
-int tk4c_query_is_aod_on(struct gs_panel_test *test)
+static int tk4c_query_is_aod_on(struct gs_panel_test *test)
 {
 	static const u8 aod_on_value[] = { 0x24 };
 
@@ -118,7 +118,7 @@ int tk4c_query_is_aod_on(struct gs_panel_test *test)
 	return get_query_result_from_register(test, &aod_query);
 }
 
-int tk4c_query_get_refresh_rate(struct gs_panel_test *test)
+static int tk4c_query_get_refresh_rate(struct gs_panel_test *test)
 {
 	static const u8 rr_120[] = { 0x00, 0x00 };
 	static const u8 rr_60[] = { 0x08, 0x00 };
@@ -141,7 +141,7 @@ int tk4c_query_get_refresh_rate(struct gs_panel_test *test)
 	return get_query_result_from_register(test, &refresh_rate_query);
 }
 
-int tk4c_query_is_irc_on(struct gs_panel_test *test)
+static int tk4c_query_is_irc_on(struct gs_panel_test *test)
 {
 	static const u8 irc_on[] = { 0x25 };
 	static const u8 ifc_off[] = { 0x05 };
@@ -208,7 +208,7 @@ static int tk4c_fgz_show(struct seq_file *m, void *data)
 }
 DEFINE_SHOW_ATTRIBUTE(tk4c_fgz);
 
-int tk4c_add_custom_query_nodes(struct gs_panel_test *test, struct dentry *test_root)
+static int tk4c_add_custom_query_nodes(struct gs_panel_test *test, struct dentry *test_root)
 {
 	struct dentry *query_root;
 

@@ -12,6 +12,7 @@
  * option) any later version.
  *
  */
+#include <linux/samsung-iommu-fault.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_uapi.h>
@@ -119,8 +120,7 @@ void decon_dump_locked(const struct decon_device *decon, struct drm_printer *p)
 	struct drm_printer *pointer;
 
 	if (!p) {
-		printer = is_console_enabled() ?
-			drm_debug_printer("[drm]") : drm_info_printer(decon->dev);
+		printer = exynos_drm_dump_printer(decon->dev);
 		pointer = &printer;
 	} else {
 		pointer = p;
@@ -625,7 +625,7 @@ static int _decon_handover_check(struct exynos_drm_crtc *exynos_crtc,
 	bool found_handover_dpp = false;
 
 	if (exynos_crtc_state->planes_updated) {
-		drm_info(decon, "%s: planes updated on commit, skipping handover\n", __func__);
+		dev_info(decon->dev, "%s: planes updated on commit, skipping handover\n", __func__);
 		return 0;
 	}
 
@@ -660,12 +660,12 @@ static int _decon_handover_check(struct exynos_drm_crtc *exynos_crtc,
 	decon_debug(decon, "%s: final win_mask=0x%lx\n", __func__, win_mask);
 
 	if (!win_mask) {
-		drm_warn(decon, "%s: handover memory defined, but no windows attached\n", __func__);
+		dev_warn(decon->dev, "%s: handover memory defined, but no windows attached\n", __func__);
 		return -ENOENT;
 	}
 
 	if (!found_handover_dpp) {
-		drm_warn(decon, "%s: handover memory defined, but cannot find handover dpp\n",
+		dev_warn(decon->dev, "%s: handover memory defined, but cannot find handover dpp\n",
 				__func__);
 		return -EBUSY;
 	}
@@ -1890,7 +1890,7 @@ static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.wait_for_flip_done = decon_wait_for_flip_done,
 };
 
-static int dpu_sysmmu_fault_handler(struct iommu_fault *fault, void *data)
+static int dpu_sysmmu_fault_handler(struct samsung_iommu_fault *fault, void *data)
 {
 	struct decon_device *decon = data;
 
@@ -1978,7 +1978,7 @@ static int decon_bind(struct device *dev, struct device *master, void *data)
 
 	priv->iommu_client = dev;
 
-	iommu_register_device_fault_handler(dev, dpu_sysmmu_fault_handler, decon);
+	samsung_iommu_register_fault_handler(dev, dpu_sysmmu_fault_handler, decon);
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	decon->itmon_nb.notifier_call = dpu_itmon_notifier;
@@ -2027,7 +2027,7 @@ static void decon_unbind(struct device *dev, struct device *master,
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
 	itmon_notifier_chain_unregister(&decon->itmon_nb);
 #endif
-	iommu_unregister_device_fault_handler(dev);
+	samsung_iommu_unregister_fault_handler(dev);
 
 	decon_debug(decon, "%s -\n", __func__);
 }
@@ -2140,8 +2140,6 @@ static irqreturn_t decon_fs_irq_handler(int irq, void *dev_data)
 static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 {
 	struct device_node *dpp_np = NULL;
-	struct property *prop;
-	const __be32 *cur;
 	u32 val;
 	int ret = 0, i, count;
 	int dpp_id;
@@ -2404,7 +2402,7 @@ static int decon_parse_dt(struct decon_device *decon, struct device_node *np)
 	if (dpp_np)
 		of_node_put(dpp_np);
 
-	of_property_for_each_u32(np, "connector", prop, cur, val)
+	of_property_for_each_u32(np, "connector", val)
 		decon->con_type |= val;
 
 	return 0;
@@ -2743,7 +2741,7 @@ err:
 	return ret;
 }
 
-static int decon_remove(struct platform_device *pdev)
+static void decon_remove(struct platform_device *pdev)
 {
 	struct decon_device *decon = platform_get_drvdata(pdev);
 
@@ -2757,7 +2755,7 @@ static int decon_remove(struct platform_device *pdev)
 	__decon_unmap_regs(decon);
 	iounmap(decon->regs.regs);
 
-	return 0;
+	return;
 }
 
 #ifdef CONFIG_PM

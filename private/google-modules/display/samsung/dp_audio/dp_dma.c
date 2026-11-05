@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
@@ -384,7 +385,7 @@ static int dma_hw_params(struct snd_soc_component *component,
 	int burst_len;
 	struct samsung_dma_req req;
 	struct samsung_dma_config config;
-	struct snd_soc_dai *dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *dai = snd_soc_rtd_to_cpu(rtd, 0);
 	struct dp_audio_pdata *pdata;
 	struct device *dev = component->dev;
 	int dai_id = remap_dai_id(dev, dai->id);
@@ -988,9 +989,9 @@ static int samsung_dp_dma_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int samsung_dp_dma_remove(struct platform_device *pdev)
+static void samsung_dp_dma_remove(struct platform_device *pdev)
 {
-	return 0;
+	return;
 }
 
 static const struct of_device_id samsung_dp_dma_match[] = {
@@ -1140,12 +1141,12 @@ static int samsung_display_adma_probe(struct platform_device *pdev)
 	return of_platform_populate(np, NULL, NULL, dev);
 }
 
-static int samsung_display_adma_remove(struct platform_device *pdev)
+static void samsung_display_adma_remove(struct platform_device *pdev)
 {
 	vunmap(dp_ado_reserved_mem);
 	dp_ado_reserved_mem = NULL;
 	snd_soc_unregister_component(&pdev->dev);
-	return 0;
+	return;
 }
 
 static const struct of_device_id samsung_display_adma_match[] = {

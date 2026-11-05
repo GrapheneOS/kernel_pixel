@@ -576,6 +576,7 @@ static inline struct decon_device *get_decon_drvdata(u32 id)
 	return NULL;
 }
 bool is_console_enabled(void);
+struct drm_printer exynos_drm_dump_printer(struct device *dev);
 bool decon_dump_ignore(enum dpu_event_condition condition);
 void decon_dump(struct decon_device *decon, struct drm_printer *p);
 void decon_dump_locked(const struct decon_device *decon, struct drm_printer *p);
