@@ -4036,7 +4036,7 @@ int max77779_fg_init(struct max77779_fg_chip *chip)
 		dev_warn(chip->dev, "Unable to mask all interrupts (%d)\n", ret);
 
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = chip->dev->of_node;
+	psy_cfg.fwnode = of_fwnode_handle(chip->dev->of_node);
 
 	ret = of_property_read_string(dev->of_node, "max77779,dual-battery", &psy_name);
 	if (ret == 0)

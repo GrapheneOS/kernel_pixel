@@ -7,6 +7,7 @@
 #ifndef MAX77779_CHARGER_H_
 #define MAX77779_CHARGER_H_
 
+#include <linux/gpio/driver.h>
 #include <linux/gpio.h>
 
 #include "max77779_usecase.h"

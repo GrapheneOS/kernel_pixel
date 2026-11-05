@@ -189,7 +189,7 @@ static int max77779_pinconf_set(struct pinctrl_dev *pctldev,
 			err =  max77779_external_pmic_reg_update(info->core, reg, mask, rval);
 			break;
 		}
-		case PIN_CONFIG_OUTPUT:
+		case PIN_CONFIG_LEVEL:
 		case PIN_CONFIG_OUTPUT_ENABLE:
 		{
 			const u8 reg = MAX77779_PMIC_GPIO_SGPIO_CNFG0 + pin;
@@ -267,11 +267,6 @@ static int max77779_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int max77779_pinctrl_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct platform_device_id max77779_pinctrl_id[] = {
 	{ "max77779-pinctrl", 0},
 	{},
@@ -288,7 +283,6 @@ static const struct of_device_id max77779_pinctrl_match_table[] = {
 
 static struct platform_driver max77779_pinctrl_driver = {
 	.probe = max77779_pinctrl_probe,
-	.remove = max77779_pinctrl_remove,
 	.id_table = max77779_pinctrl_id,
 	.driver = {
 		.name = "max77779-pinctrl",

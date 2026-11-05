@@ -277,10 +277,9 @@ static int max77779_pmic_irq_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int max77779_pmic_irq_remove(struct platform_device *pdev)
+static void max77779_pmic_irq_remove(struct platform_device *pdev)
 {
 	device_init_wakeup(&pdev->dev, false);
-	return 0;
 }
 
 static const struct platform_device_id max77779_pmic_irq_id[] = {

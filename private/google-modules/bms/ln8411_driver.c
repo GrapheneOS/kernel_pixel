@@ -4773,7 +4773,7 @@ error:
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int ln8411_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int ln8411_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -4804,7 +4804,7 @@ static int ln8411_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return ret;
 }
 
-static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct ln8411_charger *ln8411 = gpiochip_get_data(chip);
 	int ret = 0;
@@ -4830,6 +4830,7 @@ static void ln8411_gpio_set(struct gpio_chip *chip, unsigned int offset, int val
 
 	if (ret < 0)
 		dev_err(&ln8411->client->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void ln8411_gpio_init(struct ln8411_charger *ln8411)
@@ -5264,7 +5265,7 @@ static int of_ln8411_dt(struct device *dev,
 #if IS_ENABLED(CONFIG_THERMAL)
 static int ln8411_usb_tz_read_temp(struct thermal_zone_device *tzd, int *temp)
 {
-	struct ln8411_charger *ln8411 = tzd->devdata;
+	struct ln8411_charger *ln8411 = thermal_zone_device_priv(tzd);
 
 	if (!ln8411)
 		return -ENODEV;
@@ -5495,8 +5496,7 @@ static int ln8411_create_fs_entries(struct ln8411_charger *chip)
 }
 
 
-static int ln8411_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int ln8411_probe(struct i2c_client *client)
 {
 	static char *battery[] = { "ln8411-battery" };
 	struct power_supply_config mains_cfg = {};
@@ -5623,9 +5623,9 @@ static int ln8411_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_GPIOLIB)
 	ln8411_gpio_init(ln8411_charger);
 	ln8411_charger->gpio.parent = &client->dev;
-	ln8411_charger->gpio.of_node = of_find_node_by_name(client->dev.of_node,
-							    ln8411_charger->gpio.label);
-	if (!ln8411_charger->gpio.of_node)
+	ln8411_charger->gpio.fwnode = of_fwnode_handle(of_find_node_by_name(client->dev.of_node,
+							    ln8411_charger->gpio.label));
+	if (!ln8411_charger->gpio.fwnode)
 		dev_err(&client->dev, "Failed to find %s DT node\n", ln8411_charger->gpio.label);
 
 	ret = devm_gpiochip_add_data(&client->dev, &ln8411_charger->gpio, ln8411_charger);
@@ -5635,7 +5635,7 @@ static int ln8411_probe(struct i2c_client *client,
 #if IS_ENABLED(CONFIG_THERMAL)
 	if (pdata->usb_tz_name) {
 		ln8411_charger->usb_tzd =
-			thermal_zone_device_register(pdata->usb_tz_name, 0, 0,
+			thermal_zone_device_register_with_trips(pdata->usb_tz_name, NULL, 0,
 						     ln8411_charger,
 						     &ln8411_usb_tzd_ops,
 						     NULL, 0, 0);

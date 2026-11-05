@@ -182,7 +182,7 @@ static int max20339_init_regs(struct regmap *regmap, struct device *dev)
 static int max20339_gpio_get_direction(struct gpio_chip *chip,
 				       unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static bool max20339_is_lsw_closed(struct max20339_ovp *ovp, int offset)
@@ -297,7 +297,7 @@ static int max20339_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return (val & mask) >> shift;
 }
 
-static void max20339_gpio_set(struct gpio_chip *chip,
+static int max20339_gpio_set(struct gpio_chip *chip,
 			      unsigned int offset, int value)
 {
 	int ret;
@@ -339,24 +339,29 @@ static void max20339_gpio_set(struct gpio_chip *chip,
 					 tmp);
 		if (ret < 0)
 			dev_err(&ovp->client->dev, "OVLOSEL update error: ret %d\n", ret);
-		return;
+		return ret;
 	default:
-		return;
+		return -EINVAL;
 	}
 
 	ret = regmap_update_bits_base(ovp->regmap, sw_cntl_reg, mask,  tmp,
 				      &change, false, false);
 	if (ret < 0)
 		dev_err(&ovp->client->dev, "SW_CNTL update error: ret %d\n", ret);
+	if (ret < 0)
+		return ret;
 
 	/* poll until update seen */
 	for (i = 0; i < MAX20339_POLL_ATTEMPTS; i++) {
 		ret = regmap_read(ovp->regmap, status_reg, &tmp);
+		if (ret < 0)
+			return ret;
 		if ((tmp & MAX20339_STATUS_SWITCH_CLOSED) == value)
 			break;
 		mdelay(20);
 	}
 
+	return ret;
 }
 #endif
 
@@ -390,8 +395,7 @@ static int max20339_setup_irq(struct max20339_ovp *ovp)
 	return ret;
 }
 
-static int max20339_probe(struct i2c_client *client,
-			  const struct i2c_device_id *i2c_id)
+static int max20339_probe(struct i2c_client *client)
 {
 	struct max20339_ovp *ovp;
 	int rc, ret = 0;
@@ -422,9 +426,9 @@ static int max20339_probe(struct i2c_client *client,
 	ovp->gpio.base = -1;
 	ovp->gpio.ngpio = MAX20339_NUM_GPIOS;
 	ovp->gpio.can_sleep = true;
-	ovp->gpio.of_node = of_find_node_by_name(client->dev.of_node,
-						 ovp->gpio.label);
-	if (!ovp->gpio.of_node)
+	ovp->gpio.fwnode = of_fwnode_handle(of_find_node_by_name(client->dev.of_node,
+						 ovp->gpio.label));
+	if (!ovp->gpio.fwnode)
 		dev_err(&client->dev, "Failed to find %s DT node\n",
 			ovp->gpio.label);
 
