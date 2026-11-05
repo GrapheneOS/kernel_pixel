@@ -34,10 +34,6 @@ extern void vh_arch_set_freq_scale_pixel_mod(void *data,
 					     unsigned long max,
 					     unsigned long *scale);
 
-extern bool update_thermal_freq_cap(unsigned int cpu);
-#if IS_ENABLED(CONFIG_PIXEL_EM_FREQUENCY_SCALING)
-extern void reset_scaling_freq(int cpu);
-#endif
 #endif
 
 #if IS_ENABLED(CONFIG_EXYNOS_CPU_THERMAL)
@@ -793,8 +789,9 @@ static bool generate_em_cluster(struct pixel_em_cluster *dst, struct em_perf_dom
     int first_cpu = cpumask_first(em_span_cpus(pd));
     int cpu_scale = topology_get_cpu_scale(first_cpu);
 	int max_freq_index = pd->nr_perf_states - 1;
-	unsigned long max_freq = pd->table[max_freq_index].frequency;
+	unsigned long max_freq;
 	int opp_id;
+	struct em_perf_state *table;
 
 	cpumask_copy(&dst->cpus, em_span_cpus(pd));
 #if IS_ENABLED(CONFIG_PIXEL_EM_VOLTAGE_SCALING)
@@ -814,14 +811,19 @@ static bool generate_em_cluster(struct pixel_em_cluster *dst, struct em_perf_dom
 	if (!dst->opps)
 		return false;
 
+	rcu_read_lock();
+	table = em_perf_state_from_pd(pd);
+	max_freq = table[max_freq_index].frequency;
+
 	for (opp_id = 0; opp_id < pd->nr_perf_states; opp_id++) {
-		dst->opps[opp_id].freq = pd->table[opp_id].frequency;
-		dst->opps[opp_id].power = pd->table[opp_id].power;
+		dst->opps[opp_id].freq = table[opp_id].frequency;
+		dst->opps[opp_id].power = table[opp_id].power;
 		dst->opps[opp_id].capacity = (dst->opps[opp_id].freq * cpu_scale) / max_freq;
-		dst->opps[opp_id].cost = pd->table[opp_id].power / dst->opps[opp_id].capacity;
+		dst->opps[opp_id].cost = table[opp_id].power / dst->opps[opp_id].capacity;
 		update_inefficient_prev_opp(dst->opps, opp_id);
 	}
 
+	rcu_read_unlock();
 	return true;
 }
 
@@ -912,6 +914,7 @@ failed_res_allocation:
 static bool generate_idle_em_cluster(struct pixel_em_cluster *dst, struct em_perf_domain *pd)
 {
 	int opp_id;
+	struct em_perf_state *table;
 
 	cpumask_copy(&dst->cpus, em_span_cpus(pd));
 
@@ -921,11 +924,15 @@ static bool generate_idle_em_cluster(struct pixel_em_cluster *dst, struct em_per
 	if (!dst->idle_opps)
 		return false;
 
+	rcu_read_lock();
+	table = em_perf_state_from_pd(pd);
+
 	for (opp_id = 0; opp_id < pd->nr_perf_states; opp_id++) {
-		dst->idle_opps[opp_id].freq = pd->table[opp_id].frequency;
+		dst->idle_opps[opp_id].freq = table[opp_id].frequency;
 		dst->idle_opps[opp_id].energy = 0;
 	}
 
+	rcu_read_unlock();
 	return true;
 }
 
@@ -1635,11 +1642,11 @@ static int pixel_em_drv_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int pixel_em_drv_remove(struct platform_device *dev)
+static void pixel_em_drv_remove(struct platform_device *dev)
 {
 	pixel_em_drv_undo_probe();
 
-	return 0;
+	return;
 }
 
 static const struct of_device_id pixel_em_of_match[] = {
