@@ -2639,6 +2639,7 @@ _wl_cfg80211_add_if(struct bcm_cfg80211 *cfg,
 		/* Check for aware* iface name for NAN iftype */
 		if (cfg->nancfg->nan_init_state && cfg->nancfg->nan_enable) {
 			wl_iftype = WL_IF_TYPE_NAN;
+			macaddr_iftype = WL_IF_TYPE_NAN;
 			WL_DBG(("NDI create req: iface name %s, change iftype to %d\n",
 				name, wl_iftype));
 		} else {
