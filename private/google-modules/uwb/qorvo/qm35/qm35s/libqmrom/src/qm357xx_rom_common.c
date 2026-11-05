@@ -76,6 +76,8 @@ int qm357xx_rom_write_size_cmd32(struct qmrom_handle *handle, uint32_t cmd,
  * APIs to get the chip version...
  *
  */
+int qm357xx_rom_probe_device(struct qmrom_handle *handle);
+
 int qm357xx_rom_probe_device(struct qmrom_handle *handle)
 {
 	int rc;

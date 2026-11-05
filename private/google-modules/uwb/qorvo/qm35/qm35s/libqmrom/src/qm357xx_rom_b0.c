@@ -134,6 +134,8 @@ static int qm357xx_rom_b0_poll_cmd_resp(struct qmrom_handle *handle)
 	return retries > 0 ? 0 : -1;
 }
 
+int qm357xx_rom_b0_probe_device(struct qmrom_handle *handle);
+
 int qm357xx_rom_b0_probe_device(struct qmrom_handle *handle)
 {
 	int rc, i;

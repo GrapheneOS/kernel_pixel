@@ -4,7 +4,7 @@
 
 #define NAME "uwb"
 
-void qm35_release_coredump(struct device *dev)
+static void qm35_release_coredump(struct device *dev)
 {
 }
 
@@ -40,13 +40,16 @@ int qm35_register_coredump(struct qm35_ctx *qm35_ctx)
 		return -ENOMEM;
 
 	sscd->sscd_dev.name = NAME;
-	sscd->sscd_dev.driver_override = SSCD_NAME;
 	sscd->sscd_dev.id = -1;
 	sscd->sscd_dev.dev.platform_data = &sscd->sscd_pdata;
 	sscd->sscd_dev.dev.release = qm35_release_coredump;
 
-	ret = platform_device_register(&sscd->sscd_dev);
+	device_initialize(&sscd->sscd_dev.dev);
+	ret = device_set_driver_override(&sscd->sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd->sscd_dev);
 	if (ret) {
+		platform_device_put(&sscd->sscd_dev);
 		devm_kfree(&spi->dev, sscd);
 		return ret;
 	}

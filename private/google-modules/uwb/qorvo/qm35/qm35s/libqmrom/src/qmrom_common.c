@@ -103,7 +103,7 @@ int qmrom_read(struct qmrom_handle *handle)
  * APIs to get the chip version...
  *
  */
-int qmrom_probe_device(struct qmrom_handle *handle,
+static int qmrom_probe_device(struct qmrom_handle *handle,
 		       enum device_generation_e dev_gen_hint)
 {
 	int rc = -1;
