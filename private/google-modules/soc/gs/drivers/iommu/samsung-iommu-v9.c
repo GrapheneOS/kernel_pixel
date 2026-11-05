@@ -294,16 +294,10 @@ static bool samsung_sysmmu_capable(struct device *dev, enum iommu_cap cap)
 	return cap == IOMMU_CAP_CACHE_COHERENCY;
 }
 
-static struct iommu_domain *samsung_sysmmu_domain_alloc(unsigned int type)
+static struct iommu_domain *samsung_sysmmu_domain_alloc(struct device *dev)
 {
 	struct samsung_sysmmu_domain *domain;
 
-	if (type != IOMMU_DOMAIN_UNMANAGED &&
-	    type != IOMMU_DOMAIN_DMA &&
-	    type != IOMMU_DOMAIN_IDENTITY) {
-		pr_err("invalid domain type %u\n", type);
-		return NULL;
-	}
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
@@ -320,6 +314,7 @@ static struct iommu_domain *samsung_sysmmu_domain_alloc(unsigned int type)
 
 	pgtable_flush(domain->page_table, domain->page_table + NUM_LV1ENTRIES);
 
+	domain->domain.pgsize_bitmap = SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE;
 	spin_lock_init(&domain->pgtablelock);
 
 	return &domain->domain;
@@ -440,7 +435,7 @@ static struct samsung_sysmmu_domain *attach_helper(struct iommu_domain *dom, str
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 
-	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops) {
+	if (!fwspec) {
 		dev_err(dev, "failed to attach, IOMMU instance data %s.\n",
 			!fwspec ? "is not initialized" : "has different ops");
 		return ERR_PTR(-ENXIO);
@@ -475,7 +470,22 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom, struct device *de
 		return -EBUSY;
 	}
 
-	domain->group = group;
+	/* The shared blocking domain has no device-specific geometry. */
+	if (dom->type != IOMMU_DOMAIN_BLOCKED) {
+		ret = samsung_sysmmu_set_domain_range(dom, dev);
+		if (ret)
+			return ret;
+	}
+
+	client = dev_iommu_priv_get(dev);
+	for (i = 0; i < client->sysmmu_count; i++) {
+		drvdata = client->sysmmus[i];
+		if (drvdata->attached_count && drvdata->group != group)
+			return -EBUSY;
+	}
+
+	if (dom->type != IOMMU_DOMAIN_BLOCKED)
+		domain->group = group;
 	group_list = iommu_group_get_iommudata(group);
 	page_table = virt_to_phys(domain->page_table);
 
@@ -484,43 +494,31 @@ static int samsung_sysmmu_attach_dev(struct iommu_domain *dom, struct device *de
 		drvdata = client->sysmmus[i];
 
 		spin_lock_irqsave(&drvdata->lock, flags);
-		if (drvdata->attached_count++ == 0) {
+		if (!client->domain && drvdata->attached_count++ == 0) {
 			list_add(&drvdata->list, group_list);
 			drvdata->group = group;
+		}
+		if (drvdata->pgtable[0] != page_table) {
 			drvdata->pgtable[0] = page_table;
-
-			if (pm_runtime_active(drvdata->dev))
+			if (pm_runtime_active(drvdata->dev)) {
+				__sysmmu_disable(drvdata);
 				__sysmmu_enable(drvdata);
-			else
-				dev_info(dev, "SysMMU not powered on\n");
-		} else if (drvdata->pgtable[0] != page_table) {
-			dev_err(dev, "%s is already attached to other domain\n",
-				dev_name(drvdata->dev));
-			spin_unlock_irqrestore(&drvdata->lock, flags);
-			goto err_drvdata_add;
+			}
 		}
 		spin_unlock_irqrestore(&drvdata->lock, flags);
 	}
 
-	ret = samsung_sysmmu_set_domain_range(dom, dev);
-	if (ret)
-		goto err_drvdata_add;
 
-	domain->ap_read_implies_write = drvdata->ap_read_implies_write;
-	domain->ap_permissive = drvdata->ap_permissive;
+	if (dom->type != IOMMU_DOMAIN_BLOCKED) {
+		domain->ap_read_implies_write = drvdata->ap_read_implies_write;
+		domain->ap_permissive = drvdata->ap_permissive;
+	}
 
 	dev_info(dev, "attached with pgtable %pap\n", &page_table);
 
+	client->domain = dom;
 	return 0;
 
-err_drvdata_add:
-	while (i-- > 0) {
-		drvdata = client->sysmmus[i];
-
-		samsung_sysmmu_detach_drvdata(drvdata);
-	}
-
-	return ret;
 }
 
 static void samsung_sysmmu_detach_dev(struct iommu_domain *dom, struct device *dev)
@@ -537,6 +535,8 @@ static void samsung_sysmmu_detach_dev(struct iommu_domain *dom, struct device *d
 		drvdata = client->sysmmus[i];
 		samsung_sysmmu_detach_drvdata(drvdata);
 	}
+
+	client->domain = NULL;
 
 	dev_info(dev, "detached from pgtable %pa\n", &domain->page_table);
 }
@@ -727,73 +727,24 @@ static inline void samsung_sysmmu_iotlb_gather_add_joint_range(struct iommu_doma
 	iommu_iotlb_gather_add_range(gather, iova, size);
 }
 
-static size_t samsung_sysmmu_unmap(struct iommu_domain *dom, unsigned long l_iova, size_t size,
-				   struct iommu_iotlb_gather *gather)
+static int samsung_sysmmu_map_pages(struct iommu_domain *dom,
+		unsigned long iova, phys_addr_t paddr, size_t pgsize,
+		size_t pgcount, int prot, gfp_t gfp, size_t *mapped)
 {
-	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
-	sysmmu_iova_t iova = (sysmmu_iova_t)l_iova;
-	atomic_t *lv2entcnt = &domain->lv2entcnt[lv1ent_offset(iova)];
-	sysmmu_pte_t *sent, *pent;
-	size_t err_pgsize;
+	int ret;
 
-	sent = section_entry(domain->page_table, iova);
-
-	if (lv1ent_section(sent)) {
-		if (WARN_ON(size < SECT_SIZE)) {
-			err_pgsize = SECT_SIZE;
-			goto err;
-		}
-
-		*sent = 0;
-		pgtable_flush(sent, sent + 1);
-		size = SECT_SIZE;
-		goto done;
+	while (pgcount--) {
+		ret = samsung_sysmmu_map(dom, iova, paddr, pgsize, prot, gfp);
+		if (ret)
+			return ret;
+		*mapped += pgsize;
+		iova += pgsize;
+		paddr += pgsize;
 	}
-
-	if (unlikely(lv1ent_unmapped(sent))) {
-		if (size > SECT_SIZE)
-			size = SECT_SIZE;
-		goto done;
-	}
-
-	/* lv1ent_page(sent) == true here */
-
-	pent = page_entry(sent, iova);
-
-	if (unlikely(lv2ent_unmapped(pent))) {
-		size = SPAGE_SIZE;
-		goto done;
-	}
-
-	if (lv2ent_small(pent)) {
-		*pent = 0;
-		size = SPAGE_SIZE;
-		pgtable_flush(pent, pent + 1);
-		atomic_dec(lv2entcnt);
-		goto done;
-	}
-
-	/* lv1ent_large(pent) == true here */
-	if (WARN_ON(size < LPAGE_SIZE)) {
-		err_pgsize = LPAGE_SIZE;
-		goto err;
-	}
-
-	clear_page_table(pent, SPAGES_PER_LPAGE);
-	pgtable_flush(pent, pent + SPAGES_PER_LPAGE);
-	size = LPAGE_SIZE;
-	atomic_sub(SPAGES_PER_LPAGE, lv2entcnt);
-
-done:
-	samsung_sysmmu_iotlb_gather_add_joint_range(dom, gather, iova, size);
-
-	return size;
-
-err:
-	pr_err("failed: size(%#zx) @ %#llx is smaller than page size %#zx\n",
-	       size, iova, err_pgsize);
 	return 0;
 }
+
+
 
 static inline void clear_and_flush_pgtable(sysmmu_pte_t *ent, int count, atomic_t *lv2entcnt)
 {
@@ -829,6 +780,10 @@ next_section:
 		sent++;
 	}
 }
+
+size_t samsung_sysmmu_unmap_pages(struct iommu_domain *dom, unsigned long iova_org,
+				  size_t pgsize, size_t pgcount,
+				  struct iommu_iotlb_gather *gather);
 
 size_t samsung_sysmmu_unmap_pages(struct iommu_domain *dom, unsigned long iova_org,
 				  size_t pgsize, size_t pgcount,
@@ -899,7 +854,7 @@ static void samsung_sysmmu_flush_iotlb_all(struct iommu_domain *dom)
 	}
 }
 
-static void samsung_sysmmu_iotlb_sync_map(struct iommu_domain *dom,
+static int samsung_sysmmu_iotlb_sync_map(struct iommu_domain *dom,
 					  unsigned long iova, size_t size)
 {
 	struct samsung_sysmmu_domain *domain = to_sysmmu_domain(dom);
@@ -925,6 +880,7 @@ next_section:
 		iova = section_end;
 		sent++;
 	}
+	return 0;
 }
 
 static void samsung_sysmmu_iotlb_sync(struct iommu_domain *dom, struct iommu_iotlb_gather *gather)
@@ -991,15 +947,10 @@ static struct iommu_device *samsung_sysmmu_probe_device(struct device *dev)
 		return ERR_PTR(-ENODEV);
 	}
 
-	if (fwspec->ops != &samsung_sysmmu_ops) {
-		dev_err(dev, "has different IOMMU ops\n");
-		return ERR_PTR(-ENODEV);
-	}
-
 	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
 	if (client->dev_link) {
 		dev_info(dev, "is already added. It's okay.\n");
-		return 0;
+		return &client->sysmmus[0]->iommu;
 	}
 	client->dev_link = kcalloc(client->sysmmu_count,
 				   sizeof(*client->dev_link), GFP_KERNEL);
@@ -1029,13 +980,16 @@ static void samsung_sysmmu_release_device(struct device *dev)
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct sysmmu_clientdata *client;
 
-	if (!fwspec || fwspec->ops != &samsung_sysmmu_ops)
+	if (!fwspec)
 		return;
 
 	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
+	if (client->domain)
+		samsung_sysmmu_detach_dev(client->domain, dev);
+	for (int i = 0; i < client->sysmmu_count; i++)
+		device_link_del(client->dev_link[i]);
 	kfree(client->dev_link);
 
-	iommu_fwspec_free(dev);
 }
 
 static void samsung_sysmmu_group_data_release(void *iommu_data)
@@ -1102,7 +1056,7 @@ static void samsung_sysmmu_clientdata_release(struct device *dev, void *res)
 	kfree(client->sysmmus);
 }
 
-static int samsung_sysmmu_of_xlate(struct device *dev, struct of_phandle_args *args)
+static int samsung_sysmmu_of_xlate(struct device *dev, const struct of_phandle_args *args)
 {
 	struct platform_device *sysmmu = of_find_device_by_node(args->np);
 	struct sysmmu_drvdata *data = platform_get_drvdata(sysmmu);
@@ -1134,14 +1088,61 @@ static int samsung_sysmmu_of_xlate(struct device *dev, struct of_phandle_args *a
 	return 0;
 }
 
-static int samsung_sysmmu_set_dev_pasid(struct iommu_domain *dom, struct device *dev,
-					ioasid_t pasid)
+static void samsung_sysmmu_remove_dev_pasid(struct iommu_domain *dom, struct device *dev, ioasid_t pasid)
 {
 	struct sysmmu_clientdata *client;
 	struct samsung_sysmmu_domain *domain;
 	struct sysmmu_drvdata *drvdata;
 	unsigned long flags;
 	unsigned int vid = pasid;
+
+	if (vid >= MAX_VIDS) {
+		dev_err(dev, "VID %u above or equal maximum of %u\n", vid, MAX_VIDS);
+		return;
+	}
+
+	domain = to_sysmmu_domain(dom);
+
+	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
+	if (client->sysmmu_count != 1) {
+		dev_err(dev, "IOMMU PASID domains not supported for devices served by more than one IOMMU\n");
+		return;
+	}
+	drvdata = client->sysmmus[0];
+
+	spin_lock_irqsave(&drvdata->lock, flags);
+	if (drvdata->vmid_mask & BIT(vid)) {
+		dev_err(dev, "VID %u is used by default domain\n", vid);
+		spin_unlock_irqrestore(&drvdata->lock, flags);
+		return;
+	}
+	domain->vm_sysmmu = NULL;
+	domain->vid = 0;
+	drvdata->pgtable[vid] = 0;
+	if (pm_runtime_active(drvdata->dev))
+		__sysmmu_disable_vid(drvdata, vid);
+	spin_unlock_irqrestore(&drvdata->lock, flags);
+}
+
+static int samsung_sysmmu_set_dev_pasid(struct iommu_domain *dom, struct device *dev,
+					ioasid_t pasid, struct iommu_domain *old)
+{
+	struct sysmmu_clientdata *client;
+	struct samsung_sysmmu_domain *domain;
+	struct sysmmu_drvdata *drvdata;
+	unsigned long flags;
+	unsigned int vid = pasid;
+
+	if (dom->type == IOMMU_DOMAIN_BLOCKED) {
+		if (old && old->type != IOMMU_DOMAIN_BLOCKED)
+			samsung_sysmmu_remove_dev_pasid(old, dev, pasid);
+		return 0;
+	}
+	if (old == dom)
+		return 0;
+	/* Leave the old mapping intact when replacement is unsupported. */
+	if (old && old->type != IOMMU_DOMAIN_BLOCKED)
+		return -EOPNOTSUPP;
 
 	if (vid >= MAX_VIDS) {
 		dev_err(dev, "Requested VID %u above or equal maximum of %u\n", vid, MAX_VIDS);
@@ -1204,45 +1205,6 @@ static int samsung_sysmmu_set_dev_pasid(struct iommu_domain *dom, struct device 
 	return 0;
 }
 
-static void samsung_sysmmu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
-{
-	struct sysmmu_clientdata *client;
-	struct iommu_domain *dom;
-	struct samsung_sysmmu_domain *domain;
-	struct sysmmu_drvdata *drvdata;
-	unsigned long flags;
-	unsigned int vid = pasid;
-
-	if (vid >= MAX_VIDS) {
-		dev_err(dev, "VID %u above or equal maximum of %u\n", vid, MAX_VIDS);
-		return;
-	}
-
-	dom = iommu_get_domain_for_dev_pasid(dev, pasid, 0);
-	if (WARN_ON(IS_ERR(dom)) || !dom)
-		return;
-	domain = to_sysmmu_domain(dom);
-
-	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
-	if (client->sysmmu_count != 1) {
-		dev_err(dev, "IOMMU PASID domains not supported for devices served by more than one IOMMU\n");
-		return;
-	}
-	drvdata = client->sysmmus[0];
-
-	spin_lock_irqsave(&drvdata->lock, flags);
-	if (drvdata->vmid_mask & BIT(vid)) {
-		dev_err(dev, "VID %u is used by default domain\n", vid);
-		spin_unlock_irqrestore(&drvdata->lock, flags);
-		return;
-	}
-	domain->vm_sysmmu = NULL;
-	domain->vid = 0;
-	drvdata->pgtable[vid] = 0;
-	if (pm_runtime_active(drvdata->dev))
-		__sysmmu_disable_vid(drvdata, vid);
-	spin_unlock_irqrestore(&drvdata->lock, flags);
-}
 
 static void samsung_sysmmu_put_resv_regions(struct device *dev,
 					    struct list_head *head)
@@ -1373,24 +1335,25 @@ static int samsung_sysmmu_def_domain_type(struct device *dev)
 	return ret;
 }
 
+static const struct iommu_domain_ops samsung_sysmmu_blocked_ops = {
+	.attach_dev = samsung_sysmmu_attach_dev,
+	.set_dev_pasid = samsung_sysmmu_set_dev_pasid,
+};
+
 static struct iommu_ops samsung_sysmmu_ops = {
 	.owner			= THIS_MODULE,
 	.capable		= samsung_sysmmu_capable,
-	.domain_alloc		= samsung_sysmmu_domain_alloc,
+	.domain_alloc_paging	= samsung_sysmmu_domain_alloc,
 	.probe_device		= samsung_sysmmu_probe_device,
 	.release_device		= samsung_sysmmu_release_device,
 	.device_group		= samsung_sysmmu_device_group,
 	.of_xlate		= samsung_sysmmu_of_xlate,
 	.get_resv_regions	= samsung_sysmmu_get_resv_regions,
 	.def_domain_type	= samsung_sysmmu_def_domain_type,
-	.remove_dev_pasid	= samsung_sysmmu_remove_dev_pasid,
-	.pgsize_bitmap		= SECT_SIZE | LPAGE_SIZE | SPAGE_SIZE,
 	.default_domain_ops     = &(const struct iommu_domain_ops) {
 		.attach_dev             = samsung_sysmmu_attach_dev,
-		.detach_dev             = samsung_sysmmu_detach_dev,
 		.set_dev_pasid		= samsung_sysmmu_set_dev_pasid,
-		.map                    = samsung_sysmmu_map,
-		.unmap                  = samsung_sysmmu_unmap,
+		.map_pages              = samsung_sysmmu_map_pages,
 		.unmap_pages            = samsung_sysmmu_unmap_pages,
 		.flush_iotlb_all        = samsung_sysmmu_flush_iotlb_all,
 		.iotlb_sync_map         = samsung_sysmmu_iotlb_sync_map,
@@ -1577,6 +1540,16 @@ static int samsung_sysmmu_init_global(void)
 		goto err_init_slpt_fail;
 	}
 
+	samsung_sysmmu_ops.blocked_domain = samsung_sysmmu_domain_alloc(NULL);
+	if (!samsung_sysmmu_ops.blocked_domain) {
+		kmem_cache_destroy(slpt_cache);
+		ret = -ENOMEM;
+		goto err_init_slpt_fail;
+	}
+	samsung_sysmmu_ops.blocked_domain->type = IOMMU_DOMAIN_BLOCKED;
+	samsung_sysmmu_ops.blocked_domain->ops = &samsung_sysmmu_blocked_ops;
+	samsung_sysmmu_ops.blocked_domain->owner = &samsung_sysmmu_ops;
+
 	device_initialize(&sync_dev);
 	sysmmu_global_init_done = true;
 
@@ -1663,22 +1636,25 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 		goto err_get_hw_info;
 	}
 
-	err = iommu_device_register(&data->iommu, &samsung_sysmmu_ops, dev);
-	if (err) {
-		dev_err(dev, "failed to register iommu\n");
-		goto err_iommu_register;
-	}
-
 	mutex_lock(&initialization_mutex);
 	if (!sysmmu_global_init_done) {
 		err = samsung_sysmmu_init_global();
 		if (err) {
 			dev_err(dev, "failed to initialize global data\n");
 			mutex_unlock(&initialization_mutex);
-			goto err_global_init;
+			goto err_iommu_register;
 		}
 	}
 	mutex_unlock(&initialization_mutex);
+
+	data->iommu.max_pasids = min_t(u32, data->max_vm, MAX_VIDS);
+	err = iommu_device_register(&data->iommu, &samsung_sysmmu_ops, dev);
+	if (err) {
+		dev_err(dev, "failed to register iommu\n");
+		goto err_iommu_register;
+	}
+
+
 
 	dev_info(dev, "initialized IOMMU. Ver %d.%d.%d, %sgate clock\n",
 		 MMU_VERSION_MAJOR(data->version),
@@ -1687,8 +1663,6 @@ static int samsung_sysmmu_device_probe(struct platform_device *pdev)
 		 data->clk ? "" : "no ");
 	return 0;
 
-err_global_init:
-	iommu_device_unregister(&data->iommu);
 err_iommu_register:
 	iommu_device_sysfs_remove(&data->iommu);
 err_get_hw_info:
