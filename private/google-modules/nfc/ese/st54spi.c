@@ -12,6 +12,7 @@
  * <arach.mohammed.brahim@st.com>
  */
 
+#include <linux/pinctrl/consumer.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/ioctl.h>
@@ -1052,7 +1053,7 @@ static int st54spi_probe(struct spi_device *spi)
 	dev_info(&spi->dev, "Loading st54spi driver, major: %d\n",
 		 st54spi_major);
 
-	st54spi_class = class_create(THIS_MODULE, "st54spi");
+	st54spi_class = class_create( "st54spi");
 	if (IS_ERR(st54spi_class)) {
 		unregister_chrdev(st54spi_major, "st54spi");
 		return PTR_ERR(st54spi_class);
@@ -1198,7 +1199,7 @@ static int __init st54spi_init(void)
 		__register_chrdev(0, 0, N_SPI_MINORS, "spi", &st54spi_fops);
 	pr_info("Loading st54spi driver, major: %d\n", st54spi_major);
 
-	st54spi_class = class_create(THIS_MODULE, "st54spi");
+	st54spi_class = class_create( "st54spi");
 	if (IS_ERR(st54spi_class)) {
 		unregister_chrdev(st54spi_major,
 				  st54spi_spi_driver.driver.name);
