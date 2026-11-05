@@ -922,4 +922,4 @@ module_platform_driver(bigo_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Vinay Kalia <vinaykalia@google.com>");
 MODULE_DESCRIPTION("BigWave driver");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
