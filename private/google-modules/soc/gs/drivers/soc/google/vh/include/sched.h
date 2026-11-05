@@ -2,6 +2,8 @@
 #ifndef _VH_SCHED_H
 #define _VH_SCHED_H
 
+#include <linux/sched/task.h>
+
 #define ANDROID_VENDOR_CHECK_SIZE_ALIGN(_orig, _new)				\
 		static_assert(sizeof(struct{_new;}) <= sizeof(struct{_orig;}),	\
 			       __FILE__ ":" __stringify(__LINE__) ": "		\
@@ -139,11 +141,22 @@ struct vendor_task_struct {
 	u64 boost_at_fork_start_ns;
 };
 
-ANDROID_VENDOR_CHECK_SIZE_ALIGN(u64 android_vendor_data1[64], struct vendor_task_struct t);
+ANDROID_VENDOR_CHECK_SIZE_ALIGN(
+	u64 vendor_data[CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX / sizeof(u64)],
+	struct vendor_task_struct t);
 
 static inline struct vendor_task_struct *get_vendor_task_struct(struct task_struct *p)
 {
-	return (struct vendor_task_struct *)p->android_vendor_data1;
+	return android_task_vendor_data(p);
+}
+
+static inline struct task_struct *get_task_struct_from_vendor(struct vendor_task_struct *vp)
+{
+	/* The boot idle task has separate storage instead of a trailing allocation. */
+	if (vp == android_task_vendor_data(&init_task))
+		return &init_task;
+
+	return (struct task_struct *)vp - 1;
 }
 
 static inline struct vendor_inheritance_struct *get_vendor_inheritance_struct(struct task_struct *p)
@@ -159,7 +172,7 @@ static inline int get_vendor_group(struct task_struct *p)
 static inline void set_vendor_group(struct task_struct *p,  enum vendor_group group)
 {
 	struct vendor_task_struct *vendor_task =
-		(struct vendor_task_struct *)p->android_vendor_data1;
+		get_vendor_task_struct(p);
 	vendor_task->group = group;
 }
 
