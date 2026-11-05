@@ -18,6 +18,7 @@
 #endif
 
 #include <thermal_core.h>
+#include "../gs_thermal.h"
 
 /**
  * struct isp_cooling_device - data for cooling device with isp
@@ -193,6 +194,8 @@ static int get_property(unsigned int isp, unsigned long input,
  * Return: The matched cooling level on success or THERMAL_CSTATE_INVALID
  * otherwise.
  */
+unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps);
+
 unsigned long isp_cooling_get_level(unsigned int isp, unsigned int fps)
 {
 	unsigned int val;
@@ -214,6 +217,8 @@ EXPORT_SYMBOL_GPL(isp_cooling_get_level);
  *
  * Return: The matched fps value on success or ISP_FPS_INVALID otherwise.
  */
+unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level);
+
 unsigned long isp_cooling_get_fps(unsigned int isp, unsigned long level)
 {
 	unsigned int val;
@@ -343,23 +348,13 @@ static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
 {
 	struct thermal_instance *instance;
 	struct thermal_zone_device *tz;
-	bool foundtz = false;
 	void *thermal_block;
 	struct ect_ap_thermal_function *function;
 	int i, temperature;
 	unsigned int freq;
 
-	mutex_lock(&cdev->lock);
-	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
-		tz = instance->tz;
-		if (!strncasecmp(cooling_name, tz->type, THERMAL_NAME_LENGTH)) {
-			foundtz = true;
-			break;
-		}
-	}
-	mutex_unlock(&cdev->lock);
-
-	if (!foundtz)
+	tz = gs_thermal_cdev_zone(cdev, cooling_name);
+	if (!tz)
 		goto skip_ect;
 
 	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
@@ -377,7 +372,7 @@ static int parse_ect_cooling_level(struct thermal_cooling_device *cdev,
 		temperature = function->range_list[i].lower_bound_temperature;
 		freq = function->range_list[i].max_frequency;
 
-		instance = get_thermal_instance(tz, cdev, i);
+		instance = gs_thermal_instance(tz, cdev, i);
 		if (!instance) {
 			pr_err("%s: (%s, %d)instance isn't valid\n", __func__, cooling_name, i);
 			goto skip_ect;
@@ -502,6 +497,8 @@ EXPORT_SYMBOL_GPL(of_isp_cooling_register);
  *
  * This interface function unregisters the "thermal-isp-%x" cooling device.
  */
+void isp_cooling_unregister(struct thermal_cooling_device *cdev);
+
 void isp_cooling_unregister(struct thermal_cooling_device *cdev)
 {
 	struct isp_cooling_device *isp_dev;
