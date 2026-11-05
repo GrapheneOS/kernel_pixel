@@ -23,6 +23,7 @@
 
 #include "../configfs.h"
 #include "u_serial.h"
+#include "f_dm.h"
 
 #define MAX_INST_NAME_LEN		40
 /*  DM1_PORT NUM : /dev/ttyGS* port number */
