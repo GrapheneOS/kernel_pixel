@@ -10,6 +10,7 @@
  * (at your option) any later version.
  */
 
+#include <linux/samsung-iommu-fault.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -70,7 +71,6 @@ static void mfc_core_sscd_release(struct device *dev)
 
 static struct platform_device mfc_core_sscd_dev = {
 	.name            = MFC_CORE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &mfc_core_sscd_platdata,
@@ -79,7 +79,7 @@ static struct platform_device mfc_core_sscd_dev = {
 };
 #endif
 
-void mfc_core_butler_worker(struct work_struct *work)
+static void mfc_core_butler_worker(struct work_struct *work)
 {
 	struct mfc_core *core;
 
@@ -126,7 +126,7 @@ static int __mfc_core_parse_mfc_qos_platdata(struct device_node *np,
 	return 0;
 }
 
-int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
+static int mfc_core_sysmmu_fault_handler(struct samsung_iommu_fault *fault, void *param)
 {
 	struct mfc_core *core = (struct mfc_core *)param;
 	unsigned int trans_info, fault_status;
@@ -194,11 +194,11 @@ int mfc_core_sysmmu_fault_handler(struct iommu_fault *fault, void *param)
 			core->logging_data->fault_trans_info = MFC_MMU1_READL(trans_info);
 		}
 	}
-	core->logging_data->fault_addr = (unsigned int)(fault->event.addr);
+	core->logging_data->fault_addr = (unsigned int)(fault->addr);
 
 	snprintf(core->crash_info, MFC_CRASH_INFO_LEN,
 		"MFC-%d SysMMU PAGE FAULT at %#010llx (AxID: %#x), fault_status: %#x\n",
-		core->id, fault->event.addr,
+		core->id, fault->addr,
 		core->logging_data->fault_trans_info, core->logging_data->fault_status);
 	mfc_core_err("%s", core->crash_info);
 	MFC_TRACE_CORE("%s", core->crash_info);
@@ -703,7 +703,7 @@ static int mfc_core_probe(struct platform_device *pdev)
 				core->core_pdata->encoder_qos_table[i].name,
 				core->core_pdata->encoder_qos_table[i].bts_scen_idx);
 
-	ret = iommu_register_device_fault_handler(core->device,
+	ret = samsung_iommu_register_fault_handler(core->device,
 			mfc_core_sysmmu_fault_handler, core);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sysmmu fault handler %d\n", ret);
@@ -754,7 +754,12 @@ static int mfc_core_probe(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_MFC_USE_COREDUMP
-	if (platform_device_register(&mfc_core_sscd_dev)) {
+	device_initialize(&mfc_core_sscd_dev.dev);
+	ret = device_set_driver_override(&mfc_core_sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&mfc_core_sscd_dev);
+	if (ret) {
+		platform_device_put(&mfc_core_sscd_dev);
 		dev_err(&pdev->dev, "failed to register sscd_dev\n");
 	} else {
 		core->sscd_dev = &mfc_core_sscd_dev;
@@ -774,16 +779,16 @@ err_alloc_debug:
 #if IS_ENABLED(CONFIG_EXYNOS_CONTENT_PATH_PROTECTION)
 	mfc_mem_special_buf_free(dev, &core->drm_fw_buf);
 #endif
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 err_sysmmu_fault_handler:
 	destroy_workqueue(core->butler_wq);
 err_butler_wq:
 	if (timer_pending(&core->mfc_idle_timer))
-		del_timer(&core->mfc_idle_timer);
+		timer_delete(&core->mfc_idle_timer);
 	destroy_workqueue(core->mfc_idle_wq);
 err_wq_idle:
 	if (timer_pending(&core->meerkat_timer))
-		del_timer(&core->meerkat_timer);
+		timer_delete(&core->meerkat_timer);
 	destroy_workqueue(core->meerkat_wq);
 err_wq_meerkat:
 	mfc_core_deinit_memlog(core);
@@ -813,7 +818,7 @@ err_pm:
 }
 
 /* Remove the driver */
-static int mfc_core_remove(struct platform_device *pdev)
+static void mfc_core_remove(struct platform_device *pdev)
 {
 	struct mfc_core *core = platform_get_drvdata(pdev);
 
@@ -822,15 +827,16 @@ static int mfc_core_remove(struct platform_device *pdev)
 	if (core->dbg_info.addr)
 		vfree(core->dbg_info.addr);
 #ifdef CONFIG_MFC_USE_COREDUMP
-	platform_device_unregister(&mfc_core_sscd_dev);
+	if (core->sscd_dev)
+		platform_device_unregister(core->sscd_dev);
 #endif
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 	if (timer_pending(&core->meerkat_timer))
-		del_timer(&core->meerkat_timer);
+		timer_delete(&core->meerkat_timer);
 	flush_workqueue(core->meerkat_wq);
 	destroy_workqueue(core->meerkat_wq);
 	if (timer_pending(&core->mfc_idle_timer))
-		del_timer(&core->mfc_idle_timer);
+		timer_delete(&core->mfc_idle_timer);
 	flush_workqueue(core->mfc_idle_wq);
 	destroy_workqueue(core->mfc_idle_wq);
 	flush_workqueue(core->butler_wq);
@@ -857,7 +863,6 @@ static int mfc_core_remove(struct platform_device *pdev)
 #endif
 
 	dev_dbg(&pdev->dev, "%s--\n", __func__);
-	return 0;
 }
 
 static void mfc_core_shutdown(struct platform_device *pdev)

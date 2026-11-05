@@ -484,7 +484,7 @@ err:
 
 static int smfc_v4l2_querycap(struct file *filp, void *fh, struct v4l2_capability *cap)
 {
-	struct smfc_dev *smfc = v4l2_fh_to_smfc_ctx(fh)->smfc;
+	struct smfc_dev *smfc = video_drvdata(filp);
 
 	strncpy(cap->driver, MODULE_NAME, sizeof(cap->driver));
 	strncpy(cap->bus_info, dev_name(smfc->dev), sizeof(cap->bus_info));
@@ -521,7 +521,7 @@ static int smfc_v4l2_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *
 static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
 				  struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 
 	f->fmt.pix_mp.width = ctx->width;
 	f->fmt.pix_mp.height = ctx->height;
@@ -553,7 +553,7 @@ static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
 
 static int smfc_v4l2_g_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 
 	f->fmt.pix.width = ctx->width;
 	f->fmt.pix.height = ctx->height;
@@ -739,7 +739,7 @@ static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 
 static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix_mp.pixelformat);
 
@@ -756,7 +756,7 @@ static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 	struct vb2_queue *othervq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, othertype);
 	u32 flags;
 
-	if (thisvq->num_buffers > 0) {
+	if (vb2_get_num_buffers(thisvq) > 0) {
 		dev_err(ctx->smfc->dev, "S_FMT after REQBUFS is not allowed\n");
 		return -EBUSY;
 	}
@@ -764,7 +764,7 @@ static int smfc_v4l2_prepare_s_fmt(struct smfc_ctx *ctx,
 	flags = smfc_config_ctxflag(ctx, SMFC_CTX_COMPRESS,
 				    is_jpeg(smfc_fmt) != V4L2_TYPE_IS_OUTPUT(type));
 
-	if (othervq->num_buffers > 0) { /* REQBUFSed on other vq */
+	if (vb2_get_num_buffers(othervq) > 0) { /* REQBUFSed on other vq */
 		if ((flags & SMFC_CTX_COMPRESS) != (ctx->flags & SMFC_CTX_COMPRESS)) {
 			dev_err(ctx->smfc->dev, "Changing mode is prohibited after reqbufs\n");
 			ctx->flags = flags;
@@ -786,7 +786,7 @@ static __u32 v4l2_to_multiplane_type(__u32 type)
 
 static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix_mp.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
@@ -865,7 +865,7 @@ static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
 
 static int smfc_v4l2_try_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix.pixelformat);
 
@@ -874,7 +874,7 @@ static int smfc_v4l2_try_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 
 static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
@@ -906,7 +906,7 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 
 static int smfc_v4l2_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(file));
 	unsigned int i;
 	int ret = 0;
 	u32 sum_x, sum_y;
@@ -955,11 +955,11 @@ static int v4l2_smfc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
 
-	if (vq->num_buffers > SMFC_MAX_PLANES) {
+	if (vb2_get_num_buffers(vq) > SMFC_MAX_PLANES) {
 		return -EINVAL;
 	}
 
-	for (index = 0; index < vq->num_buffers; index++) {
+	for (index = 0; index < vb2_get_num_buffers(vq); index++) {
 		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vq->bufs[index]);
 		struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
 		struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
