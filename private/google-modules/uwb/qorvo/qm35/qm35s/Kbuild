@@ -1,4 +1,4 @@
-ccflags-y := -I$(srctree)/$(src)/libqmrom/include -I$(srctree)/$(src)/libfwupdater/include -Werror
+ccflags-y := -I$(src)/libqmrom/include -I$(src)/libfwupdater/include -Werror
 
 ccflags-y += -DC0_WRITE_STATS -DCONFIG_FLASHING_RETRIES=10
 ccflags-y += -DCONFIG_CHUNK_FLASHING_RETRIES=10 -DCONFIG_GLOBAL_CHUNK_FLASHING_RETRIES=50
@@ -27,4 +27,4 @@ qm35-y := \
 
 qm35-$(CONFIG_QM35_SPI_DEBUG_FW) += debug_qmrom.o
 qm35-$(CONFIG_EVENT_TRACING) += qm35-trace.o
-CFLAGS_qm35-trace.o = -I$(srctree)/$(src)
+CFLAGS_qm35-trace.o = -I$(src)

@@ -3,8 +3,8 @@
 
 TCM_CORE=tcm/
 
-ccflags-y += -I$(srctree)/$(src)
-ccflags-y += -I$(srctree)/$(src)/$(TCM_CORE)
+ccflags-y += -I$(src)
+ccflags-y += -I$(src)/$(TCM_CORE)
 ccflags-y += -I$(ROOT_DIR)/private/google-modules/display
 ccflags-y += -I$(ROOT_DIR)/private/google-modules/display/samsung/include/uapi
 ccflags-y += -I$(ROOT_DIR)/private/google-modules/touch/common
