@@ -5421,6 +5421,7 @@ static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct dw_pcie_
 	int ret, i, sep_irq;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct pci_dev *root_port;
 
 	pp->irq = platform_get_irq(pdev, 0);
 	if (!pp->irq) {
@@ -5493,6 +5494,8 @@ skip_sep_request_irq:
 
 	/* The controller configures CLKREQ and L1 substates for its endpoints. */
 	pci->l1ss_support = true;
+	/* Endpoints are powered and rescanned by exynos_pcie_rc_poweron(). */
+	pp->use_linkup_irq = true;
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to dw pcie host init\n");
@@ -5516,6 +5519,17 @@ skip_sep_request_irq:
 			exynos_pcie->msi_parent_ops.required_flags &= ~MSI_FLAG_PCI_MSI_MASK_PARENT;
 		pp->irq_domain->msi_parent_ops = &exynos_pcie->msi_parent_ops;
 	}
+
+	root_port = pci_get_slot(pp->bridge->bus, PCI_DEVFN(0, 0));
+	if (!root_port) {
+		dev_err(&pdev->dev, "Failed to find PCIe root port\n");
+		dw_pcie_host_deinit(pp);
+		return -ENODEV;
+	}
+
+	/* The controller sequences root-port power and PHY isolation itself. */
+	pm_runtime_forbid(&root_port->dev);
+	pci_dev_put(root_port);
 
 	return 0;
 }
@@ -5728,7 +5742,34 @@ static void exynos_pcie_wait_cfg_access_work(struct work_struct *work)
 
 static void exynos_pcie_release_root_port(void *data)
 {
-	pci_dev_put(data);
+	struct pci_dev *port = data;
+
+	pm_runtime_put_noidle(&port->dev);
+	pci_dev_put(port);
+}
+
+/* Takes ownership of the pci_get_device reference, including on failure. */
+static int exynos_pcie_hold_root_port(struct device *dev, struct pci_dev *port)
+{
+	int ret;
+
+	ret = pm_runtime_resume_and_get(&port->dev);
+	if (ret < 0) {
+		pci_dev_put(port);
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, exynos_pcie_release_root_port, port);
+	if (ret)
+		return ret;
+
+	/*
+	 * The controller powers down the root port outside PCI runtime PM.
+	 * Retain our own usage reference even if portdrv or userspace later
+	 * allows runtime PM again.
+	 */
+	pm_runtime_forbid(&port->dev);
+	return 0;
 }
 
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
@@ -5910,8 +5951,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		dw_pcie_host_deinit(pp);
 		goto probe_fail;
 	}
-	ret = devm_add_action_or_reset(&pdev->dev, exynos_pcie_release_root_port,
-				       exynos_pcie->pci_dev);
+	ret = exynos_pcie_hold_root_port(&pdev->dev, exynos_pcie->pci_dev);
 	if (ret) {
 		exynos_pcie->pci_dev = NULL;
 		dw_pcie_host_deinit(pp);
