@@ -5,6 +5,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -195,8 +196,8 @@ static ssize_t
 spi_dbg_store(struct device *dev, struct device_attribute *attr,
 	      const char *buf, size_t count)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct s3c64xx_spi_info *check_sci;
 	int ret, input_cmd;
@@ -419,9 +420,9 @@ static void exynos_usi_init(struct s3c64xx_spi_driver_data *sdd);
 static void s3c64xx_spi_hwinit(struct s3c64xx_spi_driver_data *sdd,
 			       int channel);
 
-static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
+static int s3c64xx_spi_prepare_transfer(struct spi_controller *spi)
 {
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(spi);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 #ifdef CONFIG_PM
 	int ret;
@@ -449,9 +450,9 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	return 0;
 }
 
-static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
+static int s3c64xx_spi_unprepare_transfer(struct spi_controller *spi)
 {
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(spi);
 #ifdef CONFIG_PM
 	int ret;
 #endif
@@ -587,7 +588,7 @@ static void enable_datapath(struct s3c64xx_spi_driver_data *sdd,
 		sdd->state |= TXBUSY;
 		chcfg |= S3C64XX_SPI_CH_TXCH_ON;
 
-		if (cs->cs_mode == MANUAL_CS_MODE && cs->cs_delay && !spi->cs_gpiod) {
+		if (cs->cs_mode == MANUAL_CS_MODE && cs->cs_delay && !spi_get_csgpiod(spi, 0)) {
 			writel(chcfg, regs + S3C64XX_SPI_CH_CFG);
 			udelay(cs->cs_delay);
 		}
@@ -644,8 +645,8 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 		if (sdd->tgl_spi != spi) { /* if last mssg on diff device */
 			/* Deselect the last toggled device */
 			cs = sdd->tgl_spi->controller_data;
-			if (spi->cs_gpiod)
-				gpiod_set_value(spi->cs_gpiod, 0);
+			if (spi_get_csgpiod(spi, 0))
+				gpiod_set_value(spi_get_csgpiod(spi, 0), 0);
 			/* Quiesce the signals */
 			writel(spi->mode & SPI_CS_HIGH ?
 				0 : S3C64XX_SPI_SLAVE_SIG_INACT,
@@ -655,8 +656,8 @@ static inline void enable_cs(struct s3c64xx_spi_driver_data *sdd,
 	}
 
 	cs = spi->controller_data;
-	if (spi->cs_gpiod) {
-		gpiod_set_value(spi->cs_gpiod, 1);
+	if (spi_get_csgpiod(spi, 0)) {
+		gpiod_set_value(spi_get_csgpiod(spi, 0), 1);
 		if (cs->cs_delay)
 			udelay(cs->cs_delay);
 	}
@@ -761,8 +762,8 @@ static inline void disable_cs(struct s3c64xx_spi_driver_data *sdd,
 	if (sdd->tgl_spi == spi)
 		sdd->tgl_spi = NULL;
 
-	if (spi->cs_gpiod)
-		gpiod_set_value(spi->cs_gpiod, 0);
+	if (spi_get_csgpiod(spi, 0))
+		gpiod_set_value(spi_get_csgpiod(spi, 0), 0);
 
 	if (cs->cs_mode != AUTO_CS_MODE) {
 		/* Quiesce the signals */
@@ -902,7 +903,7 @@ static int s3c64xx_spi_map_one_msg(struct s3c64xx_spi_driver_data *sdd,
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct device *dev = &sdd->pdev->dev;
 
-	if (msg->is_dma_mapped || sci->dma_mode != DMA_MODE)
+	if (sci->dma_mode != DMA_MODE)
 		return 0;
 
 	if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
@@ -942,7 +943,7 @@ static void s3c64xx_spi_unmap_one_msg(struct s3c64xx_spi_driver_data *sdd,
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct device *dev = &sdd->pdev->dev;
 
-	if (msg->is_dma_mapped || sci->dma_mode != DMA_MODE)
+	if (sci->dma_mode != DMA_MODE)
 		return;
 
 	if (xfer->len <= ((FIFO_LVL_MASK(sdd) >> 1) + 1))
@@ -955,10 +956,10 @@ static void s3c64xx_spi_unmap_one_msg(struct s3c64xx_spi_driver_data *sdd,
 		dma_unmap_single(dev, xfer->tx_dma, xfer->len, DMA_TO_DEVICE);
 }
 
-static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
+static int s3c64xx_spi_transfer_one_message(struct spi_controller *master,
 					    struct spi_message *msg)
 {
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	struct spi_device *spi = msg->spi;
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
@@ -985,7 +986,7 @@ static int s3c64xx_spi_transfer_one_message(struct spi_master *master,
 		s3c64xx_spi_config(sdd);
 	}
 
-	if (!msg->is_dma_mapped && sci->dma_mode == DMA_MODE)
+	if (sci->dma_mode == DMA_MODE)
 		s3c64xx_spi_dma_initialize(sdd, msg);
 
 	/* Configure feedback delay */
@@ -1065,7 +1066,7 @@ try_transfer:
 
 		if (cs->cs_mode == AUTO_CS_MODE ||
 		    cs->cs_mode == AUTO_CS_MODE_FORCE_QUIESCE ||
-		    (cs->cs_mode == MANUAL_CS_MODE && cs->cs_delay && !spi->cs_gpiod)) {
+		    (cs->cs_mode == MANUAL_CS_MODE && cs->cs_delay && !spi_get_csgpiod(spi, 0))) {
 			/* Slave Select */
 			enable_cs(sdd, spi);
 
@@ -1253,14 +1254,14 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	struct s3c64xx_spi_info *sci;
 	int err;
 
-	sdd = spi_master_get_devdata(spi->master);
+	sdd = spi_controller_get_devdata(spi->controller);
 	if (!cs && spi->dev.of_node) {
 		cs = s3c64xx_get_slave_ctrldata(spi);
 		spi->controller_data = cs;
 	}
 
 	if (IS_ERR(cs)) {
-		dev_err(&spi->dev, "No CS for SPI(%d)\n", spi->chip_select);
+		dev_err(&spi->dev, "No CS for SPI(%d)\n", spi_get_chipselect(spi, 0));
 		return -ENODEV;
 	}
 
@@ -1338,8 +1339,8 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 		 * spi driver is configured as active low. So set it here. Refer to
 		 * b/181043058 for more details.
 		 */
-		if (spi->cs_gpiod)
-			gpiod_set_raw_value(spi->cs_gpiod, 0);
+		if (spi_get_csgpiod(spi, 0))
+			gpiod_set_raw_value(spi_get_csgpiod(spi, 0), 0);
 	}
 
 #ifdef CONFIG_PM
@@ -1367,8 +1368,8 @@ setup_exit:
 		 * spi driver is configured as active low. So set it here. Refer to
 		 * b/181043058 for more details.
 		 */
-		if (spi->cs_gpiod)
-			gpiod_set_raw_value(spi->cs_gpiod, 0);
+		if (spi_get_csgpiod(spi, 0))
+			gpiod_set_raw_value(spi_get_csgpiod(spi, 0), 0);
 	}
 
 	spi_set_ctldata(spi, NULL);
@@ -1393,7 +1394,7 @@ static void s3c64xx_spi_cleanup(struct spi_device *spi)
 static irqreturn_t s3c64xx_spi_irq(int irq, void *data)
 {
 	struct s3c64xx_spi_driver_data *sdd = data;
-	struct spi_master *spi = sdd->master;
+	struct spi_controller *spi = sdd->master;
 	unsigned int val, clr = 0;
 
 	val = readl(sdd->regs + S3C64XX_SPI_STATUS);
@@ -1558,7 +1559,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct s3c64xx_spi_driver_data *sdd;
 	struct s3c64xx_spi_info *sci = dev_get_platdata(&pdev->dev);
-	struct spi_master *master;
+	struct spi_controller *master;
 	int ret, irq;
 	char clk_name[16];
 	int fifosize;
@@ -1610,7 +1611,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	master = spi_alloc_master(&pdev->dev,
+	master = spi_alloc_host(&pdev->dev,
 				  sizeof(struct s3c64xx_spi_driver_data));
 	if (!master) {
 		dev_err(&pdev->dev, "Unable to allocate SPI Master\n");
@@ -1619,7 +1620,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, master);
 
-	sdd = spi_master_get_devdata(master);
+	sdd = spi_controller_get_devdata(master);
 	sdd->port_conf = s3c64xx_spi_get_port_config(pdev);
 	sdd->master = master;
 	sdd->cntrlr_info = sci;
@@ -1811,7 +1812,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 #endif
 
-	if (spi_register_master(master)) {
+	if (spi_register_controller(master)) {
 		dev_err(&pdev->dev, "cannot register SPI master\n");
 		ret = -EBUSY;
 		goto err3;
@@ -1854,21 +1855,21 @@ err2:
 #endif
 err0:
 	platform_set_drvdata(pdev, NULL);
-	spi_master_put(master);
+	spi_controller_put(master);
 
 	return ret;
 }
 
-static int s3c64xx_spi_remove(struct platform_device *pdev)
+static void s3c64xx_spi_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = spi_master_get(platform_get_drvdata(pdev));
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = spi_controller_get(platform_get_drvdata(pdev));
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 
 #ifdef CONFIG_PM
 	pm_runtime_disable(&pdev->dev);
 #endif
 
-	spi_unregister_master(master);
+	spi_unregister_controller(master);
 
 	writel(0, sdd->regs + S3C64XX_SPI_INT_EN);
 
@@ -1881,16 +1882,15 @@ static int s3c64xx_spi_remove(struct platform_device *pdev)
 #endif
 
 	platform_set_drvdata(pdev, NULL);
-	spi_master_put(master);
+	spi_controller_put(master);
 
-	return 0;
 }
 
 #ifdef CONFIG_PM
 static void s3c64xx_spi_pin_ctrl(struct device *dev, int en)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct pinctrl_state *pin_stat;
 
 	if (!sdd->pin_idle)
@@ -1907,8 +1907,8 @@ static void s3c64xx_spi_pin_ctrl(struct device *dev, int en)
 
 static int s3c64xx_spi_runtime_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
 	clk_disable_unprepare(sdd->clk);
@@ -1948,8 +1948,8 @@ static int s3c64xx_spi_runtime_suspend(struct device *dev)
 
 static int s3c64xx_spi_runtime_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
 	s3c64xx_spi_pin_ctrl(dev, 1);
@@ -1983,13 +1983,13 @@ static int s3c64xx_spi_runtime_resume(struct device *dev)
 #ifdef CONFIG_PM_SLEEP
 static int s3c64xx_spi_suspend_operation(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 #ifndef CONFIG_PM
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 #endif
 
-	int ret = spi_master_suspend(master);
+	int ret = spi_controller_suspend(master);
 
 	if (ret) {
 		dev_warn(dev, "cannot suspend master\n");
@@ -2017,8 +2017,8 @@ static int s3c64xx_spi_suspend_operation(struct device *dev)
 
 static int s3c64xx_spi_resume_operation(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 	int ret;
 
@@ -2055,7 +2055,7 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 	}
 
 	/* Start the queue running */
-	ret = spi_master_resume(master);
+	ret = spi_controller_resume(master);
 	if (ret)
 		dev_err(dev, "problem starting queue (%d)\n", ret);
 	else
@@ -2066,8 +2066,8 @@ static int s3c64xx_spi_resume_operation(struct device *dev)
 
 static int s3c64xx_spi_suspend(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
 	dev_dbg(dev, "spi suspend is handled in device suspend, dma mode = %d\n",
@@ -2077,8 +2077,8 @@ static int s3c64xx_spi_suspend(struct device *dev)
 
 static int s3c64xx_spi_resume(struct device *dev)
 {
-	struct spi_master *master = dev_get_drvdata(dev);
-	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(master);
+	struct spi_controller *master = dev_get_drvdata(dev);
+	struct s3c64xx_spi_driver_data *sdd = spi_controller_get_devdata(master);
 	struct s3c64xx_spi_info *sci = sdd->cntrlr_info;
 
 	dev_dbg(dev, "spi resume is handled in device resume, dma mode = %d\n",

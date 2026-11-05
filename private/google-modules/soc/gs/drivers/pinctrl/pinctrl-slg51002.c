@@ -487,17 +487,17 @@ static int slg51002_pinctrl_probe(struct platform_device *pdev)
 
 	slg51002_pctl->gc.base = -1;
 	slg51002_pctl->gc.can_sleep = true;
-	slg51002_pctl->gc.of_node =
-		of_find_node_by_name(pdev->dev.parent->of_node, pdev->name);
+	slg51002_pctl->gc.fwnode = of_fwnode_handle(
+		of_find_node_by_name(pdev->dev.parent->of_node, pdev->name));
 	slg51002_pctl->gc.set_config = gpiochip_generic_config;
 	slg51002_pctl->gc.request = gpiochip_generic_request;
 	slg51002_pctl->gc.free = gpiochip_generic_free;
 
-	if (!slg51002_pctl->gc.of_node) {
+	if (!slg51002_pctl->gc.fwnode) {
 		dev_err(&pdev->dev, "Failed to find %s DT node\n", pdev->name);
 		return -EINVAL;
 	}
-	if (of_property_read_u32(slg51002_pctl->gc.of_node,
+	if (fwnode_property_read_u32(slg51002_pctl->gc.fwnode,
 			"ngpios", &ngpios)) {
 		dev_err(&pdev->dev, "Failed to get ngpios from %s DT node\n",
 			pdev->name);

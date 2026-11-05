@@ -9,6 +9,7 @@
  * Author: cozette@google.com
  */
 
+#include <linux/platform_device.h>
 #include <linux/list.h>
 #include <linux/of_platform.h>
 #include <linux/module.h>

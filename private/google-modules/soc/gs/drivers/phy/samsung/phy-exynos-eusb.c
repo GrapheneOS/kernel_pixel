@@ -13,8 +13,9 @@
 
 #include "eusb-con-reg.h"
 #include "eusb-phy-reg.h"
+#include "phy-exynos-eusb.h"
 
-void phy_exynos_eusb_tune(struct exynos_usbphy_info *info)
+static void phy_exynos_eusb_tune(struct exynos_usbphy_info *info)
 {
 	void *base;
 	u32 phy_cfg_tx, phy_cfg_rx, cnt;

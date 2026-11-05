@@ -317,7 +317,7 @@ EXPORT_SYMBOL_GPL(s5910_check_lpm_mode);
 struct device *s5910_get_device(struct device_node *node)
 {
 	struct device *dev = NULL;
-	struct bus_type *sbt = s5910_driver.driver.bus;
+	const struct bus_type *sbt = s5910_driver.driver.bus;
 
 	if (sbt)
 		dev = bus_find_device(sbt, NULL, node, of_dev_node_match);

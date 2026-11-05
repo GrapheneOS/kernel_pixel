@@ -1,3 +1,4 @@
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #if 0
 #include <linux/debug-snapshot.h>
@@ -111,6 +112,8 @@ int cal_dfs_set_rate_switch(unsigned int id, unsigned long switch_rate)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cal_dfs_set_rate_switch);
+
+int cal_dfs_set_rate_restore(unsigned int id, unsigned long switch_rate);
 
 int cal_dfs_set_rate_restore(unsigned int id, unsigned long switch_rate)
 {
@@ -359,6 +362,8 @@ int cal_cpu_status(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(cal_cpu_status);
 
+void register_set_cluster_enabled_cb(void (*func)(int, int));
+
 void register_set_cluster_enabled_cb(void (*func)(int, int))
 {
 	// This function could only be registered once.
@@ -534,7 +539,7 @@ void cal_cp_disable_dump_pc_no_pg(void)
 EXPORT_SYMBOL_GPL(cal_cp_disable_dump_pc_no_pg);
 #endif
 
-int cal_if_init(struct platform_device *pdev)
+static int cal_if_init(struct platform_device *pdev)
 {
 	static int cal_initialized;
 	struct resource res;

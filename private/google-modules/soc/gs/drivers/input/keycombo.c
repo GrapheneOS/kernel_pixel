@@ -240,7 +240,7 @@ unregister_wakeup:
 	return ret;
 }
 
-static int keycombo_remove(struct platform_device *pdev)
+static void keycombo_remove(struct platform_device *pdev)
 {
 	struct keycombo_state *state = platform_get_drvdata(pdev);
 	input_unregister_handler(&state->input_handler);
@@ -248,7 +248,6 @@ static int keycombo_remove(struct platform_device *pdev)
 	wakeup_source_unregister(state->combo_up_wake_source);
 	destroy_workqueue(state->wq);
 	kfree(state);
-	return 0;
 }
 
 
