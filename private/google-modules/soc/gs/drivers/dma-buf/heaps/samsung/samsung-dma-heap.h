@@ -256,4 +256,8 @@ static inline int __init chunk_dma_heap_init(void)
 #define perrfndev(dev, format, arg...) \
 	dev_err(dev, DMAHEAP_PREFIX "%s: " format "\n", __func__, ##arg)
 
+int trusty_dma_buf_get_shared_mem_id(struct dma_buf *dma_buf,
+				     trusty_shared_mem_id_t *id);
+u64 trusty_dma_buf_get_ffa_tag(struct dma_buf *dma_buf);
+
 #endif /* _SAMSUNG_DMA_HEAP_H */

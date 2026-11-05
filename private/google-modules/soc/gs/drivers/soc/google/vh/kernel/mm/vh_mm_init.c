@@ -16,7 +16,6 @@
 #include <trace/hooks/mm.h>
 #include <trace/hooks/vmscan.h>
 #include <uapi/linux/sched/types.h>
-#include <heaps/deferred-free-helper.h>
 
 #include "../../include/pixel_mm_hint.h"
 #include "../../include/pixel_mm.h"
@@ -250,42 +249,10 @@ static void vh_kcompactd_cpu_online(void *data, int cpu) {
 
 VENDOR_MM_RW(kcompactd_cpu_affinity);
 
-static ssize_t deferred_free_thread_nice_show(struct kobject *kobj,
-						struct kobj_attribute *attr,
-						char *buf)
-{
-	if (freelist_task)
-		return sysfs_emit(buf, "%d\n", task_nice(freelist_task));
 
-	return -ESRCH;
-}
 
-static ssize_t deferred_free_thread_nice_store(struct kobject *kobj,
-						struct kobj_attribute *attr,
-						const char *buf,
-						size_t len)
-{
-	int nice;
 
-	if (kstrtoint(buf, 10, &nice))
-		return -EINVAL;
 
-	if (nice < MIN_NICE)
-		nice = MIN_NICE;
-	if (nice > MAX_NICE)
-		nice = MAX_NICE;
-
-	if (freelist_task) {
-		sched_set_normal(freelist_task, nice);
-	} else {
-		WARN_ON_ONCE(1);
-		return -ESRCH;
-	}
-
-	return len;
-}
-
-VENDOR_MM_RW(deferred_free_thread_nice);
 
 static void rvh_read_swap_cache_async_schedule_timeout(void *data, size_t *count, bool *skip)
 {
@@ -306,7 +273,6 @@ static struct attribute *vendor_mm_attrs[] = {
 	&kswapd_uclamp_min_attr.attr,
 	&kcompactd_cpu_affinity_attr.attr,
 	&kcompactd_uclamp_min_attr.attr,
-	&deferred_free_thread_nice_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(vendor_mm);
