@@ -7,6 +7,7 @@
 #ifndef MAX77779_CHARGER_H_
 #define MAX77779_CHARGER_H_
 
+#include <linux/gpio/driver.h>
 #include <linux/gpio.h>
 #if IS_ENABLED(CONFIG_GPIOLIB)
 #include <linux/gpio/driver.h>

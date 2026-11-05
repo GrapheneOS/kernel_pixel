@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
+#include "bms_gpio.h"
 #include "max77759.h"
 #include "max77759_charger.h"
 
@@ -1260,8 +1261,8 @@ int gs101_to_usecase(struct max77759_usecase_data *uc_data, int use_case)
 		/* b/232723240: charge over USB-C
 		 *              disable line
 		 */
-		if (!IS_ERR(uc_data->pogo_ovp_en))
-			gpiod_set_value_cansleep(uc_data->pogo_ovp_en, 0);
+		if (uc_data->pogo_ovp_en > 0)
+			gpio_set_value_cansleep(uc_data->pogo_ovp_en, uc_data->pogo_ovp_en_act_low);
 		break;
 	case GSU_MODE_USB_WLC_RX:
 	case GSU_RAW_MODE:
@@ -1357,7 +1358,7 @@ static void gs101_setup_default_usecase(struct max77759_usecase_data *uc_data)
 	uc_data->bst_on = ERR_PTR(-EPROBE_DEFER);
 	uc_data->bst_sel = ERR_PTR(-EPROBE_DEFER);
 	uc_data->ext_bst_ctl = ERR_PTR(-EPROBE_DEFER);
-	uc_data->pogo_ovp_en = ERR_PTR(-EPROBE_DEFER);
+	uc_data->pogo_ovp_en = -EPROBE_DEFER;
 	uc_data->pogo_vout_en = ERR_PTR(-EPROBE_DEFER);
 
 	uc_data->ls1_en = ERR_PTR(-EPROBE_DEFER);
@@ -1418,9 +1419,14 @@ bool gs101_setup_usecases(struct max77759_usecase_data *uc_data,
 		uc_data->ext_bst_ctl = devm_gpiod_get(dev, "max77759,extbst-ctl", GPIOD_ASIS);
 
 	/* for enabling charging over pogo */
-	if (PTR_ERR(uc_data->pogo_ovp_en) == -EPROBE_DEFER)
-		uc_data->pogo_ovp_en = devm_gpiod_get_optional(dev, "max77759,pogo-ovp-en",
-							       GPIOD_ASIS);
+	if (uc_data->pogo_ovp_en == -EPROBE_DEFER) {
+		const char *property = "max77759,pogo-ovp-en-gpios";
+
+		if (!of_find_property(node, property, NULL))
+			property = "max77759,pogo-ovp-en";
+		uc_data->pogo_ovp_en = bms_of_get_gpio(node, property,
+						     &uc_data->pogo_ovp_en_act_low);
+	}
 	if (PTR_ERR(uc_data->pogo_vout_en) == -EPROBE_DEFER) {
 		uc_data->pogo_vout_en = devm_gpiod_get_optional(dev, "max77759,pogo-vout-sw-en",
 								GPIOD_ASIS);

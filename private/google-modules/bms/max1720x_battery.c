@@ -5955,7 +5955,7 @@ static int max1720x_init_history_device(struct max1720x_chip *chip)
 	if (alloc_chrdev_region(&chip->hcmajor, 0, 1, HISTORY_DEVICENAME) < 0)
 		goto no_history;
 	/* ls /sys/class */
-	chip->hcclass = class_create(THIS_MODULE, HISTORY_DEVICENAME);
+	chip->hcclass = class_create( HISTORY_DEVICENAME);
 	if (chip->hcclass == NULL)
 		goto no_history;
 	/* ls /dev/ */
@@ -6586,8 +6586,7 @@ static int max1720x_init_fg_capture(struct max1720x_chip *chip)
 	return 0;
 }
 
-static int max1720x_probe(struct i2c_client *client,
-			  const struct i2c_device_id *id)
+static int max1720x_probe(struct i2c_client *client)
 {
 	struct max1720x_chip *chip;
 	struct device *dev = &client->dev;
@@ -6651,7 +6650,7 @@ static int max1720x_probe(struct i2c_client *client,
 						       "maxim,zero-irq");
 
 	psy_cfg.drv_data = chip;
-	psy_cfg.of_node = chip->dev->of_node;
+	psy_cfg.fwnode = of_fwnode_handle(chip->dev->of_node);
 
 	ret = of_property_read_string(dev->of_node,
 				      "maxim,dual-battery", &psy_name);

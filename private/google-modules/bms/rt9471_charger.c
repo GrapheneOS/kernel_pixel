@@ -1729,7 +1729,7 @@ static void rt9471_init_work_handler(struct work_struct *work)
 #if IS_ENABLED(CONFIG_GPIOLIB)
 static int rt9471_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
-	return GPIOF_DIR_OUT;
+	return GPIO_LINE_DIRECTION_OUT;
 }
 
 static int rt9471_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -1737,7 +1737,7 @@ static int rt9471_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	return 0;
 }
 
-static void rt9471_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
+static int rt9471_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct rt9471_chip *data = gpiochip_get_data(chip);
 	int ret;
@@ -1756,6 +1756,7 @@ static void rt9471_gpio_set(struct gpio_chip *chip, unsigned int offset, int val
 
 	if (ret < 0)
 		dev_err(data->dev, "GPIO%d: value=%d ret:%d\n", offset, value, ret);
+	return ret;
 }
 
 static void rt9471_gpio_init(struct rt9471_chip *chip)
@@ -1986,7 +1987,7 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 	chip->psy_desc.set_property = rt9471_psy_set_property;
 	chip->psy_desc.get_property = rt9471_psy_get_property;
 	chip->psy_desc.property_is_writeable = rt9471_psy_is_writeable;
-	chip->psy_cfg.of_node = chip->dev->of_node;
+	chip->psy_cfg.fwnode = dev_fwnode(chip->dev);
 	chip->psy_cfg.drv_data = chip;
 	chip->psy = devm_power_supply_register(chip->dev, &chip->psy_desc,
 					       &chip->psy_cfg);
@@ -1995,8 +1996,7 @@ static int rt9471_register_psy(struct rt9471_chip *chip)
 	return 0;
 }
 
-static int rt9471_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int rt9471_probe(struct i2c_client *client)
 {
 	int ret = 0;
 	struct rt9471_chip *chip = NULL;

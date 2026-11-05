@@ -1000,7 +1000,7 @@ static inline int batt_cycle_count(struct batt_drv *batt_drv)
 
 static int google_battery_tz_get_cycle_count(struct thermal_zone_device *tz, int *cycle_count)
 {
-	struct batt_drv *batt_drv = (struct batt_drv *)tz->devdata;
+	struct batt_drv *batt_drv = (struct batt_drv *)thermal_zone_device_priv(tz);
 
 	if (!cycle_count) {
 		pr_err("Cycle Count NULL");
@@ -1017,7 +1017,7 @@ static int google_battery_tz_get_cycle_count(struct thermal_zone_device *tz, int
 
 static int batt_vs_tz_get(struct thermal_zone_device *tzd, int *batt_vs)
 {
-	struct batt_drv *batt_drv = tzd->devdata;
+	struct batt_drv *batt_drv = thermal_zone_device_priv(tzd);
 	int temp, rc;
 	unsigned int ibat;
 	unsigned long vs_tmp;
@@ -1150,7 +1150,7 @@ done:
 
 static int batt_vs_mp_tz_get(struct thermal_zone_device *tzd, int *batt_vs)
 {
-	struct batt_drv *batt_drv = tzd->devdata;
+	struct batt_drv *batt_drv = thermal_zone_device_priv(tzd);
 
 	if (!batt_vs)
 		return -EINVAL;
@@ -1178,7 +1178,7 @@ static int hda_tz_cb(struct gvotable_election *el,
 
 static int batt_vs_hda_tz_get(struct thermal_zone_device *tzd, int *batt_vs)
 {
-	struct batt_drv *batt_drv = tzd->devdata;
+	struct batt_drv *batt_drv = thermal_zone_device_priv(tzd);
 
 	if (!batt_vs)
 		return -EINVAL;
@@ -11738,7 +11738,7 @@ static ssize_t dev_sn_store(struct device *dev,
 	struct batt_drv *batt_drv = power_supply_get_drvdata(psy);
 	const size_t max_len = sizeof(batt_drv->dev_sn);
 
-	if (strlcpy(batt_drv->dev_sn, buf, max_len) >= max_len)
+	if (strscpy(batt_drv->dev_sn, buf, max_len) < 0)
 		pr_warn("Paired data out of bounds\n");
 
 	return count;
@@ -15099,7 +15099,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, batt_drv);
 
 	psy_cfg.drv_data = batt_drv;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 
 	batt_drv->psy = devm_power_supply_register(batt_drv->device,
 						   &gbatt_psy_desc.psy_dsc, &psy_cfg);
@@ -15145,7 +15145,7 @@ static int google_battery_probe(struct platform_device *pdev)
 				      &batt_vs_tz_name);
 	if (ret == 0) {
 		batt_drv->batt_vs_tz =
-		    thermal_zone_device_register(batt_vs_tz_name, 0, 0,
+		    thermal_zone_device_register_with_trips(batt_vs_tz_name, NULL, 0,
 						 batt_drv, &batt_vs_tz_ops, NULL, 0, 0);
 		if (IS_ERR(batt_drv->batt_vs_tz)) {
 			pr_err("batt_vs tz register failed. err:%ld\n",
@@ -15180,7 +15180,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	if (ret < 0)
 		batt_drv->max_ratio_mp_limit = MAX_RATIO_MP_LIMIT;
 
-	batt_drv->batt_vs_mp_tz = thermal_zone_device_register("mdis_morepower", 0, 0,
+	batt_drv->batt_vs_mp_tz = thermal_zone_device_register_with_trips("mdis_morepower", NULL, 0,
 								batt_drv, &batt_vs_mp_tz_ops,
 								NULL, 0, 0);
 	if (IS_ERR(batt_drv->batt_vs_mp_tz)) {
@@ -15191,7 +15191,7 @@ static int google_battery_probe(struct platform_device *pdev)
 		thermal_zone_device_update(batt_drv->batt_vs_mp_tz, THERMAL_DEVICE_UP);
 	}
 
-	batt_drv->batt_vs_hda_tz = thermal_zone_device_register("thb_hda", 0, 0,
+	batt_drv->batt_vs_hda_tz = thermal_zone_device_register_with_trips("thb_hda", NULL, 0,
 								batt_drv, &batt_vs_hda_tz_ops,
 								NULL, 0, 0);
 	if (IS_ERR(batt_drv->batt_vs_hda_tz)) {
@@ -15309,12 +15309,12 @@ static int google_battery_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_battery_remove(struct platform_device *pdev)
+static void google_battery_remove(struct platform_device *pdev)
 {
 	struct batt_drv *batt_drv = platform_get_drvdata(pdev);
 
 	if (!batt_drv)
-		return 0;
+		return;
 
 	power_supply_unreg_notifier(&batt_drv->fg_nb);
 
@@ -15350,8 +15350,6 @@ static int google_battery_remove(struct platform_device *pdev)
 	batt_drv->csi.type_votable = NULL;
 	batt_drv->charging_policy_votable = NULL;
 	batt_drv->point_full_ui_soc_votable = NULL;
-
-	return 0;
 }
 
 static void google_battery_shutdown(struct platform_device *pdev)

@@ -1563,11 +1563,11 @@ static int max77779_fwupdate_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int max77779_fwupdate_remove(struct platform_device *pdev)
+static void max77779_fwupdate_remove(struct platform_device *pdev)
 {
 	struct max77779_fwupdate *fwu = platform_get_drvdata(pdev);
 	if (!fwu)
-		return 0;
+		return;
 
 	if (fwu->lb) {
 		logbuffer_unregister(fwu->lb);
@@ -1585,7 +1585,6 @@ static int max77779_fwupdate_remove(struct platform_device *pdev)
 	if (fwu->de)
 		debugfs_remove(fwu->de);
 
-	return 0;
 }
 
 static const struct of_device_id max77779_fwupdate_of_match[] = {
