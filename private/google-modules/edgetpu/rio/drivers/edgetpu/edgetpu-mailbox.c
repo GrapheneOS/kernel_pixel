@@ -819,7 +819,7 @@ static int edgetpu_mailbox_external_disable_free(struct edgetpu_client *client)
 
 void edgetpu_mailbox_external_disable_free_locked(struct edgetpu_device_group *group)
 {
-	if (pm_runtime_get_if_active(group->etdev->dev, false) > 0) {
+	if (pm_runtime_get_if_in_use(group->etdev->dev) > 0) {
 	/*
 	 * Deactivate only fails if f/w is unresponsive which will put group
 	 * in errored state or mailbox physically disabled before requesting
@@ -990,7 +990,7 @@ void edgetpu_mailbox_set_irq_handler(struct edgetpu_mailbox *mailbox,
 void edgetpu_mailbox_dump(struct edgetpu_mailbox *mailbox)
 {
 	/* Ensure the TPU block is powered. */
-	if (pm_runtime_get_if_active(mailbox->etdev->dev, false) <= 0)
+	if (pm_runtime_get_if_in_use(mailbox->etdev->dev) <= 0)
 		return;
 
 	etdev_info(mailbox->etdev, "mailbox id %u cmd head=%#x tail=%#x doorbell_status=%u",

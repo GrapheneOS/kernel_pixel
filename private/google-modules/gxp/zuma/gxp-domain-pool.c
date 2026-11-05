@@ -38,11 +38,9 @@ struct gcip_iommu_domain *
 gxp_domain_pool_alloc(struct gcip_domain_pool *pool)
 {
 	struct gcip_iommu_domain *gdomain = gcip_domain_pool_alloc(pool);
-	struct iommu_domain *domain = gdomain->domain;
 
 	if (IS_ERR_OR_NULL(gdomain))
 		return NULL;
-	iommu_set_fault_handler(domain, gxp_iommu_fault_handler, NULL);
 
 	return gdomain;
 }
