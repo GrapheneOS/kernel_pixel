@@ -2773,13 +2773,12 @@ static void kbase_mmu_update_and_free_parent_pgds(struct kbase_device *kbdev,
 		kbase_mmu_update_and_free_parent_pgds(kbdev, mmut, pgds, vpfn, level - 1, flush_op,
 						      dirty_pgds, as_nr);
 
-		/* Ensure the invalidated PTE is visible in memory right away */
-		kbase_mmu_sync_pgd_cpu(kbdev,
-				       pgd_dma_addr(p, current_pgd) + (index * sizeof(u64)),
-				       sizeof(u64));
-
 		/* Check if fine grained GPU cache maintenance is being used */
 		if (flush_op == KBASE_MMU_OP_FLUSH_PT) {
+			/* Ensure the invalidated PTE is visible in memory right away */
+			kbase_mmu_sync_pgd_cpu(kbdev,
+					       pgd_dma_addr(p, current_pgd) + (index * sizeof(u64)),
+					       sizeof(u64));
 			/* Invalidate the GPU cache for the whole PGD page and not just for
 			 * the cacheline containing the invalidated PTE, as the PGD page is
 			 * going to be freed. There is an extremely remote possibility that
@@ -2975,13 +2974,12 @@ static int kbase_mmu_teardown_pgd_pages(struct kbase_device *kbdev, struct kbase
 			kbase_mmu_update_and_free_parent_pgds(kbdev, mmut, pgds, vpfn, level - 1,
 							      flush_op, dirty_pgds, as_nr);
 
-			/* Ensure the invalidated ATEs are visible in memory right away */
-			kbase_mmu_sync_pgd_cpu(kbdev,
-					       pgd_dma_addr(p, pgd) + (index * sizeof(u64)),
-					       pcount * sizeof(u64));
-
 			/* Check if fine grained GPU cache maintenance is being used */
 			if (flush_op == KBASE_MMU_OP_FLUSH_PT) {
+				/* Ensure the invalidated ATEs are visible in memory right away */
+				kbase_mmu_sync_pgd_cpu(kbdev,
+						       pgd_dma_addr(p, pgd) + (index * sizeof(u64)),
+						       pcount * sizeof(u64));
 				/* Invalidate the GPU cache for the whole PGD page and not just for
 				 * the cachelines containing the invalidated ATEs, as the PGD page
 				 * is going to be freed. There is an extremely remote possibility

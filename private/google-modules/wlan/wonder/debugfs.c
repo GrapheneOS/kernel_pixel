@@ -72,104 +72,7 @@ static int wonder_channel_status_report_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void wonder_channel_status_report_periodic_work(struct work_struct *work)
-{
-	struct wonder_data *wonder = container_of(work, struct wonder_data,
-						  channel_status_report_work.work);
-	struct wondertap_data *wondertap = &wonder->wondertap_data;
-	struct wondertap_channel_status_report *report;
-	const char *tag = "wonder";
-	u32 num_channels;
-	size_t size;
-	int ret, i;
-
-	mutex_lock(&wondertap->lock);
-	num_channels = wondertap->cached_channel_schedule.channel_list_len;
-	mutex_unlock(&wondertap->lock);
-
-	if (num_channels == 0) {
-		pr_info("%s: Channel hopping list is empty.\n", tag);
-		goto reschedule;
-	}
-
-	size = sizeof(*report) + num_channels * sizeof(struct wondertap_channel_status);
-	report = kzalloc(size, GFP_KERNEL);
-	if (!report)
-		goto reschedule;
-
-	report->channel_status_len = num_channels;
-	ret = wondertap_get_channel_status_report(wondertap, report);
-	if (ret) {
-		pr_info("%s: Failed to get channel status report: %d\n", tag, ret);
-		kfree(report);
-		goto reschedule;
-	}
-
-	pr_info("%s: --- Channel Status Report Dump ---\n", tag);
-	pr_info("%s: Current Hopping Request TSF: 0x%08x\n", tag,
-		report->current_channel_hopping_request_tsf);
-	pr_info("%s: Current Channel Index: %u\n", tag, report->current_channel_index);
-	pr_info("%s: Channel Status Length: %u\n", tag, report->channel_status_len);
-
-	for (i = 0; i < report->channel_status_len; i++) {
-		struct wondertap_channel_status *status = &report->status[i];
-
-		pr_info("%s:   [%d] Freq: %u MHz\n", tag, i, status->freq);
-		pr_info("%s:       Switch TSF: 0x%08x\n", tag, status->channel_switch_tsf);
-		pr_info("%s:       Start TSF:  0x%08x\n", tag, status->channel_start_tsf);
-		pr_info("%s:       End TSF:    0x%08x\n", tag, status->channel_end_tsf);
-		pr_info("%s:       TX Traffic Index: %u\n", tag, status->tx_traffic_index);
-		pr_info("%s:       RX Traffic Index: %u\n", tag, status->rx_traffic_index);
-	}
-	kfree(report);
-
-reschedule:
-	mutex_lock(&wondertap->lock);
-	if (wonder->channel_status_report_interval > 0) {
-		schedule_delayed_work(&wonder->channel_status_report_work,
-				      wonder->channel_status_report_interval * HZ);
-	}
-	mutex_unlock(&wondertap->lock);
-}
-
-static ssize_t wonder_channel_status_report_write(struct file *file, const char __user *user_buf,
-						  size_t count, loff_t *ppos)
-{
-	struct seq_file *m = file->private_data;
-	struct wonder_data *wonder = m->private;
-	struct wondertap_data *wondertap = &wonder->wondertap_data;
-	u32 val;
-	int ret;
-
-	ret = kstrtou32_from_user(user_buf, count, 0, &val);
-	if (ret)
-		return ret;
-
-	mutex_lock(&wondertap->lock);
-	wonder->channel_status_report_interval = val;
-	mutex_unlock(&wondertap->lock);
-
-	cancel_delayed_work_sync(&wonder->channel_status_report_work);
-
-	if (val > 0) {
-		schedule_delayed_work(&wonder->channel_status_report_work, 0);
-	}
-
-	return count;
-}
-
-static int wonder_channel_status_report_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wonder_channel_status_report_show, inode->i_private);
-}
-
-static const struct file_operations wonder_channel_status_report_fops = {
-	.open = wonder_channel_status_report_open,
-	.read = seq_read,
-	.write = wonder_channel_status_report_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(wonder_channel_status_report);
 
 static int wonder_channel_schedule_request_show(struct seq_file *m, void *v)
 {
@@ -206,85 +109,7 @@ static int wonder_channel_schedule_request_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static void wonder_channel_schedule_request_periodic_work(struct work_struct *work)
-{
-	struct wonder_data *wonder = container_of(work, struct wonder_data,
-						  channel_schedule_request_work.work);
-	struct wondertap_data *wondertap = &wonder->wondertap_data;
-	struct channel_schedule_request *schedule;
-	const char *tag = "wonder";
-	int i;
-
-	mutex_lock(&wondertap->lock);
-	schedule = &wondertap->cached_channel_schedule;
-
-	if (schedule->channel_list_len == 0) {
-		pr_info("%s: Channel hopping schedule list is empty.\n", tag);
-		goto unlock_reschedule;
-	}
-
-	pr_info("%s: --- Channel Hopping Schedule Dump ---\n", tag);
-	pr_info("%s: Channel List Length: %u\n", tag, schedule->channel_list_len);
-	pr_info("%s: Next Channel Index: %u\n", tag, schedule->next_channel_index);
-	pr_info("%s: Dwell Time (TU): %u\n", tag, schedule->dwell_time_tu);
-	pr_info("%s: Target Switch TSF: 0x%08x\n", tag, schedule->target_switch_time_tsf);
-
-	pr_info("%s: Channel List:\n", tag);
-	if (schedule->channel_list) {
-		for (i = 0; i < schedule->channel_list_len; i++) {
-			pr_info("%s:   [%d] Freq: %u MHz, BW: %u, Role: %u\n", tag, i,
-				   schedule->channel_list[i].freq,
-				   schedule->channel_list[i].bandwidth,
-				   schedule->channel_list[i].role);
-		}
-	}
-
-unlock_reschedule:
-	if (wonder->channel_schedule_request_interval > 0) {
-		schedule_delayed_work(&wonder->channel_schedule_request_work,
-				      wonder->channel_schedule_request_interval * HZ);
-	}
-	mutex_unlock(&wondertap->lock);
-}
-
-static ssize_t wonder_channel_schedule_request_write(struct file *file, const char __user *user_buf,
-						     size_t count, loff_t *ppos)
-{
-	struct seq_file *m = file->private_data;
-	struct wonder_data *wonder = m->private;
-	struct wondertap_data *wondertap = &wonder->wondertap_data;
-	u32 val;
-	int ret;
-
-	ret = kstrtou32_from_user(user_buf, count, 0, &val);
-	if (ret)
-		return ret;
-
-	mutex_lock(&wondertap->lock);
-	wonder->channel_schedule_request_interval = val;
-	mutex_unlock(&wondertap->lock);
-
-	cancel_delayed_work_sync(&wonder->channel_schedule_request_work);
-
-	if (val > 0) {
-		schedule_delayed_work(&wonder->channel_schedule_request_work, 0);
-	}
-
-	return count;
-}
-
-static int wonder_channel_schedule_request_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, wonder_channel_schedule_request_show, inode->i_private);
-}
-
-static const struct file_operations wonder_channel_schedule_request_fops = {
-	.open = wonder_channel_schedule_request_open,
-	.read = seq_read,
-	.write = wonder_channel_schedule_request_write,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(wonder_channel_schedule_request);
 
 static int wonder_station_query_show(struct seq_file *m, void *v)
 {
@@ -403,7 +228,6 @@ static const char *wonder_ver_to_str(enum wondertap_ver ver)
 	case WONDER_VERSION_1_6_1: return "WONDER_VERSION_1_6_1 (or 1_6_2/1_6_3)";
 	case WONDER_VERSION_1_6_4: return "WONDER_VERSION_1_6_4";
 	case WONDER_VERSION_1_6_5: return "WONDER_VERSION_1_6_5";
-	case WONDER_VERSION_1_6_6: return "WONDER_VERSION_1_6_6";
 	default: return "UNKNOWN_VERSION";
 	}
 }
@@ -467,18 +291,11 @@ static const struct file_operations wonder_stats_fops = {
 	.release = single_release,
 };
 
-int wonder_debugfs_init(struct wonder_data *wonder)
+int wonder_debugfs_init(void *wonder)
 {
 	wonder_debugfs_root = debugfs_create_dir("wonder", NULL);
 	if (!wonder_debugfs_root)
 		return -ENODEV;
-
-	INIT_DELAYED_WORK(&wonder->channel_status_report_work,
-			  wonder_channel_status_report_periodic_work);
-	INIT_DELAYED_WORK(&wonder->channel_schedule_request_work,
-			  wonder_channel_schedule_request_periodic_work);
-	wonder->channel_status_report_interval = 0;
-	wonder->channel_schedule_request_interval = 0;
 
 	debugfs_create_file("channel_status_report", 0644, wonder_debugfs_root,
 			    wonder, &wonder_channel_status_report_fops);
@@ -491,27 +308,23 @@ int wonder_debugfs_init(struct wonder_data *wonder)
 	debugfs_create_file("stats", 0644, wonder_debugfs_root,
 			    wonder, &wonder_stats_fops);
 	debugfs_create_bool("amsdu_enable", 0644, wonder_debugfs_root,
-			    &wonder->amsdu_enable);
+			    &((struct wonder_data *)wonder)->amsdu_enable);
 	debugfs_create_bool("ampdu_enable", 0644, wonder_debugfs_root,
-			    &wonder->ampdu_enable);
+			    &((struct wonder_data *)wonder)->ampdu_enable);
 	debugfs_create_bool("channel_hopping_enable", 0644, wonder_debugfs_root,
-			    &wonder->channel_hopping_enable);
+			    &((struct wonder_data *)wonder)->channel_hopping_enable);
 	debugfs_create_bool("ra_enable", 0644, wonder_debugfs_root,
-			    &wonder->ra_enable);
+			    &((struct wonder_data *)wonder)->ra_enable);
 	debugfs_create_u32("amsdu_threshold", 0644, wonder_debugfs_root,
-			    &wonder->amsdu_threshold);
+			    &((struct wonder_data *)wonder)->amsdu_threshold);
 	debugfs_create_u32("amsdu_delay", 0644, wonder_debugfs_root,
-			    &wonder->amsdu_delay);
+			    &((struct wonder_data *)wonder)->amsdu_delay);
 	debugfs_create_bool("syna_support_enable", 0644, wonder_debugfs_root,
-			    &wonder->syna_support_enable);
+			    &((struct wonder_data *)wonder)->syna_support_enable);
 	return 0;
 }
 
-void wonder_debugfs_exit(struct wonder_data *wonder)
+void wonder_debugfs_exit(void)
 {
-	if (wonder) {
-		cancel_delayed_work_sync(&wonder->channel_status_report_work);
-		cancel_delayed_work_sync(&wonder->channel_schedule_request_work);
-	}
 	debugfs_remove_recursive(wonder_debugfs_root);
 }

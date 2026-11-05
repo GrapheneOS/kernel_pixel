@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2023-2026 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2023-2024 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -694,12 +694,6 @@ static void kbasep_csf_dump_active_queue_sync_info(struct kbasep_printer *kbpr,
 	int nr_calls = 0;
 
 	if (!queue)
-		return;
-
-	/* A queue can be present in bound_queues after CS_QUEUE_BIND but
-	 * before userspace mmaps the CS user I/O pages.
-	 */
-	if (queue->bind_state != KBASE_CSF_QUEUE_BOUND || !queue->user_io_addr)
 		return;
 
 	kctx = queue->kctx;

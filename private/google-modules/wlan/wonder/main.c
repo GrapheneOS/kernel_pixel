@@ -29,13 +29,13 @@ module_param(physical_name, charp, 0444);
 MODULE_PARM_DESC(physical_name, "Interface name to use (e.g., wlan0, radiotap0, ...)");
 
 
-static int wonder_ver_match_table[WONDER_VERSION_MAX] = {
+#define WONDER_MAX_COMPAT_VERSIONS 6
+static int wonder_ver_match_table[WONDER_MAX_COMPAT_VERSIONS] = {
 	WONDER_VERSION_1_6_4,
 	WONDER_VERSION_1_6_3,
 	WONDER_VERSION_1_4,
-	WONDER_VERSION_1_5,
 	WONDER_VERSION_1_6_5,
-	WONDER_VERSION_1_6_6,
+	WONDER_VERSION_1_5,
 	-1,
 };
 
@@ -46,7 +46,7 @@ static bool wonder_ver_can_support(enum wondertap_ver slave, enum wondertap_ver 
 	if (slave < 0 || slave >= WONDER_VERSION_MAX)
 		return false;
 
-	for (i = 0; i < WONDER_VERSION_MAX; i++) {
+	for (i = 0; i < WONDER_MAX_COMPAT_VERSIONS; i++) {
 		if (wonder_ver_match_table[i] == -1)
 			break;
 		if (wonder_ver_match_table[i] == slave)
@@ -145,7 +145,7 @@ static int wonder_probe(struct platform_device *pdev)
 	}
 	wondertap->wlan_node = provider_node;
 	/* Assign wondertap interface version will be used in the match process. */
-	wondertap->ver = WONDER_VERSION_1_6_6;
+	wondertap->ver = WONDER_VERSION_1_6_5;
 	platform_set_drvdata(pdev, wondertap);
 	component_match_add_release(&pdev->dev, &match, NULL,
 							wonder_compare_dev, provider_node);
@@ -161,11 +161,8 @@ static int wonder_probe(struct platform_device *pdev)
 
 static void wonder_remove(struct platform_device *pdev)
 {
-	struct wondertap_data *wondertap = platform_get_drvdata(pdev);
-	struct wonder_data *wonder = container_of(wondertap, struct wonder_data, wondertap_data);
-
 	component_master_del(&pdev->dev, &wonder_comp_ops);
-	wonder_debugfs_exit(wonder);
+	wonder_debugfs_exit();
 	wonder_mac80211_exit();
 }
 

@@ -31,13 +31,8 @@
 			no-map;
 		};
 
-		gsa_gme {
-			reg = <0x0 0x90200000 0x3ff000>;
-			no-map;
-		};
-
-		gsa_reserved_log: gsa_reserved_log@905FF000 {
-			reg = <0x0 0x905FF000 0x1000>;
+		gsa_reserved_protected: gsa@90200000 {
+			reg = <0x0 0x90200000 0x400000>;
 			no-map;
 		};
 

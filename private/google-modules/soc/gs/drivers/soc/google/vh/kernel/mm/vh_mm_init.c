@@ -301,65 +301,8 @@ static void rvh_read_swap_cache_async_schedule_timeout(void *data, size_t *count
 	usleep_range(READ_SWAP_CACHE_ASYNC_SLEEP_MIN, READ_SWAP_CACHE_ASYNC_SLEEP_MAX);
 }
 
-static bool rt_disallow_wmark_bypass;
-
-static ssize_t rt_disallow_wmark_bypass_show(struct kobject *kobj,
-					     struct kobj_attribute *attr,
-					     char *buf)
-{
-	return sysfs_emit(buf, "%d\n", rt_disallow_wmark_bypass);
-}
-
-static ssize_t rt_disallow_wmark_bypass_store(struct kobject *kobj,
-					      struct kobj_attribute *attr,
-					      const char *buf,
-					      size_t len)
-{
-	bool val;
-
-	if (kstrtobool(buf, &val))
-		return -EINVAL;
-
-	rt_disallow_wmark_bypass = val;
-	return len;
-}
-
-VENDOR_MM_RW(rt_disallow_wmark_bypass);
-
-#ifndef ALLOC_OOM
-#define ALLOC_OOM		0x08
-#endif
-#ifndef ALLOC_NON_BLOCK
-#define ALLOC_NON_BLOCK		0x10
-#endif
-#ifndef ALLOC_MIN_RESERVE
-#define ALLOC_MIN_RESERVE	0x20
-#endif
-#ifndef ALLOC_HIGHATOMIC
-#define ALLOC_HIGHATOMIC	0x200
-#endif
-#ifndef ALLOC_RESERVES
-#define ALLOC_RESERVES		(ALLOC_NON_BLOCK|ALLOC_MIN_RESERVE|ALLOC_HIGHATOMIC|ALLOC_OOM)
-#endif
-
-static void vh_alloc_flags_cma_adjust(void *data, gfp_t gfp_mask,
-				      unsigned int *alloc_flags)
-{
-	/*
-	 * If rt_disallow_wmark_bypass is enabled, strip ALLOC_RESERVES
-	 * for user-space RT tasks to prevent them from dipping into memory reserves.
-	 * We must ensure this is a user-space thread (not a kernel thread,
-	 * i.e. !(current->flags & PF_KTHREAD)) to avoid breaking critical system
-	 * kernel threads under RT priority.
-	 */
-	if (rt_disallow_wmark_bypass && rt_task(current) && in_task() &&
-	    !(current->flags & PF_KTHREAD))
-		*alloc_flags &= ~ALLOC_RESERVES;
-}
-
 static struct attribute *vendor_mm_attrs[] = {
 	&kswapd_cpu_affinity_attr.attr,
-	&rt_disallow_wmark_bypass_attr.attr,
 	&kswapd_uclamp_min_attr.attr,
 	&kcompactd_cpu_affinity_attr.attr,
 	&kcompactd_uclamp_min_attr.attr,
@@ -447,11 +390,6 @@ static int vh_mm_init(void)
 
 	ret = register_trace_android_rvh_read_swap_cache_async_timeout
 			(rvh_read_swap_cache_async_schedule_timeout, NULL);
-	if (ret)
-		goto out_err;
-
-	ret = register_trace_android_vh_alloc_flags_cma_adjust(
-		vh_alloc_flags_cma_adjust, NULL);
 	if (ret)
 		goto out_err;
 

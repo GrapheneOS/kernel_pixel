@@ -35,7 +35,7 @@ static int wonder_netdev_event(struct notifier_block *nb, unsigned long event, v
 	case NETDEV_DOWN:
 		wonder_info("Physical device %s is down. Triggering recovery.\n", dev->name);
 		netif_stop_queue(wonder->vdev);
-		queue_work(wonder->workqueue, &wonder->pdev_down_work);
+		schedule_work(&wonder->pdev_down_work);
 		break;
 	default:
 		break;

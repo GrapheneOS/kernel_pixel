@@ -244,7 +244,7 @@ def display_offset_report(request_data, report_data, dashboard_mode=False, csv_p
          return
     actual_start_curr = status_curr['channel_start_tsf']
     time_since_base_curr = tsf_diff(actual_start_curr, logical_cycle0_start)
-    k_current = round((time_since_base_curr - current_fw_idx * dwell_us) / cycle_us)
+    k_current = time_since_base_curr // cycle_us
 
     def get_offset_color(pct):
         if abs(pct) > 5.0:

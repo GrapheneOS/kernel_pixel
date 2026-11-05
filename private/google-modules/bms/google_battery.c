@@ -232,7 +232,7 @@ struct batt_ssoc_state {
 	bool spoof_triggered;
 	int spoof_dwell_hold_soc;
 	bool spoof_dwell_hold_triggered;
-	u8 spoof_dwell_exit_triggered;
+	bool spoof_dwell_exit_triggered;
 	ktime_t last_spoof_step_up;
 };
 
@@ -1239,6 +1239,8 @@ static void batt_prlog__(int info_level, const char *format, ...)
 #define SSOC_FULL 100
 #define UICURVE_BUF_SZ	(UICURVE_MAX * 15 + 1)
 #define SSOC_HIGH_SOC 90
+
+#define HOLD_SPOOFING_RANGE 3
 
 enum ssoc_uic_type {
 	SSOC_UIC_TYPE_DSG  = -1,
@@ -5078,29 +5080,6 @@ static int bhi_cycle_count_index(const struct health_data *health_data)
 	return cc_index;
 }
 
-static bool bhi_algo_has_grace(int algo)
-{
-	return algo == BHI_ALGO_ACHI_B || algo == BHI_ALGO_ACHI_RAVG_B ||
-	       algo == BHI_ALGO_ACHI_CARETAKER || algo == BHI_ALGO_ACHI_SEC ||
-	       algo == BHI_ALGO_ACHI_MIX;
-}
-
-static bool bhi_algo_under_grace(int algo, const struct health_data *data)
-{
-	const int cycle_count = data->bhi_data.cycle_count;
-	const int l_bound = bhi_get_capacity_bound(cycle_count,
-						   &data->bhi_data.lower_bound.limit[0]);
-
-	if (!bhi_algo_has_grace(algo))
-		return false;
-
-	if ((l_bound == 0 || l_bound == data->bhi_data.pack_capacity)
-	    && data->bhi_cycle_grace && cycle_count < data->bhi_cycle_grace)
-		return true;
-
-	return false;
-}
-
 static int bhi_calc_health_index(int algo, struct health_data *health_data,
 				 int cap_index, int imp_index, int sd_index)
 {
@@ -5111,9 +5090,6 @@ static int bhi_calc_health_index(int algo, struct health_data *health_data,
 
 	if (health_data->bhi_debug_health_index)
 		return health_data->bhi_debug_health_index;
-
-	if (bhi_algo_under_grace(algo, health_data))
-		return BHI_ALGO_FULL_HEALTH;
 
 	switch (algo) {
 	case BHI_ALGO_DISABLED:
@@ -5166,6 +5142,14 @@ static int bhi_calc_health_index(int algo, struct health_data *health_data,
 	return index;
 }
 
+static bool bhi_algo_has_grace(int algo)
+{
+	return algo == BHI_ALGO_ACHI_B || algo == BHI_ALGO_ACHI_RAVG_B ||
+	       algo == BHI_ALGO_ACHI_CARETAKER || algo == BHI_ALGO_ACHI_SEC ||
+	       algo == BHI_ALGO_ACHI_MIX;
+
+}
+
 static enum bhi_status bhi_calc_health_status(int algo, int health_index,
 					      const struct health_data *data)
 {
@@ -5177,8 +5161,14 @@ static enum bhi_status bhi_calc_health_status(int algo, int health_index,
 	if (algo == BHI_ALGO_DISABLED)
 		return BH_UNKNOWN;
 
-	if (bhi_algo_under_grace(algo, data))
-		return BH_NOT_AVAILABLE;
+	if (bhi_algo_has_grace(algo)) {
+		const int cycle_count = data->bhi_data.cycle_count;
+		const int l_bound = bhi_get_capacity_bound(cycle_count,
+							   &data->bhi_data.lower_bound.limit[0]);
+
+		if (l_bound == 0 && data->bhi_cycle_grace && cycle_count < data->bhi_cycle_grace)
+			return BH_NOT_AVAILABLE;
+	}
 
 	if (data->cal_state == REC_STATE_SCHEDULED)
 		return BH_INCONSISTENT;
@@ -13298,11 +13288,11 @@ static void gbatt_check_spoof_reason(struct batt_drv *batt_drv)
 		spoof_start_soc = LONGLIFE_CHARGE_STOP_LEVEL;
 		spoof_end_soc = LONGLIFE_CHARGE_START_LEVEL - 1;
 	} else if (batt_csi_status_is_dwell(batt_drv)) {
-		ssoc_state->spoof_dwell_hold_triggered = false;
-		ssoc_state->spoof_dwell_exit_triggered = 0;
-
 		/* For the case Dwell v1.5 spoofing need to be disabled */
-		if (batt_drv->dwell_soc_spoofing_en) {
+		if (!batt_drv->dwell_soc_spoofing_en) {
+			ssoc_state->spoof_dwell_hold_triggered = false;
+		} else {
+			ssoc_state->spoof_dwell_hold_triggered = false;
 			spoof_reason = SPOOF_SOC_DWELL_DEFEND;
 			spoof_end_soc = batt_drv->dynamic_charge_start_level - 1;
 			if (batt_csi_status_is_visible_dwell(batt_drv))
@@ -13332,15 +13322,12 @@ static void gbatt_clear_spoof_data(struct batt_ssoc_state *ssoc_state)
 	ssoc_state->spoof_reason = SPOOF_SOC_NONE;
 	ssoc_state->spoof_start_soc = 0;
 	ssoc_state->spoof_end_soc = 0;
-	ssoc_state->spoof_dwell_exit_triggered = 0;
-	ssoc_state->spoof_dwell_hold_triggered = false;
+	ssoc_state->spoof_dwell_exit_triggered = false;
 }
 
 #define DWELL_SPOOF_IBATT_THRESHOLD_UA	100000
-#define DWELL_SPOOF_STEP_UP_MS		60000
-#define DWELL_SPOOF_MAX_GAP_PCT		10
-#define DWELL_SPOOF_SOC_HOLD_RANGE	3
-#define DWELL_SPOOF_EXIT_TIMEOUT_CYCLES	5
+#define DWELL_SPOOF_STEP_UP_MS			60000
+#define DWELL_SPOOF_MAX_GAP_PCT			10
 
 static void gbatt_dwell_step_soc(struct batt_drv *batt_drv, int target_soc)
 {
@@ -13376,7 +13363,6 @@ static void gbatt_dwell_step_soc(struct batt_drv *batt_drv, int target_soc)
 
 static void gbatt_check_spoof_soc(struct batt_drv *batt_drv)
 {
-	const u8 spoof_dwell_timeout_state = 0xFF;
 	struct batt_ssoc_state *ssoc_state = &batt_drv->ssoc_state;
 	const bool is_connect = !chg_state_is_disconnected(&batt_drv->chg_state);
 	const bool pre_spoof_triggered = ssoc_state->spoof_triggered;
@@ -13391,48 +13377,39 @@ static void gbatt_check_spoof_soc(struct batt_drv *batt_drv)
 	if (!is_connect) {
 		if (batt_csi_status_is_dwell(batt_drv)) {
 			/* To spoof Soc only during Dwell ACTIVE_HOLD state (only showed in HLOS) */
-			if (!ssoc_state->spoof_dwell_hold_triggered &&
-			    ssoc_state->spoof_dwell_exit_triggered != spoof_dwell_timeout_state &&
-			    batt_drv->dwell_soc_spoofing_en) {
+			if (!ssoc_state->spoof_dwell_hold_triggered) {
 				/* First time entering ACTIVE_HOLD */
 				ssoc_state->spoof_dwell_hold_soc = gdf;
 				ssoc_state->spoof_dwell_hold_triggered = true;
 				/* spoofing to the current UISoc */
 				ssoc_state->spoof_start_soc = ui_soc;
 				ssoc_state->spoof_end_soc = ui_soc;
-				ssoc_state->spoof_reason = SPOOF_SOC_DWELL_DEFEND;
 				ssoc_state->spoof_triggered = true;
 			}
 
 			if (!ssoc_state->spoof_triggered)
 				return;
 
-			/* Wait for HLOS exit Dwell after dropped > "DWELL_SPOOF_SOC_HOLD_RANGE" */
-			if (ssoc_state->spoof_dwell_exit_triggered > 0 &&
-			    ssoc_state->spoof_dwell_exit_triggered != spoof_dwell_timeout_state) {
-				if (--ssoc_state->spoof_dwell_exit_triggered == 0) {
-					gbatt_clear_spoof_data(ssoc_state);
-					/* Set timeout state to prevent spoof_triggered re-entry */
-					ssoc_state->spoof_dwell_exit_triggered =
-						spoof_dwell_timeout_state;
-				}
+			/* Already triggered 1% drop for exit, waiting for HLOS to clear Dwell */
+			if (ssoc_state->spoof_dwell_exit_triggered)
 				return;
-			}
 
-			/* Keep spoof if soc_gdf has not dropped > "DWELL_SPOOF_SOC_HOLD_RANGE" */
-			if ((ssoc_state->spoof_dwell_hold_soc - gdf) < DWELL_SPOOF_SOC_HOLD_RANGE)
+			/* Keep spoof if soc_gdf has not dropped more than "HOLD_SPOOFING_RANGE" */
+			if ((ssoc_state->spoof_dwell_hold_soc - gdf) < HOLD_SPOOFING_RANGE)
 				return;
 
 			/* Update spoof target to current-1 and latch it */
 			ssoc_state->spoof_start_soc = ui_soc - 1;
 			ssoc_state->spoof_end_soc = ui_soc - 1;
-			ssoc_state->spoof_dwell_exit_triggered = DWELL_SPOOF_EXIT_TIMEOUT_CYCLES;
+			ssoc_state->spoof_dwell_exit_triggered = true;
 			gbatt_reset_curve(batt_drv, ui_soc - 1);
 			return;
 		}
 
+		/* Not in Dwell but disconnected, reset triggered flag */
+		if (ssoc_state->spoof_dwell_hold_triggered)
+			ssoc_state->spoof_dwell_hold_triggered = false;
 
-		/* Not in Dwell (HLOS exit Dwell) but disconnected */
 		/* update curve when disconnected */
 		if (ssoc_state->spoof_triggered &&
 		    capacity != ssoc_state->spoof_start_soc)
@@ -14161,15 +14138,8 @@ static int batt_bhi_init(struct batt_drv *batt_drv)
 		memcpy(&bhi_data->lower_bound.limit[0], capacity_boundary,
 		       sizeof(capacity_boundary));
 	} else {
-		int cap = bhi_data->pack_capacity;
-		int grace_limit = health_data->bhi_cycle_grace / 100;
-
-		for (i = 0; i < BHI_TREND_POINTS_SIZE; i++) {
-			if (i < grace_limit)
-				bhi_data->lower_bound.limit[i] = cap;
-			else
-				bhi_data->lower_bound.limit[i] = cap * 60 / 100;
-		}
+		for (i = 0; i < BHI_TREND_POINTS_SIZE; i++)
+			bhi_data->lower_bound.limit[i] = bhi_data->pack_capacity * 60 / 100;
 	}
 	dev_info(batt_drv->device, "bhi_l_bound [%d, %d, %d, %d, %d, %d, %d, %d, %d, %d]\n",
 		 bhi_data->lower_bound.limit[0], bhi_data->lower_bound.limit[1],

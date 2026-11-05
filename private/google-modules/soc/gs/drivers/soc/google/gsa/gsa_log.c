@@ -95,9 +95,6 @@ ssize_t gsa_log_read(struct gsa_log *log, bool intermediate, char *buf)
 	void *base;
 	struct gsa_log_mem *gsa_log_mem_base;
 
-	if (!log)
-		return -ENODEV;
-
 	if (intermediate) {
 		base = log->base_intermediate;
 	} else {

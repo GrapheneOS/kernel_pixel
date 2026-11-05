@@ -814,11 +814,11 @@ static void wonder_wake_tx_queue(struct ieee80211_hw *hw,
 	/* Aggregation Logic: Wait for more packets if size is small */
 	if (wonder->amsdu_enable) {
 		if (byte_count > wonder->amsdu_threshold) {
-			queue_delayed_work(wonder->workqueue, &wonder->tx_work, 0);
+			schedule_delayed_work(&wonder->tx_work, 0);
 		} else {
 			/* Schedule flush to prevent packets stuck */
-			queue_delayed_work(wonder->workqueue, &wonder->tx_work,
-					 usecs_to_jiffies(wonder->amsdu_delay));
+			schedule_delayed_work(&wonder->tx_work,
+				usecs_to_jiffies(wonder->amsdu_delay));
 		}
 	} else {
 		/* Disable bottom-halves during dequeue to prevent mac80211 dequeue warnings */
@@ -1071,7 +1071,7 @@ static int wonder_update_station_state(struct ieee80211_hw *hw,
 		sta_info->capability_mask |= BIT(WONDERTAP_STATION_CAP_HE);
 	}
 
-	queue_work(wonder->workqueue, &swork->work);
+	schedule_work(&swork->work);
 	return 0;
 }
 
@@ -1275,14 +1275,6 @@ void *wonder_mac80211_init(void)
 	wonder->amsdu_threshold = 8000;
 	wonder->amsdu_delay = 3000;
 	wonder->syna_support_enable = false;
-
-	wonder->workqueue = create_singlethread_workqueue(DRV_NAME);
-	if (!wonder->workqueue) {
-		pr_err("Failed to create workqueue\n");
-		ieee80211_free_hw(hw);
-		return NULL;
-	}
-
 	/* Set Band Capabilities */
 	hw->wiphy->bands[NL80211_BAND_2GHZ] = &wonder_band_2ghz;
 	hw->wiphy->bands[NL80211_BAND_5GHZ] = &wonder_band_5ghz;
@@ -1333,7 +1325,6 @@ void *wonder_mac80211_init(void)
 	ret = wonder_features_init(wonder);
 	if (unlikely(ret)) {
 		wonder_error("Failed to register mac80211 hardware. Ret: %d\n", ret);
-		destroy_workqueue(wonder->workqueue);
 		ieee80211_free_hw(hw);
 		wonder = NULL;
 		goto end;
@@ -1353,7 +1344,6 @@ void wonder_mac80211_exit(void)
 	}
 	wonder_ssr_exit(wonder);
 	wonder_features_exit(wonder);
-	destroy_workqueue(wonder->workqueue);
 	ieee80211_free_hw(wonder->hw);
 	g_wonder = NULL;
 }

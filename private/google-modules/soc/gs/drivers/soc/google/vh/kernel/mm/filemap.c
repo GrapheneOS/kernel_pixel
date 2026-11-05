@@ -17,7 +17,6 @@ static unsigned long free_swap_threshold_mb = 20;
 
 static struct kobject pixel_filemap_kobj;
 static bool async_readahead_adj_enabled;
-static bool sync_readahead_adj_enabled;
 
 #define PIXEL_FILEMAP_ATTR_RW(_name) \
 	static struct kobj_attribute _name##_attr = __ATTR_RW(_name)
@@ -44,8 +43,8 @@ static ssize_t swap_free_threshold_mb_show(struct kobject *kobj,
 PIXEL_FILEMAP_ATTR_RW(swap_free_threshold_mb);
 
 static ssize_t async_readahead_adj_enable_store(struct kobject *kobj,
-						struct kobj_attribute *attr,
-						const char *buf, size_t len)
+					    struct kobj_attribute *attr,
+					    const char *buf, size_t len)
 {
 	bool enable;
 
@@ -57,38 +56,16 @@ static ssize_t async_readahead_adj_enable_store(struct kobject *kobj,
 }
 
 static ssize_t async_readahead_adj_enable_show(struct kobject *kobj,
-					       struct kobj_attribute *attr,
-					       char *buf)
+					   struct kobj_attribute *attr,
+					   char *buf)
 {
 	return sysfs_emit(buf, "%d\n", async_readahead_adj_enabled);
 }
 PIXEL_FILEMAP_ATTR_RW(async_readahead_adj_enable);
 
-static ssize_t sync_readahead_adj_enable_store(struct kobject *kobj,
-						struct kobj_attribute *attr,
-						const char *buf, size_t len)
-{
-	bool enable;
-
-	if (kstrtobool(buf, &enable))
-		return -EINVAL;
-
-	sync_readahead_adj_enabled = enable;
-	return len;
-}
-
-static ssize_t sync_readahead_adj_enable_show(struct kobject *kobj,
-					      struct kobj_attribute *attr,
-					      char *buf)
-{
-	return sysfs_emit(buf, "%d\n", sync_readahead_adj_enabled);
-}
-PIXEL_FILEMAP_ATTR_RW(sync_readahead_adj_enable);
-
 static struct attribute *pixel_filemap_attrs[] = {
 	&swap_free_threshold_mb_attr.attr,
 	&async_readahead_adj_enable_attr.attr,
-	&sync_readahead_adj_enable_attr.attr,
 	NULL,
 };
 
@@ -112,35 +89,25 @@ static const struct kobj_type pixel_filemap_ktype = {
 	.default_groups = pixel_filemap_attr_groups,
 };
 
-static inline void vh_mmap_readahead_adj(bool enabled, bool *skip)
+static inline void vh_mmap_readahead_adj(bool *skip)
 {
-	if (unlikely(!enabled))
+	if (unlikely(!async_readahead_adj_enabled))
 		return;
 
 	if ((get_nr_swap_pages() * PAGE_SIZE) >> 20 < free_swap_threshold_mb)
 		*skip = true;
 }
 
-static inline void vh_async_mmap_readahead_adj(bool *skip)
-{
-	vh_mmap_readahead_adj(async_readahead_adj_enabled, skip);
-}
-
-static inline void vh_sync_mmap_readahead_adj(bool *skip)
-{
-	vh_mmap_readahead_adj(sync_readahead_adj_enabled, skip);
-}
-
 void vh_do_async_mmap_readahead(void *data, struct vm_fault *vmf,
 				struct folio *folio, bool *skip)
 {
-	vh_async_mmap_readahead_adj(skip);
+	vh_mmap_readahead_adj(skip);
 }
 
 void vh_do_sync_mmap_readahead(void *data, struct vm_fault *vmf,
 			       bool *skip)
 {
-	vh_sync_mmap_readahead_adj(skip);
+	vh_mmap_readahead_adj(skip);
 }
 
 int pixel_mm_filemap_sysfs(struct kobject *parent)

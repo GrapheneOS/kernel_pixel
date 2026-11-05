@@ -3225,6 +3225,8 @@ err_bus_init:
         unregister_tbn(&ts_data->tbn_register_mask);
 err_init_tbn:
 #endif
+    kfree_safe(ts_data->bus_tx_buf);
+    kfree_safe(ts_data->bus_rx_buf);
     kfree_safe(ts_data->pdata);
 
     FTS_FUNC_EXIT();
@@ -3830,6 +3832,11 @@ static void fts_ts_remove(struct spi_device *spi)
     fts_ts_remove_entry(spi_get_drvdata(spi));
 }
 
+static void fts_ts_shutdown(struct spi_device *spi)
+{
+    fts_ts_remove(spi);
+}
+
 static const struct spi_device_id fts_ts_id[] = {
     {FTS_DRIVER_NAME, 0},
     {},
@@ -3843,6 +3850,7 @@ MODULE_DEVICE_TABLE(of, fts_dt_match);
 static struct spi_driver fts_ts_driver = {
     .probe = fts_ts_probe,
     .remove = fts_ts_remove,
+    .shutdown = fts_ts_shutdown,
     .driver = {
         .name = FTS_DRIVER_NAME,
         .owner = THIS_MODULE,

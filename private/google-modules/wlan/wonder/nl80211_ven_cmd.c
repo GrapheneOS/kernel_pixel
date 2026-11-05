@@ -457,7 +457,7 @@ static int wonder_vendor_cmd_get_cap(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct wonder_data *wonder = hw->priv;
 	struct sk_buff *skb;
-	const size_t reply_skb_size = sizeof(u32) * 2 + sizeof(u8) * 6;
+	const size_t reply_skb_size = sizeof(u32) + sizeof(u8) * 6;
 	struct wondertap_capability cap;
 	bool is_ibss_mode = (wdev && wdev->iftype != NL80211_IFTYPE_MONITOR) ? true : false;
 	u32 mtu_size = is_ibss_mode ? WONDER_IBSS_MODE_MTU_SIZE : INT_MAX;
@@ -467,7 +467,6 @@ static int wonder_vendor_cmd_get_cap(struct wiphy *wiphy,
 	u8 hw_ampdu;
 	u8 hw_ra;
 	u8 ch_hopping;
-	u32 max_ch_switch_time_us = 0;
 	int ret;
 
 	ret = wondertap_get_capabilities(&wonder->wondertap_data, &cap);
@@ -483,12 +482,11 @@ static int wonder_vendor_cmd_get_cap(struct wiphy *wiphy,
 	hw_ampdu = cap.bits.ampdu_aggregation;
 	hw_ra = cap.bits.rate_adaptation;
 	ch_hopping = cap.bits.channel_hopping;
-	max_ch_switch_time_us = cap.maximum_channel_switch_time_us;
 
 	pr_info("Handling is_ibss_mode: %d, MTU: %u, HW_AMSDU: %u, HW_AMPDU: %u, HW_RA: %u, "
-		"CH_HOPPING: %u, HBS_SUPPORT: %u, NSS: %u, MAX_CH_SWITCH_TIME: %u\n",
+		"CH_HOPPING: %u, HBS_SUPPORT: %u, NSS: %u\n",
 		is_ibss_mode, mtu_size, hw_amsdu, hw_ampdu, hw_ra,
-		ch_hopping, hbs_support, nss, max_ch_switch_time_us);
+		ch_hopping, hbs_support, nss);
 
 	skb = cfg80211_vendor_cmd_alloc_reply_skb(wiphy, nla_total_size(reply_skb_size));
 	if (!skb) {
@@ -535,13 +533,6 @@ static int wonder_vendor_cmd_get_cap(struct wiphy *wiphy,
 
 	if (nla_put(skb, WONDER_VEN_ATTR_CAP_NSS, sizeof(u8), &nss)) {
 		pr_err("Failed to put CAP NSS attribute\n");
-		kfree_skb(skb);
-		return -EMSGSIZE;
-	}
-
-	if (nla_put(skb, WONDER_VEN_ATTR_CAP_MAX_CH_SWITCH_TIME,
-		    sizeof(u32), &max_ch_switch_time_us)) {
-		pr_err("Failed to put CAP MAX_CH_SWITCH_TIME attribute\n");
 		kfree_skb(skb);
 		return -EMSGSIZE;
 	}
@@ -667,9 +658,9 @@ static int wonder_vendor_cmd_get_mac_tsf(struct wiphy *wiphy,
 	u32 mac_tsf;
 	int ret;
 
-	sys_time_before = ktime_get_boottime_ns();
+	sys_time_before = ktime_get_ns();
 	ret = wondertap_get_mac_tsf(&wonder->wondertap_data, &mac_tsf);
-	sys_time_after = ktime_get_boottime_ns();
+	sys_time_after = ktime_get_ns();
 	if (ret)
 		return ret;
 
@@ -794,27 +785,6 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int wonder_map_sta_op_to_action(enum wonder_vendor_station_op op,
-				       enum wondertap_station_action *action)
-{
-	switch (op) {
-	case WONDER_VEN_ATTR_STA_OP_ADD:
-		*action = WONDERTAP_STATION_STATE_NEW;
-		return 0;
-	case WONDER_VEN_ATTR_STA_OP_UPDATE:
-		*action = WONDERTAP_STATION_STATE_UPDATE;
-		return 0;
-	case WONDER_VEN_ATTR_STA_OP_DEL:
-		*action = WONDERTAP_STATION_STATE_DEL;
-		return 0;
-	case WONDER_VEN_ATTR_STA_OP_QUERY:
-		*action = WONDERTAP_STATION_STATE_QUERY;
-		return 0;
-	default:
-		return -EINVAL;
-	}
-}
-
 static int wonder_vendor_cmd_set_station_info(struct wiphy *wiphy,
 					      struct wireless_dev *wdev,
 					      const void *data, int data_len)
@@ -823,7 +793,6 @@ static int wonder_vendor_cmd_set_station_info(struct wiphy *wiphy,
 	struct wonder_data *wonder = hw->priv;
 	struct nlattr *tb[WONDER_VEN_ATTR_STA_INFO_MAX + 1];
 	struct wondertap_station_info sta_info = {0};
-	enum wonder_vendor_station_op op;
 	enum wondertap_station_action action;
 
 	if (nla_parse(tb, WONDER_VEN_ATTR_STA_INFO_MAX, data, data_len,
@@ -839,12 +808,7 @@ static int wonder_vendor_cmd_set_station_info(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	op = nla_get_u32(tb[WONDER_VEN_ATTR_STA_INFO_ACTION]);
-	if (wonder_map_sta_op_to_action(op, &action)) {
-		pr_err("Invalid station action op: %u\n", op);
-		return -EINVAL;
-	}
-
+	action = nla_get_u32(tb[WONDER_VEN_ATTR_STA_INFO_ACTION]);
 	nla_memcpy(sta_info.mac, tb[WONDER_VEN_ATTR_STA_INFO_MAC], ETH_ALEN);
 
 	if (tb[WONDER_VEN_ATTR_STA_INFO_AID])

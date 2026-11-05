@@ -3276,6 +3276,7 @@ int wma_process_bip(tp_wma_handle wma_handle, struct wma_txrx_node *iface,
 
 	/* Check if frame is invalid length */
 	if (efrm - (uint8_t *)wh < sizeof(*wh) + mmie_size) {
+		wma_err("Invalid frame length");
 		return -EINVAL;
 	}
 
