@@ -1199,5 +1199,5 @@ MODULE_SOFTDEP("pre: exynos_devfreq");
 
 MODULE_AUTHOR("Cho KyongHo <pullip.cho@samsung.com>");
 MODULE_DESCRIPTION("Exynos Still MFC(JPEG) V4L2 Driver");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 MODULE_LICENSE("GPL");
