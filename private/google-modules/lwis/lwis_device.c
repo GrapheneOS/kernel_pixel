@@ -1399,7 +1399,7 @@ static struct lwis_device *find_top_dev(void)
 
 static void event_heartbeat_timer(struct timer_list *t)
 {
-	struct lwis_device *lwis_dev = from_timer(lwis_dev, t, heartbeat_timer);
+	struct lwis_device *lwis_dev = timer_container_of(lwis_dev, t, heartbeat_timer);
 	int64_t event_id = LWIS_EVENT_ID_HEARTBEAT | (int64_t)lwis_dev->id
 							     << LWIS_EVENT_ID_EVENT_CODE_LEN;
 
@@ -1636,7 +1636,7 @@ void lwis_base_unprobe(struct lwis_device *unprobe_lwis_dev)
 			list_del(&lwis_dev->dev_list);
 
 			if (timer_pending(&lwis_dev->heartbeat_timer))
-				del_timer(&lwis_dev->heartbeat_timer);
+				timer_delete(&lwis_dev->heartbeat_timer);
 		}
 	}
 	mutex_unlock(&core.lock);
@@ -1673,7 +1673,7 @@ static int __init lwis_register_base_device(void)
 	core.device_major = MAJOR(core.lwis_devt);
 
 	/* Create a device class*/
-	core.dev_class = class_create(THIS_MODULE, LWIS_CLASS_NAME);
+	core.dev_class = class_create( LWIS_CLASS_NAME);
 	if (IS_ERR_OR_NULL(core.dev_class)) {
 		pr_err("Failed to create device class\n");
 		ret = PTR_ERR(core.dev_class);
