@@ -13,6 +13,7 @@
 
 #include "pa_kill_sysfs.h"
 #include "../vh/include/pixel_mm_hint.h"
+#include "pa_kill_core.h"
 
 #define K(x) ((x) << (PAGE_SHIFT-10))
 #define MAX_DEMAND_PAGES (totalram_pages() / 4)
@@ -290,7 +291,7 @@ cleanup:
 	return err;
 }
 
-int __init pa_kill_init(void)
+static int __init pa_kill_init(void)
 {
 	int err;
 

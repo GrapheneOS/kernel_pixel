@@ -6,6 +6,7 @@
  * Copyright 2022 Google LLC
  */
 #define pr_fmt(fmt) KBUILD_MODNAME": " fmt
+#include "metrics.h"
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/of.h>
@@ -131,8 +132,8 @@ static void update_min_latency(struct task_struct *prev, struct task_struct *nex
 	if (!in_arr){
 		rt_runnable = &trr->rt_runnable[trr->min_idx];
 		rt_runnable->latency = latency;
-		strlcpy(rt_runnable->comm, next->comm, TASK_COMM_LEN);
-		strlcpy(rt_runnable->prev_comm, prev->comm, TASK_COMM_LEN);
+		strscpy(rt_runnable->comm, next->comm, TASK_COMM_LEN);
+		strscpy(rt_runnable->prev_comm, prev->comm, TASK_COMM_LEN);
 		rt_runnable->pid = next->pid;
 	}
 
@@ -341,7 +342,7 @@ static void hook_irq_end(void *data, int irq, struct irqaction *action, int ret)
 						curr_max_irq, irq_usec) != curr_max_irq);
 }
 
-void vh_sched_wakeup_pixel_mod(void *data, struct task_struct *p)
+static void vh_sched_wakeup_pixel_mod(void *data, struct task_struct *p)
 {
 	struct vendor_task_struct *vp;
 
@@ -351,7 +352,7 @@ void vh_sched_wakeup_pixel_mod(void *data, struct task_struct *p)
 	vp->runnable_start_ns = sched_clock();
 }
 
-void vh_sched_switch_pixel_mod(void *data, bool preempt,
+static void vh_sched_switch_pixel_mod(void *data, bool preempt,
 		struct task_struct *prev,
 		struct task_struct *next,
 		unsigned int prev_state)
@@ -723,8 +724,8 @@ static ssize_t long_runnable_metrics_show(struct kobject *kobj,
 
 		for (i = 0; i < RT_RUNNABLE_ARR_SIZE; i++) {
 			long_rt_runnable = trr.rt_runnable[i];
-			strlcpy(sorted_trr[i].comm, long_rt_runnable.comm, TASK_COMM_LEN);
-			strlcpy(sorted_trr[i].prev_comm, long_rt_runnable.prev_comm,
+			strscpy(sorted_trr[i].comm, long_rt_runnable.comm, TASK_COMM_LEN);
+			strscpy(sorted_trr[i].prev_comm, long_rt_runnable.prev_comm,
 				TASK_COMM_LEN);
 			sorted_trr[i].latency = long_rt_runnable.latency;
 		}

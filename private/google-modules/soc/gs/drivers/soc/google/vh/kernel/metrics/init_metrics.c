@@ -4,13 +4,11 @@
  * Support for init metrics
  * Copyright 2022 Google LLC
  */
+#include "metrics.h"
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
 #include <soc/google/cpuidle_metrics.h>
-
-extern int thermal_metrics_init(struct kobject *metrics_kobj);
-extern int perf_metrics_init(struct kobject *metrics_kobj);
 
 struct kobject *metrics_kobj;
 

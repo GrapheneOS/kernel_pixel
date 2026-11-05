@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <trace/hooks/thermal.h>
+#include "thermal_genl.h"
 
 extern void vh_enable_thermal_genl_check(void *data, int event, int tz_id, int *enable_thermal_genl);
 
