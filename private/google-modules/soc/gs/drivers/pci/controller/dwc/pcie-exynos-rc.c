@@ -3905,7 +3905,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		dev_dbg(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
 		if (!exynos_pcie->probe_ok) {
+			pci_lock_rescan_remove();
 			pci_rescan_bus(exynos_pcie->pci_dev->bus);
+			pci_unlock_rescan_remove();
 			if (exynos_pcie->use_msi) {
 				ret = exynos_pcie_rc_msi_init(pp);
 				if (ret) {
@@ -5567,6 +5569,11 @@ static void exynos_pcie_wait_cfg_access_work(struct work_struct *work)
 			&exynos_pcie->cpl_timeout_work.work);
 }
 
+static void exynos_pcie_release_root_port(void *data)
+{
+	pci_dev_put(data);
+}
+
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
 {
 	struct exynos_pcie *exynos_pcie;
@@ -5737,8 +5744,18 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	if (!exynos_pcie->pci_dev) {
 		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
 			       "Failed to get pci device");
+		ret = -ENODEV;
+		dw_pcie_host_deinit(pp);
 		goto probe_fail;
 	}
+	ret = devm_add_action_or_reset(&pdev->dev, exynos_pcie_release_root_port,
+				       exynos_pcie->pci_dev);
+	if (ret) {
+		exynos_pcie->pci_dev = NULL;
+		dw_pcie_host_deinit(pp);
+		goto probe_fail;
+	}
+
 	dev_dbg(&pdev->dev, "(%s):ep_pci_device:vendor/device id = 0x%x\n", __func__, val);
 	logbuffer_log(exynos_pcie->log, "ep_pci_device:vendor/device id = 0x%x",
 		      val);
