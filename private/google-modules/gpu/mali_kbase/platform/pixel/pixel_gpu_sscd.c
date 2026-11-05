@@ -713,17 +713,19 @@ int gpu_sscd_fw_log_init(struct kbase_device *kbdev, u32 level)
 
 /**
  * gpu_sscd_init() - Registers the SSCD platform device.
+ * @kbdev: The GPU device.
  *
- * @kbdev: The &struct kbase_device for the GPU.
- *
- * Context: Process context.
- *
- * Return: On success, returns 0 otherwise returns an error code.
+ * Return: 0 on success or a negative error code.
  */
 int gpu_sscd_init(struct kbase_device *kbdev)
 {
+	int ret;
+
 	sscd_dev = sscd_dev_init;
-	return platform_device_register(&sscd_dev);
+	ret = platform_device_register(&sscd_dev);
+	if (ret)
+		platform_device_put(&sscd_dev);
+	return ret;
 }
 
 /**
