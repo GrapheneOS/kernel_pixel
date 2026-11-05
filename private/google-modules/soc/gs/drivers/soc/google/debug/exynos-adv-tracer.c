@@ -42,7 +42,7 @@ static void adv_tracer_ipc_sscd_release(struct device *dev)
 static struct sscd_platform_data sscd_pdata;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
+
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -248,6 +248,8 @@ int adv_tracer_ipc_send_data_async(unsigned int id,
 }
 EXPORT_SYMBOL(adv_tracer_ipc_send_data_async);
 
+struct adv_tracer_ipc_cmd *adv_tracer_ipc_get_channel_cmd(unsigned int id);
+
 struct adv_tracer_ipc_cmd *adv_tracer_ipc_get_channel_cmd(unsigned int id)
 {
 	struct adv_tracer_ipc_ch *channel = NULL;
@@ -268,6 +270,8 @@ out:
 	return cmd;
 }
 EXPORT_SYMBOL(adv_tracer_ipc_get_channel_cmd);
+
+struct adv_tracer_ipc_ch *eat_ipc_get_channel(unsigned int id);
 
 struct adv_tracer_ipc_ch *eat_ipc_get_channel(unsigned int id)
 {
@@ -574,7 +578,14 @@ static int adv_tracer_ipc_init(struct platform_device *pdev)
 		eat_ipc->intr_bitoffset = INTR_FLAG_OFFSET;
 
 #ifdef ADV_TRACER_SSCOREDUMP
-	platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
+	if (ret) {
+		platform_device_put(&sscd_dev);
+		return ret;
+	}
 #endif
 
 	dev_info(&pdev->dev, "%s successful.\n", __func__);

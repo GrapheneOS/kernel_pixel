@@ -6,6 +6,7 @@
  */
 #define pr_fmt(fmt) "gs_governor_memlat: " fmt
 
+#include <linux/platform_device.h>
 #include <dt-bindings/soc/google/zuma-devfreq.h>
 #include <governor.h>
 #include <linux/device.h>
@@ -385,7 +386,7 @@ err_out:
 	return ret;
 }
 
-static int gs_governor_memlat_driver_remove(struct platform_device *pdev)
+static void gs_governor_memlat_driver_remove(struct platform_device *pdev)
 {
 	/* Stop governor servicing. */
 	gov_stop();
@@ -396,7 +397,6 @@ static int gs_governor_memlat_driver_remove(struct platform_device *pdev)
 	/* Remove pm_qos vote here. */
 	gs_memlat_governor_remove_all_votes();
 
-	return 0;
 }
 
 static const struct of_device_id gs_governor_memlat_root_match[] = {

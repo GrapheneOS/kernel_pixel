@@ -7,6 +7,7 @@
  * Author: bsschwar@google.com
  */
 
+#include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -582,7 +583,9 @@ static struct attribute *power_stats_attrs[] = {
 	&dev_attr_fail_stats.attr,    NULL,
 };
 
-ATTRIBUTE_GROUPS(power_stats);
+static const struct attribute_group power_stats_group = {
+	.attrs = power_stats_attrs,
+};
 
 static int power_stats_probe(struct platform_device *pdev)
 {
@@ -635,18 +638,17 @@ static int power_stats_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ps_dev);
 
-	ret = devm_device_add_groups(&pdev->dev, power_stats_groups);
+	ret = devm_device_add_group(&pdev->dev, &power_stats_group);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to add device groups\n");
 
 	return 0;
 }
 
-static int power_stats_remove(struct platform_device *pdev)
+static void power_stats_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
 
-	return 0;
 }
 
 static const struct of_device_id power_stats_match[] = {
