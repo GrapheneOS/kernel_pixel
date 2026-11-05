@@ -10,6 +10,8 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include "kvm_s2mpu.h"
+#include "s2mpu-module.h"
+#include <linux/nospec.h>
 
 #include <linux/arm-smccc.h>
 
@@ -38,8 +40,6 @@
 	(CONTEXT_CFG_VALID_VID_CTX_VID(ctxid, vid) \
 	 | (((ctxid) < (nr_ctx)) ? CONTEXT_CFG_VALID_VID_CTX_VALID(ctxid) : 0))
 
-#define for_each_child(child, dev) \
-	list_for_each_entry((child), &(dev)->children, siblings)
 
 /* kvm_s2mpu.h makes all preprocessor checks about the version correctness. */
 #ifdef S2MPU_V9
@@ -57,6 +57,21 @@ struct s2mpu_drv_data {
 	u32 context_cfg_valid_vid;
 };
 
+struct pkvm_iommu {
+	void *va;
+	void *sync_va[S2MPU_MAX_SYNCS];
+	u32 nr_syncs;
+	u8 flags;
+	bool active;
+	struct s2mpu_drv_data data;
+};
+
+struct s2mpu_config s2mpu_config;
+static struct pkvm_iommu s2mpus[S2MPU_MAX_DEVS];
+static DEFINE_HYP_SPINLOCK(s2mpu_lock);
+static bool s2mpu_ready;
+static bool s2mpu_initialized;
+
 static const struct s2mpu_mpt_ops *mpt_ops;
 static const struct pkvm_module_ops *mod_ops;
 
@@ -65,16 +80,6 @@ static const struct pkvm_module_ops *mod_ops;
 
 #define __pkvm_hyp_donate_host(x, y)	CALL_FROM_OPS(hyp_donate_host, x, y)
 #define __pkvm_host_donate_hyp(x, y)	CALL_FROM_OPS(host_donate_hyp, x, y)
-
-#ifdef kern_hyp_va
-#undef kern_hyp_va
-#endif
-#define kern_hyp_va(x)			((u32 *)CALL_FROM_OPS(kern_hyp_va, (unsigned long)x))
-
-#ifdef __hyp_pa
-#undef __hyp_pa
-#endif
-#define __hyp_pa(x)			CALL_FROM_OPS(hyp_pa, x)
 
 void *memset(void *dst, int c, size_t count)
 {
@@ -88,25 +93,23 @@ void *memcpy(void *dst, const void *src, size_t count)
 
 static struct mpt host_mpt;
 
-const struct pkvm_iommu_ops pkvm_s2mpu_ops;
-const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops;
 
-static inline enum mpt_prot prot_to_mpt(enum kvm_pgtable_prot prot)
+static inline enum mpt_prot prot_to_mpt(int prot)
 {
-	return ((prot & KVM_PGTABLE_PROT_R) ? MPT_PROT_R : 0) |
-	       ((prot & KVM_PGTABLE_PROT_W) ? MPT_PROT_W : 0);
+	return ((prot & IOMMU_READ) ? MPT_PROT_R : 0) |
+	       ((prot & IOMMU_WRITE) ? MPT_PROT_W : 0);
 }
 
 static bool is_version(struct pkvm_iommu *dev, u32 version)
 {
-	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
+	struct s2mpu_drv_data *data = &dev->data;
 
 	return (data->version & VERSION_CHECK_MASK) == version;
 }
 
 static u32 __context_cfg_valid_vid(struct pkvm_iommu *dev, u32 vid_bmap)
 {
-	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
+	struct s2mpu_drv_data *data = &dev->data;
 	u8 ctx_vid[NR_CTX_IDS] = { 0 };
 	unsigned int vid, ctx = 0;
 	unsigned int num_ctx;
@@ -163,7 +166,7 @@ static int __maybe_unused __initialize_ctx(struct pkvm_iommu *dev)
 
 static int __maybe_unused __initialize(struct pkvm_iommu *dev)
 {
-	struct s2mpu_drv_data *data = (struct s2mpu_drv_data *)dev->data;
+	struct s2mpu_drv_data *data = &dev->data;
 
 	if (!data->version)
 		data->version = readl_relaxed(dev->va + REG_NS_VERSION);
@@ -289,26 +292,26 @@ static void __invalidation_barrier_slow(void *dev_va)
 /* Initiate invalidation barrier. */
 static void __invalidation_barrier_init(struct pkvm_iommu *dev)
 {
-	struct pkvm_iommu *sync;
+	unsigned int i;
 
 	if (dev->flags & S2MPU_HAS_SYNC) {
 		__sync_cmd_start(dev->va + REG_NS_V9_SYNC_DEV_OFFSET);
 	} else {
-		for_each_child(sync, dev)
-			__sync_cmd_start(sync->va);
+		for (i = 0; i < dev->nr_syncs; i++)
+			__sync_cmd_start(dev->sync_va[i]);
 	}
 }
 
 /* Wait for invalidation to complete. */
 static void __invalidation_barrier_complete(struct pkvm_iommu *dev)
 {
-	struct pkvm_iommu *sync;
+	unsigned int i;
 
 	if (dev->flags & S2MPU_HAS_SYNC) {
 		__invalidation_barrier_slow(dev->va + REG_NS_V9_SYNC_DEV_OFFSET);
 	} else {
-		for_each_child(sync, dev)
-			__invalidation_barrier_slow(sync->va);
+		for (i = 0; i < dev->nr_syncs; i++)
+			__invalidation_barrier_slow(dev->sync_va[i]);
 	}
 
 	/* Must not access SFRs while S2MPU is busy invalidating */
@@ -418,33 +421,11 @@ static void __mpt_idmap_complete(struct pkvm_iommu *dev, struct mpt *mpt)
 	__invalidation_barrier_complete(dev);
 }
 
-static void s2mpu_host_stage2_idmap_prepare(phys_addr_t start, phys_addr_t end,
-					    enum kvm_pgtable_prot prot)
-{
-	if (!to_valid_range(&start, &end))
-		return;
-	__mpt_idmap_prepare(&host_mpt, start, end - 1, prot_to_mpt(prot));
-}
 
-static void s2mpu_host_stage2_idmap_apply(struct pkvm_iommu *dev,
-					  phys_addr_t start, phys_addr_t end)
-{
-	if (!to_valid_range(&start, &end))
-		return;
 
-	if (dev->flags & S2MPU_DENY_ALL)
-		return;
 
-	__mpt_idmap_apply(dev, &host_mpt, start, end - 1);
-}
 
-static void s2mpu_host_stage2_idmap_complete(struct pkvm_iommu *dev)
-{
-	if (dev->flags & S2MPU_DENY_ALL)
-		return;
 
-	__mpt_idmap_complete(dev, &host_mpt);
-}
 
 static int s2mpu_resume(struct pkvm_iommu *dev)
 {
@@ -524,7 +505,7 @@ static u32 host_mmio_reg_access_mask(size_t off, bool is_write)
 }
 
 static bool s2mpu_host_dabt_handler(struct pkvm_iommu *dev,
-				    struct kvm_cpu_context *host_ctxt,
+				    struct user_pt_regs *regs,
 				    u32 esr, size_t off)
 {
 	bool is_write = esr & ESR_ELx_WNR;
@@ -541,145 +522,158 @@ static bool s2mpu_host_dabt_handler(struct pkvm_iommu *dev,
 		return false;
 
 	if (is_write)
-		writel_relaxed(cpu_reg(host_ctxt, rd) & mask, dev->va + off);
-	else
-		cpu_reg(host_ctxt, rd) = readl_relaxed(dev->va + off);
+		writel_relaxed((rd == 31 ? 0 : regs->regs[rd]) & mask, dev->va + off);
+	else {
+		u32 value = readl_relaxed(dev->va + off);
+
+		if (rd != 31)
+			regs->regs[rd] = value;
+	}
 	return true;
 }
 
-static int s2mpu_init(void *data, size_t size)
+static int s2mpu_host_stage2_idmap(phys_addr_t start, phys_addr_t end, int prot)
 {
-	struct mpt in_mpt;
-	u32 *smpt;
-	phys_addr_t pa;
-	unsigned int gb;
-	int ret = 0;
-	int smpt_nr_pages, smpt_size;
+	unsigned int i;
 
-	if (size != sizeof(in_mpt))
+	if (!to_valid_range(&start, &end))
+		return 0;
+	hyp_spin_lock(&s2mpu_lock);
+	__mpt_idmap_prepare(&host_mpt, start, end - 1, prot_to_mpt(prot));
+	for (i = 0; i < s2mpu_config.nr_devs; i++) {
+		struct pkvm_iommu *dev = &s2mpus[i];
+
+		if (dev->active && !(dev->flags & S2MPU_DENY_ALL))
+			__mpt_idmap_apply(dev, &host_mpt, start, end - 1);
+	}
+	/* Complete every invalidation before the host can reuse the memory. */
+	for (i = 0; i < s2mpu_config.nr_devs; i++) {
+		struct pkvm_iommu *dev = &s2mpus[i];
+
+		if (dev->active && !(dev->flags & S2MPU_DENY_ALL))
+			__mpt_idmap_complete(dev, &host_mpt);
+	}
+	hyp_spin_unlock(&s2mpu_lock);
+	return 0;
+}
+
+static bool s2mpu_dabt_handler(struct user_pt_regs *regs, u64 esr, u64 addr)
+{
+	unsigned int i;
+	bool handled = false;
+
+	hyp_spin_lock(&s2mpu_lock);
+	for (i = 0; i < s2mpu_config.nr_devs; i++) {
+		struct pkvm_iommu *dev = &s2mpus[i];
+		phys_addr_t pa = s2mpu_config.devs[i].pa;
+
+		if (addr >= pa && addr - pa < S2MPU_MMIO_SIZE) {
+			handled = s2mpu_host_dabt_handler(dev, regs, esr, addr - pa);
+			break;
+		}
+	}
+	hyp_spin_unlock(&s2mpu_lock);
+	return handled;
+}
+
+/* Transfer MMIO ownership and map it with device attributes at EL2. */
+static int s2mpu_take_mmio(phys_addr_t pa, size_t size, void **va)
+{
+	int ret;
+
+	if (!IS_ALIGNED(pa, PAGE_SIZE) || pa + size < pa)
 		return -EINVAL;
+	ret = mod_ops->host_donate_hyp_prot(pa >> PAGE_SHIFT, size >> PAGE_SHIFT,
+					 true, PAGE_HYP_DEVICE);
+	if (!ret)
+		*va = hyp_phys_to_virt(pa);
+	return ret;
+}
 
-	/* The host can concurrently modify 'data'. Copy it to avoid TOCTOU. */
-	memcpy(&in_mpt, data, sizeof(in_mpt));
+static int s2mpu_init(pkvm_handle_t drv_id)
+{
+	unsigned int gb, i, j;
+	int ret;
 
-	/* Get page table operations for this version. */
+	if (!s2mpu_config.nr_devs || s2mpu_config.nr_devs > S2MPU_MAX_DEVS)
+		return -EINVAL;
 	mpt_ops = s2mpu_get_mpt_ops(mod_ops);
 	if (!mpt_ops)
 		return -EINVAL;
 
-	smpt_size = mpt_ops->smpt_size();
-	smpt_nr_pages = smpt_size / PAGE_SIZE;
-
-	/* Take ownership of all SMPT buffers. This will also map them in. */
 	for_each_gb(gb) {
-		smpt = kern_hyp_va(in_mpt.fmpt[gb].smpt);
-		pa = __hyp_pa(smpt);
+		phys_addr_t pa = s2mpu_config.smpt_pa[gb];
+		size_t size = mpt_ops->smpt_size();
 
-		if (!IS_ALIGNED(pa, smpt_size)) {
-			ret = -EINVAL;
-			break;
-		}
-
-		ret = __pkvm_host_donate_hyp(pa >> PAGE_SHIFT, smpt_nr_pages);
+		if (!pa || !IS_ALIGNED(pa, size))
+			return -EINVAL;
+		ret = mod_ops->host_donate_hyp(pa >> PAGE_SHIFT, size >> PAGE_SHIFT);
 		if (ret)
-			break;
-
-		host_mpt.fmpt[gb] = (struct fmpt){
-			.smpt = smpt,
-			.gran_1g = true,
-			.prot = MPT_PROT_RW,
-		};
+			return ret;
+		host_mpt.fmpt[gb].smpt = hyp_phys_to_virt(pa);
+		host_mpt.fmpt[gb].gran_1g = true;
+		/* The core snapshot only grants ranges accessible to the host. */
+		host_mpt.fmpt[gb].prot = MPT_PROT_NONE;
 	}
+	for (i = 0; i < s2mpu_config.nr_devs; i++) {
+		struct s2mpu_dev_config *config = &s2mpu_config.devs[i];
+		struct pkvm_iommu *dev = &s2mpus[i];
 
-	/* Try to return memory back if there was an error. */
-	if (ret) {
-		for_each_gb(gb) {
-			smpt = host_mpt.fmpt[gb].smpt;
-			if (!smpt)
-				break;
-
-			WARN_ON(__pkvm_hyp_donate_host(__hyp_pa(smpt) >> PAGE_SHIFT,
-						       smpt_nr_pages));
+		if (config->nr_syncs > S2MPU_MAX_SYNCS)
+			return -EINVAL;
+		dev->flags = config->flags;
+		dev->nr_syncs = config->nr_syncs;
+		ret = s2mpu_take_mmio(config->pa, S2MPU_MMIO_SIZE, &dev->va);
+		if (ret)
+			return ret;
+		for (j = 0; j < dev->nr_syncs; j++) {
+			ret = s2mpu_take_mmio(config->sync_pa[j], SYSMMU_SYNC_S2_MMIO_SIZE,
+					     &dev->sync_va[j]);
+			if (ret)
+				return ret;
 		}
-		memset(&host_mpt, 0, sizeof(host_mpt));
 	}
-
-	return ret;
-}
-
-static int s2mpu_validate(struct pkvm_iommu *dev)
-{
-	if (dev->size != S2MPU_MMIO_SIZE)
-		return -EINVAL;
-
+	s2mpu_initialized = true;
 	return 0;
 }
 
-static int s2mpu_validate_child(struct pkvm_iommu *dev, struct pkvm_iommu *child)
-{
-	if (child->ops != &pkvm_sysmmu_sync_ops)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int sysmmu_sync_validate(struct pkvm_iommu *dev)
-{
-	if (dev->size != SYSMMU_SYNC_S2_MMIO_SIZE)
-		return -EINVAL;
-
-	if (!dev->parent || dev->parent->ops != &pkvm_s2mpu_ops)
-		return -EINVAL;
-
-	return 0;
-}
-
-const struct pkvm_iommu_ops pkvm_s2mpu_ops = (struct pkvm_iommu_ops){
+struct kvm_iommu_ops s2mpu_ops = {
 	.init = s2mpu_init,
-	.validate = s2mpu_validate,
-	.validate_child = s2mpu_validate_child,
-	.resume = s2mpu_resume,
-	.suspend = s2mpu_suspend,
-	.host_stage2_idmap_prepare = s2mpu_host_stage2_idmap_prepare,
-	.host_stage2_idmap_apply = s2mpu_host_stage2_idmap_apply,
-	.host_stage2_idmap_complete = s2mpu_host_stage2_idmap_complete,
-	.host_dabt_handler = s2mpu_host_dabt_handler,
-	.data_size = sizeof(struct s2mpu_drv_data),
+	.host_stage2_idmap = s2mpu_host_stage2_idmap,
+	.dabt_handler = s2mpu_dabt_handler,
 };
 
-const struct pkvm_iommu_ops pkvm_sysmmu_sync_ops = (struct pkvm_iommu_ops){
-	.validate = sysmmu_sync_validate,
-};
-struct pkvm_iommu_driver pkvm_s2mpu_driver = (struct pkvm_iommu_driver){
-	.ops = &pkvm_s2mpu_ops,
-};
-struct pkvm_iommu_driver pkvm_sysmmu_sync_driver = (struct pkvm_iommu_driver){
-	.ops = &pkvm_sysmmu_sync_ops,
-};
-
-/* Validate that module ops used within this driver are not null. */
-static bool validate_mod_ops(const struct pkvm_module_ops *ops)
+void s2mpu_hyp_power(struct user_pt_regs *regs);
+void s2mpu_hyp_power(struct user_pt_regs *regs)
 {
-	if (!ops ||
-	    !ops->flush_dcache_to_poc ||
-	    !ops->hyp_donate_host ||
-	    !ops->host_donate_hyp ||
-	    !ops->kern_hyp_va ||
-	    !ops->hyp_pa ||
-	    !ops->memset ||
-	    !ops->memcpy)
-		return false;
+	u64 id = regs->regs[1], on = regs->regs[2];
+	int ret = -EINVAL;
 
-	return true;
+	hyp_spin_lock(&s2mpu_lock);
+	if (!s2mpu_ready) {
+		/* The host applies pending power states after the stage-2 snapshot. */
+		if (on == 2 && s2mpu_initialized) {
+			s2mpu_ready = true;
+			ret = 0;
+		}
+	} else if (id < s2mpu_config.nr_devs && on <= 1) {
+		struct pkvm_iommu *dev = &s2mpus[array_index_nospec(id, s2mpu_config.nr_devs)];
+
+		ret = on ? s2mpu_resume(dev) : s2mpu_suspend(dev);
+		if (!ret)
+			dev->active = on;
+	}
+	hyp_spin_unlock(&s2mpu_lock);
+	regs->regs[0] = SMCCC_RET_SUCCESS;
+	regs->regs[1] = ret;
 }
 
-/* Called when EL1 loads the module. */
+int s2mpu_hyp_init(const struct pkvm_module_ops *ops);
 int s2mpu_hyp_init(const struct pkvm_module_ops *ops)
 {
-	mod_ops = ops;
-	if (!validate_mod_ops(mod_ops))
+	if (!ops || !ops->host_donate_hyp || !ops->host_donate_hyp_prot ||
+	    !ops->memset || !ops->memcpy || !ops->flush_dcache_to_poc)
 		return -EINVAL;
-
+	mod_ops = ops;
 	return 0;
 }
-
