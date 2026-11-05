@@ -144,7 +144,7 @@ static void all_signaler_submitted(struct iif_fence *fence,
 	 */
 	if (!waiter->pending_fences && list_empty(&waiter->cb_list) &&
 	    !fence->all_signaler_submitted_error)
-		eventfd_signal(waiter->ctx, 1);
+		eventfd_signal(waiter->ctx);
 
 	spin_unlock_irqrestore(&waiter->lock, flags);
 

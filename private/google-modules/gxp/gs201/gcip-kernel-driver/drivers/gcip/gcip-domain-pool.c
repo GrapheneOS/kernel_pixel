@@ -6,6 +6,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
 #include <linux/vmalloc.h>
@@ -39,12 +40,12 @@ int gcip_domain_pool_init(struct device *dev, struct gcip_domain_pool *pool, uns
 		return -ENOMEM;
 	}
 	for (i = 0; i < size; i++) {
-		domain = iommu_domain_alloc(dev->bus);
-		if (!domain) {
+		domain = iommu_paging_domain_alloc(dev);
+		if (IS_ERR(domain)) {
 			dev_err(pool->dev, "Failed to allocate iommu domain %d of %u\n", i + 1,
 				size);
 			gcip_domain_pool_destroy(pool);
-			return -ENOMEM;
+			return PTR_ERR(domain);
 		}
 
 		pool->array[i] = domain;
@@ -62,8 +63,8 @@ struct iommu_domain *gcip_domain_pool_alloc(struct gcip_domain_pool *pool)
 		if (!ddomain)
 			return NULL;
 
-		ddomain->domain = iommu_domain_alloc(pool->dev->bus);
-		if (!ddomain->domain) {
+		ddomain->domain = iommu_paging_domain_alloc(pool->dev);
+		if (IS_ERR(ddomain->domain)) {
 			vfree(ddomain);
 			return NULL;
 		}
