@@ -143,10 +143,10 @@ static int lwis_i2c_register_io(struct lwis_device *lwis_dev, struct lwis_io_ent
 	return lwis_i2c_io_entry_rw(i2c_dev, entry);
 }
 
-static int i2c_addr_matcher(struct device *dev, void *data)
+static int i2c_addr_matcher(struct device *dev, const void *data)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
-	int address = *(int *)data;
+	int address = *(const int *)data;
 
 	/* Return 0 if error, or address doesn't match */
 	if (IS_ERR_OR_NULL(client) || (client->addr != address))
