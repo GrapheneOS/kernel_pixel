@@ -35,6 +35,9 @@
 		orientation-switch;
 
 		usb_con: connector {
+			sink-wait-cap-time-ms = <450>;
+			ps-source-off-time-ms = <870>;
+			cc-debounce-time-ms = <170>;
 			compatible = "usb-c-connector";
 			label = "USB-C";
 			data-role = "dual";
@@ -117,6 +120,9 @@
 		orientation-switch;
 
 		conn: connector {
+			sink-wait-cap-time-ms = <450>;
+			ps-source-off-time-ms = <870>;
+			cc-debounce-time-ms = <170>;
 			compatible = "usb-c-connector";
 			label = "USB-C";
 			data-role = "dual";

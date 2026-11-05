@@ -80,8 +80,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wc_pdet_irq &wc_irq &wc_en>;
 
-		idt,gpio_wlc_en = <&gph1 4 GPIO_ACTIVE_LOW>;
-		idt,gpio_qi_vbus_en = <&s2mpg14_gpio 5 GPIO_ACTIVE_HIGH>;
+		idt,wlc_en-gpios = <&gph1 4 GPIO_ACTIVE_LOW>;
+		idt,qi_vbus_en-gpios = <&s2mpg14_gpio 5 GPIO_ACTIVE_HIGH>;
 		idt,gpio_qien = <&gph1 4 GPIO_ACTIVE_LOW>;
 		idt,irq_gpio = <&gpa8 1 GPIO_ACTIVE_LOW>;
 		idt,irq_det_gpio = <&gpa8 2 GPIO_ACTIVE_LOW>;
