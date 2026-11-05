@@ -206,8 +206,11 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 		dev_warn(etdev->dev, "device has no iommu group\n");
 
 	ret = check_default_domain(etdev, etiommu);
-	if (ret)
+	if (ret) {
+		if (etiommu->iommu_group)
+			iommu_group_put(etiommu->iommu_group);
 		goto err_destroy_pool;
+	}
 
 	ret = iommu_register_device_fault_handler(etdev->dev, edgetpu_iommu_dev_fault_handler,
 						  etdev);
