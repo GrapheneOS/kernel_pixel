@@ -780,7 +780,7 @@ void mfc_core_otf_path_test(struct mfc_ctx *ctx)
 		mfc_ctx_err("[OTF] OTF path test is failed (err: -%d)\n", ret);
 }
 
-int __mfc_hwfc_check_run(struct mfc_core_ctx *core_ctx)
+static __maybe_unused int __mfc_hwfc_check_run(struct mfc_core_ctx *core_ctx)
 {
 	struct mfc_ctx *ctx = core_ctx->ctx;
 	struct _otf_handle *handle = ctx->otf_handle;
