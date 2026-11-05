@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("//build/kernel/kleaf:kernel.bzl", "ddk_uapi_headers", "kernel_module")
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_uapi_headers", "kernel_module")
 
 filegroup(
     name = "headers",
