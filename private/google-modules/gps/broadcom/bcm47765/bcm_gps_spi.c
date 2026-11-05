@@ -8,6 +8,7 @@
 /* TODO: Use dev_*() calls instead */
 #define pr_fmt(fmt) "GPSREGS: " fmt
 
+#include <linux/pinctrl/consumer.h>
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
@@ -540,7 +541,7 @@ static const struct file_operations bcm_spi_fops = {
 
 /* Misc. functions */
 
-unsigned long bcm_clock_get_ms(void)
+static unsigned long bcm_clock_get_ms(void)
 {
 	struct timespec64 t;
 	unsigned long now;
@@ -554,7 +555,7 @@ unsigned long bcm_clock_get_ms(void)
 	return now - init_time;
 }
 
-void wait1secDelay(unsigned int count)
+static void wait1secDelay(unsigned int count)
 {
 	if (count <= 100)
 		usleep_range(1000, 2000);
@@ -1480,7 +1481,6 @@ static int bcm_spi_probe(struct spi_device *spi)
 	/* Register ssrdump platform */
 	priv->sscd_dev = (struct platform_device){
 		.name            = DEVICE_NAME,
-		.driver_override = SSCD_NAME,
 		.id              = -1,
 		.dev             = {
 			.platform_data = &priv->sscd_pdata,
@@ -1488,7 +1488,15 @@ static int bcm_spi_probe(struct spi_device *spi)
 			},
 	};
 
-	platform_device_register(&priv->sscd_dev);
+	device_initialize(&priv->sscd_dev.dev);
+	ret = device_set_driver_override(&priv->sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&priv->sscd_dev);
+	if (ret) {
+		platform_device_put(&priv->sscd_dev);
+		goto deregister_misc;
+	}
+	priv->sscd_registered = true;
 
 	if (device_create_file(&spi->dev, &dev_attr_coredump))
 		dev_err(&spi->dev, "Unable to create sysfs coredump entry");
@@ -1518,7 +1526,7 @@ static int bcm_spi_probe(struct spi_device *spi)
 	/* Init BBD & SSP */
 	priv->bbd = bbd_init(&spi->dev, legacy_patch);
 	if (priv->bbd == NULL)
-		goto free_wq;
+		goto deregister_misc;
 
 	if (device_create_file(&priv->spi->dev, &dev_attr_nstandby))
 		dev_err(&spi->dev, "Unable to create sysfs 4775 nstandby entry");
@@ -1532,7 +1540,7 @@ static int bcm_spi_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
 				spi->irq);
-		goto free_wq;
+		goto deregister_misc;
 	}
 
 	dev_info(&spi->dev, "Probe OK. ssp-host-req=%d, irq=%d, priv=0x%pK\n",
@@ -1540,7 +1548,13 @@ static int bcm_spi_probe(struct spi_device *spi)
 
 	return 0;
 
+deregister_misc:
+	misc_deregister(&priv->misc);
 free_wq:
+	if (priv->sscd_registered) {
+		device_remove_file(&spi->dev, &dev_attr_coredump);
+		platform_device_unregister(&priv->sscd_dev);
+	}
 	if (priv->serial_wq)
 		destroy_workqueue(priv->serial_wq);
 err_exit:
@@ -1552,6 +1566,8 @@ static void bcm_spi_remove(struct spi_device *spi)
 {
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
 	unsigned long flags;
+
+	misc_deregister(&priv->misc);
 
 	atomic_set(&priv->suspending, 1);
 
@@ -1573,12 +1589,14 @@ static void bcm_spi_remove(struct spi_device *spi)
 	/* Free everything */
 	bbd_exit(&spi->dev);
 
+	device_remove_file(&priv->spi->dev, &dev_attr_coredump);
+
 	/* Clean ssr dump driver */
 	platform_device_unregister(&priv->sscd_dev);
 
 	device_remove_file(&priv->spi->dev, &dev_attr_nstandby);
 	device_remove_file(&priv->spi->dev, &dev_attr_sspmcureq);
-	device_remove_file(&priv->spi->dev, &dev_attr_coredump);
+
 }
 
 static const struct spi_device_id bcm_spi_id[] = {
