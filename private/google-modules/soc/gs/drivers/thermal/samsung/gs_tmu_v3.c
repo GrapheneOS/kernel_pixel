@@ -34,6 +34,7 @@
 #endif
 
 #include <thermal_core.h>
+#include "../gs_thermal.h"
 #if IS_ENABLED(CONFIG_EXYNOS_ACPM_THERMAL)
 #include "exynos_acpm_tmu.h"
 #endif
@@ -494,7 +495,7 @@ static u64 get_bulk_trace_buffer_timestamp(struct gov_trace_data_struct *bulk_tr
 	return bulk_trace_buffer->buffered_curr_state[idx].timestamp;
 }
 
-int find_rotated_idx(struct gov_trace_data_struct *bulk_trace_buffer, int length)
+static int find_rotated_idx(struct gov_trace_data_struct *bulk_trace_buffer, int length)
 {
 	int left = 0;
 	int right = length - 1;
@@ -531,7 +532,7 @@ int find_rotated_idx(struct gov_trace_data_struct *bulk_trace_buffer, int length
 		       right;
 }
 
-int next_greater_rotated_idx(struct gov_trace_data_struct *bulk_trace_buffer, int array_len,
+static int next_greater_rotated_idx(struct gov_trace_data_struct *bulk_trace_buffer, int array_len,
 			     int rotated_idx, u64 value)
 {
 	int left = 0, right = array_len - 1;
@@ -818,7 +819,7 @@ void register_get_cpu_power_table_ect_offset(get_cpu_power_table_ect_offset_cb c
 }
 EXPORT_SYMBOL(register_get_cpu_power_table_ect_offset);
 
-void update_tj_power_table_ect_offset(struct gs_tmu_data *data)
+static void update_tj_power_table_ect_offset(struct gs_tmu_data *data)
 {
 	int ect_offset;
 
@@ -977,14 +978,14 @@ static int gs_tmu_initialize(struct platform_device *pdev)
 
 	mutex_lock(&data->lock);
 
-	for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
-		ret = tz->ops->get_trip_type(tz, i, &type);
+	for (i = (tz->num_trips - 1); i >= 0; i--) {
+		ret = gs_thermal_get_trip_type(tz, i, &type);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to get trip type(%d)\n", i);
 			goto out;
 		}
 
-		ret = tz->ops->get_trip_temp(tz, i, &temp);
+		ret = gs_thermal_get_trip_temp(tz, i, &temp);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to get trip temp(%d)\n", i);
 			goto out;
@@ -995,7 +996,7 @@ static int gs_tmu_initialize(struct platform_device *pdev)
 			continue;
 		inten |= (1 << i);
 
-		ret = tz->ops->get_trip_hyst(tz, i, &temp);
+		ret = gs_thermal_get_trip_hyst(tz, i, &temp);
 		if (ret) {
 			dev_err(&pdev->dev, "Failed to get trip hyst(%d)\n", i);
 			goto out;
@@ -1120,7 +1121,7 @@ static int gs_get_temp(struct thermal_zone_device *tz, int *temp)
 	return 0;
 }
 
-static int gs_get_trend(struct thermal_zone_device *tz, int trip,
+static int gs_get_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip,
 			enum thermal_trend *trend)
 {
 	struct gs_tmu_data *data = tz->devdata;
@@ -1129,7 +1130,7 @@ static int gs_get_trend(struct thermal_zone_device *tz, int trip,
 	if (!tz)
 		return ret;
 
-	ret = tz->ops->get_trip_temp(tz, trip, &trip_temp);
+	ret = (trip_temp = trip->temperature, 0);
 	if (ret < 0)
 		return ret;
 
@@ -1145,29 +1146,30 @@ static int gs_get_trend(struct thermal_zone_device *tz, int trip,
 	return 0;
 }
 
-static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz, int trip,
+static int gs_tmu_set_trip_temp(struct thermal_zone_device *tz, const struct thermal_trip *trip_point,
 				int temp)
 {
+	int trip = trip_to_trip_desc(trip_point) - tz->trips;
 	struct gs_tmu_data *data = tz->devdata;
 	enum thermal_trip_type type;
 	int i, trip_temp, ret = 0;
 	unsigned char threshold[8] = {0, };
 
-	ret = tz->ops->get_trip_type(tz, trip, &type);
+	ret = gs_thermal_get_trip_type(tz, trip, &type);
 	if (ret) {
 		pr_err("Failed to get trip type(%d)\n", trip);
 		return ret;
 	}
 
-	for (i = (of_thermal_get_ntrips(tz) - 1); i >= 0; i--) {
-		ret = tz->ops->get_trip_type(tz, i, &type);
+	for (i = (tz->num_trips - 1); i >= 0; i--) {
+		ret = gs_thermal_get_trip_type(tz, i, &type);
 		if (ret) {
 			pr_err("Failed to get trip type(%d)\n", i);
 			return ret;
 		}
 
 
-		ret = tz->ops->get_trip_temp(tz, i, &trip_temp);
+		ret = gs_thermal_get_trip_temp(tz, i, &trip_temp);
 		if (ret) {
 			pr_err("Failed to get trip temp(%d)\n", i);
 			return ret;
@@ -1246,7 +1248,7 @@ static void get_control_trips(struct gs_tmu_data *data)
 		enum thermal_trip_type type;
 		int ret;
 
-		ret = tz->ops->get_trip_type(tz, i, &type);
+		ret = gs_thermal_get_trip_type(tz, i, &type);
 		if (ret) {
 			dev_warn(&tz->device,
 				 "Failed to get trip point %d type: %d\n", i,
@@ -1295,8 +1297,8 @@ static void allow_maximum_power(struct gs_tmu_data *data)
 
 	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != control_temp ||
+	gs_thermal_for_each_instance(instance, tz) {
+		if (instance->trip != gs_thermal_trip(tz, control_temp) ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
 		if (data->hardlimit_enable && data->is_hardlimited)
@@ -1384,8 +1386,8 @@ static int gs_pi_controller(struct gs_tmu_data *data, int control_temp)
 	// TODO: refactor locking
 	mutex_unlock(&data->lock);
 	mutex_lock(&tz->lock);
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip == data->trip_control_temp &&
+	gs_thermal_for_each_instance(instance, tz) {
+		if (instance->trip == gs_thermal_trip(tz, data->trip_control_temp) &&
 		    cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
@@ -1451,7 +1453,7 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 
 	mutex_lock(&data->lock);
 
-	ret = tz->ops->get_trip_temp(tz, data->trip_switch_on,
+	ret = gs_thermal_get_trip_temp(tz, data->trip_switch_on,
 				     &switch_on_temp);
 	if (!ret && tz->temperature < switch_on_temp) {
 		reset_pi_params(data);
@@ -1462,7 +1464,7 @@ static void gs_pi_thermal(struct gs_tmu_data *data)
 
 	params->switched_on = true;
 
-	ret = tz->ops->get_trip_temp(tz, data->trip_control_temp,
+	ret = gs_thermal_get_trip_temp(tz, data->trip_control_temp,
 				     &control_temp);
 	if (ret) {
 		pr_warn("Failed to get the maximum desired temperature: %d\n",
@@ -1769,8 +1771,8 @@ static void gs_throttle_hard_limit(struct kthread_work *work)
 	unsigned long state, max_state, prev_max_state;
 
 	mutex_lock(&tz->lock);
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (!strncmp(data->tmu_name, instance->tz->type, THERMAL_NAME_LENGTH)) {
+	gs_thermal_for_each_instance(instance, tz) {
+		if (!strncmp(data->tmu_name, tz->type, THERMAL_NAME_LENGTH)) {
 			cdev = instance->cdev;
 			break;
 		}
@@ -2561,7 +2563,7 @@ static ssize_t offset_enabled_store(struct device *dev,
 		if (data->junction_offset[i] == 0)
 			continue;
 
-		ret = tz->ops->get_trip_temp(tz, i, &trip_temp);
+		ret = gs_thermal_get_trip_temp(tz, i, &trip_temp);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Failed to get trip_temp_%d on %s\n",
@@ -2576,11 +2578,8 @@ static ssize_t offset_enabled_store(struct device *dev,
 		}
 		dev_dbg(&pdev->dev, "trip_temp_%d change from %d to %d\n",
 			i, trip_temp, new_trip_temp);
-		ret = tz->ops->set_trip_temp(tz, i, new_trip_temp);
+		ret = gs_thermal_set_trip_temp(tz, i, new_trip_temp);
 
-		// 6.1 moved set_trip_temp to sysfs, this is to address b/315931658
-		if (tz->trips)
-			tz->trips[i].temperature = new_trip_temp;
 		if (ret) {
 			dev_err(&pdev->dev,
 				"Failed to set trip_temp_%d on %s\n",
@@ -3053,8 +3052,8 @@ static int param_update_acpm_pi_table_set(const char *val, const struct kernel_p
 			struct thermal_cooling_device *cdev;
 			bool found_actor = false;
 
-			list_for_each_entry (instance, &tz->thermal_instances, tz_node) {
-				if (instance->trip == data->trip_control_temp &&
+			gs_thermal_for_each_instance(instance, tz) {
+				if (instance->trip == gs_thermal_trip(tz, data->trip_control_temp) &&
 				    cdev_is_power_actor(instance->cdev)) {
 					found_actor = true;
 					cdev = instance->cdev;
@@ -3495,8 +3494,8 @@ acpm_pi_table_show(struct device *dev, struct device_attribute *devattr,
 	tz = data->tzd;
 	params = data->pi_param;
 
-	list_for_each_entry (instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip == data->trip_control_temp &&
+	gs_thermal_for_each_instance(instance, tz) {
+		if (instance->trip == gs_thermal_trip(tz, data->trip_control_temp) &&
 		    cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
@@ -3542,8 +3541,8 @@ acpm_pi_table_store(struct device *dev, struct device_attribute *devattr,
 	tz = data->tzd;
 	params = data->pi_param;
 
-	list_for_each_entry (instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip == data->trip_control_temp &&
+	gs_thermal_for_each_instance(instance, tz) {
+		if (instance->trip == gs_thermal_trip(tz, data->trip_control_temp) &&
 		    cdev_is_power_actor(instance->cdev)) {
 			found_actor = true;
 			cdev = instance->cdev;
@@ -5158,7 +5157,7 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 			return -EINVAL;
 		}
 
-		ntrips = of_thermal_get_ntrips(tz);
+		ntrips = tz->num_trips;
 		pr_info("Trip count parsed from ECT : %d, ntrips: %d, zone : %s",
 			function->num_of_range, ntrips, tz->type);
 
@@ -5166,7 +5165,7 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 			temperature = function->range_list[i].lower_bound_temperature;
 			freq = function->range_list[i].max_frequency;
 
-			tz->ops->set_trip_temp(tz, i, temperature  * MCELSIUS);
+			gs_thermal_set_trip_temp(tz, i, temperature  * MCELSIUS);
 
 			pr_info("Parsed From ECT : [%d] Temperature : %d, frequency : %u\n",
 				i, temperature, freq);
@@ -5222,14 +5221,14 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 			return -EINVAL;
 		}
 
-		ntrips = of_thermal_get_ntrips(tz);
+		ntrips = tz->num_trips;
 		pr_info("Trip count parsed from ECT : %d, ntrips: %d, zone : %s",
 			pidtm_block->num_of_temperature, ntrips, tz->type);
 
 		for (i = 0; i < pidtm_block->num_of_temperature; ++i) {
 			temperature = pidtm_block->temperature_list[i];
 
-			tz->ops->set_trip_temp(tz, i, temperature  * MCELSIUS);
+			gs_thermal_set_trip_temp(tz, i, temperature  * MCELSIUS);
 
 			pr_info("Parsed From ECT : [%d] Temperature : %d\n", i, temperature);
 		}
@@ -5306,7 +5305,7 @@ static int gs_tmu_parse_ect(struct gs_tmu_data *data)
 		if (value != -1) {
 			pr_info("Parse from ECT limited_threshold: %d\n", value);
 			limited_threshold = value * MCELSIUS;
-			tz->ops->set_trip_temp(tz, 3, temperature  * MCELSIUS);
+			gs_thermal_set_trip_temp(tz, 3, temperature  * MCELSIUS);
 			data->limited_threshold = value;
 		}
 
@@ -5698,9 +5697,8 @@ err_sensor:
 	return ret;
 }
 
-static int gs_tmu_remove(struct platform_device *pdev)
+static void gs_tmu_remove(struct platform_device *pdev)
 {
-	return -EBUSY;
 }
 
 #if IS_ENABLED(CONFIG_PM_SLEEP)
