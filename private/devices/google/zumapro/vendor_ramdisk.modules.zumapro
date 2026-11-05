@@ -67,7 +67,6 @@ extra/private/google-modules/soc/gs/drivers/soc/google/exynos-bcm_dbg-dump.ko
 extra/private/google-modules/soc/gs/drivers/soc/google/gnssif_spi/gnss_spi.ko
 extra/private/google-modules/soc/gs/drivers/soc/google/gnssif_spi/gnssif.ko
 extra/private/google-modules/soc/gs/drivers/soc/google/eh/eh.ko
-extra/private/google-modules/soc/gs/drivers/soc/google/gcma/gcma.ko
 extra/private/google-modules/soc/gs/drivers/soc/google/hardlockup-debug.ko
 extra/private/google-modules/soc/gs/drivers/soc/google/hardlockup-watchdog.ko
 extra/private/google-modules/soc/gs/drivers/soc/google/pixel_stat/pixel_stat_sysfs.ko
