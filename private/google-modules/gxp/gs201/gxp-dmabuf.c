@@ -89,4 +89,4 @@ err_dma_buf_put:
 	return ERR_PTR(ret);
 }
 
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
