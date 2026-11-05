@@ -321,7 +321,7 @@ static const struct file_operations debug_traces_fops = {
 	.release = debug_traces_release,
 	.read = debug_traces_read,
 	.poll = debug_traces_poll,
-	.llseek = no_llseek,
+	.llseek = NULL,
 };
 
 static const struct file_operations debug_coredump_fops = {

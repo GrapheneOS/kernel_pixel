@@ -204,6 +204,8 @@ static int qm357xx_rom_c0_poll_cmd_resp(struct qmrom_handle *handle)
 	return -EPERM;
 }
 
+int qm357xx_rom_c0_probe_device(struct qmrom_handle *handle);
+
 int qm357xx_rom_c0_probe_device(struct qmrom_handle *handle)
 {
 	int rc, i;

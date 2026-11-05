@@ -35,7 +35,7 @@
 #include "qm35.h"
 
 /* TODO Compile QM358XX code */
-int qm358xx_rom_probe_device(struct qmrom_handle *handle)
+static int __maybe_unused qm358xx_rom_probe_device(struct qmrom_handle *handle)
 {
 	return -1;
 }
