@@ -20,10 +20,6 @@
 static const struct pkvm_module_ops *mod_ops;
 
 #define CALL_FROM_OPS(fn, ...)		mod_ops->fn(__VA_ARGS__)
-#ifdef __hyp_pa
-#undef __hyp_pa
-#endif
-#define __hyp_pa(addr)			CALL_FROM_OPS(hyp_pa, addr)
 
 #ifdef kvm_flush_dcache_to_poc
 #undef kvm_flush_dcache_to_poc
