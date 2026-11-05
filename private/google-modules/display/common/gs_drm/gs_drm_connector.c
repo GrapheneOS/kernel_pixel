@@ -702,12 +702,11 @@ static int gs_drm_connector_probe(struct platform_device *pdev)
 	return 0;
 };
 
-static int gs_drm_connector_remove(struct platform_device *pdev)
+static void gs_drm_connector_remove(struct platform_device *pdev)
 {
 	struct gs_drm_connector *gs_connector = platform_get_drvdata(pdev);
 	(void)gs_connector; /*TODO(tknelms): use*/
 
-	return 0;
 };
 
 static const struct of_device_id gs_connector_of_match[] = {
