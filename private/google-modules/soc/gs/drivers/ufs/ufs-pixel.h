@@ -10,7 +10,8 @@
 #ifndef _UFS_PIXEL_H_
 #define _UFS_PIXEL_H_
 
-#include <asm/unaligned.h>
+#include <linux/limits.h>
+#include <linux/unaligned.h>
 #include <ufs/ufshcd.h>
 #include <scsi/scsi_cmnd.h>
 
@@ -327,11 +328,15 @@ struct pixel_ufs {
 
 	/* sysfs */
 	struct work_struct update_sysfs_work;
+	bool sysfs_groups_added;
+	bool sysfs_hook_registered;
 
 	/* manual_gc */
 	struct ufs_manual_gc manual_gc;
 
 	/* pixel ufs request statistics */
+	/* UPIU task tags are 8 bits, including the device-management tag. */
+	ktime_t issue_time[U8_MAX + 1];
 	struct pixel_req_stats req_stats[REQ_TYPE_MAX];
 	u64 peak_reqs[REQ_TYPE_MAX];
 	u64 peak_queue_depth;
@@ -368,6 +373,7 @@ struct pixel_ufs {
 };
 
 struct pixel_ufs *to_pixel_ufs(struct ufs_hba *hba);
+void pixel_ufs_remove_sysfs(struct pixel_ufs *ufs);
 
 void pixel_update_power_event(struct ufs_hba *hba,
 			      enum pixel_power_event_type event);
