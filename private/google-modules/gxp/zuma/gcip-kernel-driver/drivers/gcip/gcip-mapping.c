@@ -160,13 +160,8 @@ static int gcip_pin_user_pages(struct device *dev, struct page **pages, unsigned
 			       struct mutex *pin_user_pages_lock)
 {
 	int ret, i;
-	struct vm_area_struct **vmas = NULL;
 	int tried;
 
-	/* Allocate our own vmas array non-contiguous. */
-	vmas = kvmalloc((num_pages * sizeof(*vmas)), GFP_KERNEL | __GFP_NOWARN);
-	if (!vmas)
-		return -ENOMEM;
 	/*
 	 * pin_user_pages may fail due to temporary page reference counts held
 	 * in various areas. Retry under lru_cache_disable to release additional
@@ -179,7 +174,7 @@ static int gcip_pin_user_pages(struct device *dev, struct page **pages, unsigned
 			mutex_lock(pin_user_pages_lock);
 		mmap_read_lock(current->mm);
 
-		ret = pin_user_pages(start_addr, num_pages, gup_flags, pages, vmas);
+		ret = pin_user_pages(start_addr, num_pages, gup_flags, pages);
 
 		mmap_read_unlock(current->mm);
 		if (pin_user_pages_lock)
@@ -200,7 +195,6 @@ static int gcip_pin_user_pages(struct device *dev, struct page **pages, unsigned
 	}
 	if (tried > 0)
 		dev_info(dev, "mapping required %d retries with LRU cache disabled", tried);
-	kvfree(vmas);
 
 	return ret;
 }
