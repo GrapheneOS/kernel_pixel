@@ -24,7 +24,7 @@ KBUILD_OPTIONS += CONFIG_WLAN_PTRACKER=m
 KBUILD_OPTIONS += CONFIG_DYNAMIC_TWT_SETUP=y
 endif
 
-EXTRA_CFLAGS += -I$(KERNEL_SRC)/../google-modules/wlan/wlan_ptracker
+EXTRA_CFLAGS += -I$(ROOT_DIR)/private/google-modules/wlan/wlan_ptracker
 
 ccflags-y := $(EXTRA_CFLAGS)
 
