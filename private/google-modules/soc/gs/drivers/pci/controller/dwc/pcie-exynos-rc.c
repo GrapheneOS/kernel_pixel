@@ -8,6 +8,8 @@
  * Author: Hongseock Kim <hongpooh.kim@samsung.com>
  */
 
+#include <linux/irqchip/irq-msi-lib.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
@@ -420,6 +422,8 @@ static void exynos_pcie_phy_isolation(struct exynos_pcie *exynos_pcie, int val)
 				   PCIE_PHY_CONTROL_MASK, val);
 }
 
+void exynos_pcie_set_perst_gpio(int ch_num, bool on);
+
 void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -438,6 +442,8 @@ void exynos_pcie_set_perst_gpio(int ch_num, bool on)
 	}
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_set_perst_gpio);
+
+void exynos_pcie_set_ready_cto_recovery(int ch_num);
 
 void exynos_pcie_set_ready_cto_recovery(int ch_num)
 {
@@ -1520,6 +1526,8 @@ static int exynos_pcie_rc_phy_clock_enable(struct dw_pcie_rp *pp, int enable)
 	return ret;
 }
 
+void exynos_pcie_rc_print_link_history(struct dw_pcie_rp *pp);
+
 void exynos_pcie_rc_print_link_history(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -1541,6 +1549,8 @@ void exynos_pcie_rc_print_link_history(struct dw_pcie_rp *pp)
 
 // In some cases we will prevent config space access during wifi recovery,
 // this flag will be reset when wifi driver call exynos_pcie_pm_resume()
+void exynos_pcie_set_skip_config(int ch_num, bool val);
+
 void exynos_pcie_set_skip_config(int ch_num, bool val)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -1694,6 +1704,8 @@ static void exynos_pcie_rc_prog_viewport_mem_outbound(struct dw_pcie_rp *pp)
 	exynos_pcie_rc_wr_own_conf(pp, PCIE_ATU_CR2_OUTBOUND1, 4, EXYNOS_PCIE_ATU_ENABLE);
 }
 
+int exynos_pcie_rc_set_bar(int ch_num, u32 bar_num);
+
 int exynos_pcie_rc_set_bar(int ch_num, u32 bar_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -1786,7 +1798,7 @@ int exynos_pcie_rc_set_outbound_atu(int ch_num, u32 target_addr, u32 offset, u32
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_outbound_atu);
 
-static int exynos_pcie_rc_link_up(struct dw_pcie *pci)
+static bool exynos_pcie_rc_link_up(struct dw_pcie *pci)
 {
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
 	u32 val;
@@ -2175,8 +2187,8 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	 * from the end point device tree.
 	 * The PCIe RC on detecting this write will generate an interrupt that is
 	 * routed to exynos_pcie_rc_irq_handler().
-	 * If it's an MSI interrupt, it will be sent to the core pcie driver
-	 * dw_handle_msi_irq().
+	 * If it's an MSI interrupt, it will be sent to
+	 * exynos_pcie_handle_msi_irq().
 	 * This in turn will route it to the appropriate handler registered by the
 	 * EP driver.
 	 */
@@ -2364,7 +2376,7 @@ static int exynos_pcie_rc_get_pin_state(struct platform_device *pdev,
 	struct device_node *np = dev->of_node;
 	int ret;
 
-	exynos_pcie->perst_gpio = of_get_gpio(np, 0);
+	exynos_pcie->perst_gpio = of_get_named_gpio(np, "gpios", 0);
 	if (exynos_pcie->perst_gpio < 0) {
 		dev_err(&pdev->dev, "cannot get perst_gpio\n");
 	} else {
@@ -2591,6 +2603,8 @@ static void __maybe_unused exynos_pcie_notify_callback(struct dw_pcie_rp *pp, in
 	}
 }
 
+bool exynos_pcie_is_sysmmu_enabled(int ch_num);
+
 bool exynos_pcie_is_sysmmu_enabled(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie  = &g_pcie_rc[ch_num];
@@ -2598,6 +2612,8 @@ bool exynos_pcie_is_sysmmu_enabled(int ch_num)
 	return exynos_pcie->use_sysmmu;
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_is_sysmmu_enabled);
+
+void exynos_pcie_rc_print_aer_register(int ch_num);
 
 void exynos_pcie_rc_print_aer_register(int ch_num)
 {
@@ -2624,6 +2640,8 @@ void exynos_pcie_rc_print_aer_register(int ch_num)
 	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_print_aer_register);
+
+void exynos_pcie_rc_print_msi_register(int ch_num);
 
 void exynos_pcie_rc_print_msi_register(int ch_num)
 {
@@ -2667,6 +2685,8 @@ void exynos_pcie_rc_print_msi_register(int ch_num)
 	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_print_msi_register);
+
+void exynos_pcie_rc_register_dump(int ch_num);
 
 void exynos_pcie_rc_register_dump(int ch_num)
 {
@@ -2852,6 +2872,8 @@ void exynos_pcie_rc_register_dump(int ch_num)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_register_dump);
 
+void exynos_pcie_rc_dump_link_down_status(int ch_num);
+
 void exynos_pcie_rc_dump_link_down_status(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -2873,6 +2895,8 @@ void exynos_pcie_rc_dump_link_down_status(int ch_num)
 	/* } */
 }
 
+void exynos_pcie_rc_dump_all_status(int ch_num);
+
 void exynos_pcie_rc_dump_all_status(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -2887,6 +2911,8 @@ void exynos_pcie_rc_dump_all_status(int ch_num)
 	spin_unlock_irqrestore(&exynos_pcie->conf_lock, flags);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_dump_all_status);
+
+void exynos_pcie_rc_dislink_work(struct work_struct *work);
 
 void exynos_pcie_rc_dislink_work(struct work_struct *work)
 {
@@ -2920,6 +2946,8 @@ void exynos_pcie_rc_dislink_work(struct work_struct *work)
 	exynos_pcie_notify_callback(pp, EXYNOS_PCIE_EVENT_LINKDOWN);
 }
 
+void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work);
+
 void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work)
 {
 	struct exynos_pcie *exynos_pcie =
@@ -2944,7 +2972,7 @@ void exynos_pcie_rc_cpl_timeout_work(struct work_struct *work)
 	exynos_pcie_notify_callback(pp, EXYNOS_PCIE_EVENT_CPL_TIMEOUT);
 }
 
-void exynos_pcie_rc_link_recovery_fail_work(struct work_struct *work)
+static void exynos_pcie_rc_link_recovery_fail_work(struct work_struct *work)
 {
 	struct exynos_pcie *exynos_pcie =
 		container_of(work, struct exynos_pcie, link_recovery_fail_work.work);
@@ -3082,6 +3110,8 @@ static void exynos_pcie_rc_use_ia(struct exynos_pcie *exynos_pcie)
 	exynos_ia_write(exynos_pcie, 0x00000001, 0x000);
 }
 
+void exynos_pcie_rc_assert_phy_reset(struct dw_pcie_rp *pp);
+
 void exynos_pcie_rc_assert_phy_reset(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -3143,6 +3173,8 @@ static void exynos_pcie_ch2_phy_disable(struct exynos_pcie *exynos_pcie)
 		regmap_update_bits(exynos_pcie->pmureg, 0x3ECC,
 				   PCIE_PHY_CONTROL_MASK, PCIE_PHY_ISOLATION);
 }
+
+void exynos_pcie_rc_resumed_phydown(struct dw_pcie_rp *pp);
 
 void exynos_pcie_rc_resumed_phydown(struct dw_pcie_rp *pp)
 {
@@ -3254,8 +3286,10 @@ static int exynos_pcie_rc_init(struct dw_pcie_rp *pp)
 }
 
 static struct dw_pcie_host_ops exynos_pcie_rc_ops = {
-	.host_init = exynos_pcie_rc_init,
+	.init = exynos_pcie_rc_init,
 };
+
+void exynos_pcie_msi_post_process(struct dw_pcie_rp *pp);
 
 void exynos_pcie_msi_post_process(struct dw_pcie_rp *pp)
 {
@@ -3275,6 +3309,8 @@ void exynos_pcie_msi_post_process(struct dw_pcie_rp *pp)
 				(ctrl * MSI_REG_CTRL_BLOCK_SIZE), 4, 0x0);
 	}
 }
+
+void exynos_pcie_rc_force_linkdown_work(int ch_num);
 
 void exynos_pcie_rc_force_linkdown_work(int ch_num) {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -3300,6 +3336,27 @@ void exynos_pcie_rc_force_linkdown_work(int ch_num) {
 
 }
 EXPORT_SYMBOL(exynos_pcie_rc_force_linkdown_work);
+
+/* Affinity is handled by the parent hardware IRQ, without software redirection. */
+static void exynos_pcie_handle_msi_irq(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	unsigned int i, num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+
+	for (i = 0; i < num_ctrls; i++) {
+		unsigned long status, pos;
+
+		status = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
+					  i * MSI_REG_CTRL_BLOCK_SIZE);
+		/* Root-port IRQs retain DesignWare's no-op acknowledgement. */
+		for_each_set_bit(pos, &status, MAX_MSI_IRQS_PER_CTRL) {
+			dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_STATUS +
+					  i * MSI_REG_CTRL_BLOCK_SIZE, BIT(pos));
+			generic_handle_domain_irq(pp->irq_domain,
+						  i * MAX_MSI_IRQS_PER_CTRL + pos);
+		}
+	}
+}
 
 static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 {
@@ -3379,7 +3436,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 			return IRQ_HANDLED;
 		}
 
-		dw_handle_msi_irq(pp);
+		exynos_pcie_handle_msi_irq(pp);
 
 		/* Mask & Clear MSI to pend MSI interrupt.
 		 * After clearing IRQ_PULSE, MSI interrupt can be ignored if
@@ -4135,6 +4192,8 @@ void exynos_pcie_rc_poweroff(int ch_num)
 	mutex_unlock(&exynos_pcie->power_onoff_lock);
 }
 
+void exynos_pcie_pm_suspend(int ch_num);
+
 void exynos_pcie_pm_suspend(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
@@ -4159,6 +4218,8 @@ void exynos_pcie_pm_suspend(int ch_num)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_pm_suspend);
 
+int exynos_pcie_pm_resume(int ch_num);
+
 int exynos_pcie_pm_resume(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
@@ -4175,6 +4236,8 @@ int exynos_pcie_pm_resume(int ch_num)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_pm_resume);
 
+bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num);
+
 bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -4182,6 +4245,8 @@ bool exynos_pcie_rc_get_sudden_linkdown_state(int ch_num)
 	return exynos_pcie->sudden_linkdown;
 }
 EXPORT_SYMBOL(exynos_pcie_rc_get_sudden_linkdown_state);
+
+void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery);
 
 void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery)
 {
@@ -4192,6 +4257,8 @@ void exynos_pcie_rc_set_sudden_linkdown_state(int ch_num, bool recovery)
 }
 EXPORT_SYMBOL(exynos_pcie_rc_set_sudden_linkdown_state);
 
+bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num);
+
 bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -4199,6 +4266,8 @@ bool exynos_pcie_rc_get_cpl_timeout_state(int ch_num)
 	return exynos_pcie->cpl_timeout_recovery;
 }
 EXPORT_SYMBOL(exynos_pcie_rc_get_cpl_timeout_state);
+
+void exynos_pcie_rc_set_cpl_timeout_state(int ch_num, bool recovery);
 
 void exynos_pcie_rc_set_cpl_timeout_state(int ch_num, bool recovery)
 {
@@ -4659,6 +4728,8 @@ int exynos_pcie_rc_l1ss_ctrl(int enable, int id, int ch_num)
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_l1ss_ctrl);
 
 /* to support CP driver */
+int exynos_pcie_poweron(int ch_num, int spd, int width);
+
 int exynos_pcie_poweron(int ch_num, int spd, int width)
 {
 	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
@@ -4677,11 +4748,15 @@ int exynos_pcie_poweron(int ch_num, int spd, int width)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_poweron);
 
+void exynos_pcie_poweroff(int ch_num);
+
 void exynos_pcie_poweroff(int ch_num)
 {
 	return exynos_pcie_rc_poweroff(ch_num);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_poweroff);
+
+int exynos_pcie_get_max_link_speed(int ch_num);
 
 int exynos_pcie_get_max_link_speed(int ch_num)
 {
@@ -4690,6 +4765,8 @@ int exynos_pcie_get_max_link_speed(int ch_num)
 	return exynos_pcie->max_link_speed;
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_get_max_link_speed);
+
+int exynos_pcie_get_max_link_width(int ch_num);
 
 int exynos_pcie_get_max_link_width(int ch_num)
 {
@@ -4700,6 +4777,8 @@ int exynos_pcie_get_max_link_width(int ch_num)
 EXPORT_SYMBOL_GPL(exynos_pcie_get_max_link_width);
 
 /* PCIe link status check function */
+int exynos_pcie_rc_chk_link_status(int ch_num);
+
 int exynos_pcie_rc_chk_link_status(int ch_num)
 {
 	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
@@ -4866,6 +4945,8 @@ int exynos_pcie_rc_change_link_speed(int ch_num, int target_speed)
 }
 EXPORT_SYMBOL(exynos_pcie_rc_change_link_speed);
 
+int exynos_pcie_register_event(struct exynos_pcie_register_event *reg);
+
 int exynos_pcie_register_event(struct exynos_pcie_register_event *reg)
 {
 	int ret = 0;
@@ -4899,6 +4980,8 @@ int exynos_pcie_register_event(struct exynos_pcie_register_event *reg)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_register_event);
+
+int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg);
 
 int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg)
 {
@@ -4934,6 +5017,8 @@ int exynos_pcie_deregister_event(struct exynos_pcie_register_event *reg)
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_deregister_event);
 
+int exynos_pcie_rc_set_affinity(int ch_num, int affinity);
+
 int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -4954,6 +5039,8 @@ int exynos_pcie_rc_set_affinity(int ch_num, int affinity)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_set_affinity);
+
+int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable);
 
 int exynos_pcie_rc_set_enable_wake(struct irq_data *data, unsigned int enable)
 {
@@ -5016,11 +5103,23 @@ static void __maybe_unused exynos_pcie_rc_set_tpoweron(struct dw_pcie_rp *pp, in
 }
 #endif
 
+static bool exynos_pcie_init_dev_msi_info(struct device *dev,
+					 struct irq_domain *domain,
+					 struct irq_domain *real_parent,
+					 struct msi_domain_info *info)
+{
+	if (!msi_lib_init_dev_msi_info(dev, domain, real_parent, info))
+		return false;
+
+	info->chip->irq_set_wake = exynos_pcie_rc_set_enable_wake;
+	return true;
+}
+
 static int exynos_pcie_msi_set_affinity(struct irq_data *irq_data, const struct cpumask *mask,
 					bool force)
 {
 	struct dw_pcie_rp *pp;
-	struct irq_data *idata = irq_data->parent_data;
+	struct irq_data *idata = irq_data;
 	struct dw_pcie *pci;
 	struct exynos_pcie *exynos_pcie;
 
@@ -5055,6 +5154,8 @@ static int exynos_pcie_msi_set_affinity(struct irq_data *irq_data, const struct 
 }
 
 #if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data);
+
 int exynos_pcie_rc_itmon_notifier(struct notifier_block *nb, unsigned long action, void *nb_data)
 {
 	struct exynos_pcie *exynos_pcie = container_of(nb, struct exynos_pcie, itmon_nb);
@@ -5117,7 +5218,7 @@ static irqreturn_t exynos_pcie_msi0_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	dw_handle_msi_irq(pp);
+	exynos_pcie_handle_msi_irq(pp);
 
 	if (!msi_vec->flags) {
 		/* To set as handle_level_irq, get virq, mapped_irq, irq_data. */
@@ -5269,6 +5370,9 @@ irqreturn_t (*msi_handler[PCIE_MAX_SEPA_IRQ_NUM])(int , void *) = {
 	exynos_pcie_msi3_handler, exynos_pcie_msi4_handler };
 
 int register_separated_msi_vector(int ch_num, irq_handler_t handler, void *context,
+		int *irq_num);
+
+int register_separated_msi_vector(int ch_num, irq_handler_t handler, void *context,
 		int *irq_num)
 {
 	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
@@ -5314,8 +5418,6 @@ EXPORT_SYMBOL_GPL(register_separated_msi_vector);
 
 static int exynos_pcie_rc_add_port(struct platform_device *pdev, struct dw_pcie_rp *pp, int ch_num)
 {
-	struct irq_domain *msi_domain;
-	struct msi_domain_info *msi_domain_info;
 	int ret, i, sep_irq;
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
@@ -5389,6 +5491,8 @@ skip_sep_request_irq:
 		dev_dbg(&pdev->dev, "MSI is supported with 64-bit mask.\n");
 	}
 
+	/* The controller configures CLKREQ and L1 substates for its endpoints. */
+	pci->l1ss_support = true;
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to dw pcie host init\n");
@@ -5396,16 +5500,21 @@ skip_sep_request_irq:
 		return ret;
 	}
 
-	if (pp->msi_domain) {
-		msi_domain = pp->msi_domain;
-		msi_domain_info = (struct msi_domain_info *)msi_domain->host_data;
-		msi_domain_info->chip->irq_set_affinity = exynos_pcie_msi_set_affinity;
-		msi_domain_info->chip->irq_set_wake = exynos_pcie_rc_set_enable_wake;
+	if (pp->irq_domain) {
+		/* Endpoint MSI domains inherit these controller-specific operations. */
+		exynos_pcie->msi_irq_chip = *pp->msi_irq_chip;
+		/* Keep the no-op ack: a second clear could lose a new MSI. */
+		exynos_pcie->msi_irq_chip.irq_pre_redirect = NULL;
+		exynos_pcie->msi_irq_chip.irq_set_affinity = exynos_pcie_msi_set_affinity;
+		pp->msi_irq_chip = &exynos_pcie->msi_irq_chip;
+		exynos_pcie->msi_parent_ops = *pp->irq_domain->msi_parent_ops;
+		exynos_pcie->msi_parent_ops.chip_flags |= MSI_CHIP_FLAG_SET_ACK;
+		exynos_pcie->msi_parent_ops.required_flags &= ~MSI_FLAG_NO_AFFINITY;
+		exynos_pcie->msi_parent_ops.init_dev_msi_info = exynos_pcie_init_dev_msi_info;
 		if (exynos_pcie->ep_device_type == EP_QC_WIFI ||
-				exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM) {
-			msi_domain_info->chip->irq_mask = pci_msi_mask_irq;
-			msi_domain_info->chip->irq_unmask = pci_msi_unmask_irq;
-		}
+		    exynos_pcie->ep_device_type == EP_SAMSUNG_MODEM)
+			exynos_pcie->msi_parent_ops.required_flags &= ~MSI_FLAG_PCI_MSI_MASK_PARENT;
+		pp->irq_domain->msi_parent_ops = &exynos_pcie->msi_parent_ops;
 	}
 
 	return 0;
@@ -5478,6 +5587,8 @@ static int exynos_pcie_rc_make_reg_tb(struct device *dev, struct exynos_pcie *ex
 	return 0;
 }
 
+u32 pcie_linkup_stat(void);
+
 u32 pcie_linkup_stat(void)
 {
 	pr_info("[%s] pcie_is_linkup : %d\n", __func__, pcie_is_linkup);
@@ -5485,6 +5596,8 @@ u32 pcie_linkup_stat(void)
 	return pcie_is_linkup;
 }
 EXPORT_SYMBOL_GPL(pcie_linkup_stat);
+
+int exynos_pcie_set_msi_ctrl_addr(int ch_num, u64 msi_ctrl_addr);
 
 int exynos_pcie_set_msi_ctrl_addr(int ch_num, u64 msi_ctrl_addr) {
 	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
@@ -5870,7 +5983,7 @@ probe_fail:
 	return ret;
 }
 
-static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
+static void exynos_pcie_rc_remove(struct platform_device *pdev)
 {
 	struct exynos_pcie *exynos_pcie = platform_get_drvdata(pdev);
 
@@ -5882,7 +5995,6 @@ static int __exit exynos_pcie_rc_remove(struct platform_device *pdev)
 
 	mutex_destroy(&exynos_pcie->power_onoff_lock);
 
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_PM)
