@@ -41,7 +41,7 @@ static void tp_rate_pps_update(struct tp_monitor_counts *counts)
 #define TPM_TIMER_PERIOD 1000
 static void tp_timer_callback(struct timer_list *t)
 {
-	struct tp_monitor_stats *stats = from_timer(stats, t, tp_timer);
+	struct tp_monitor_stats *stats = timer_container_of(stats, t, tp_timer);
 	struct wlan_ptracker_core *core = tp_to_core(stats);
 
 	/* update tx */
@@ -62,7 +62,7 @@ static inline void tp_timer_start(struct tp_monitor_stats *stats)
 
 static inline void tp_timer_stop(struct tp_monitor_stats *stats)
 {
-	del_timer_sync(&stats->tp_timer);
+	timer_delete_sync(&stats->tp_timer);
 }
 
 static void tp_update_counter(struct wlan_ptracker_core *core,
