@@ -4468,6 +4468,10 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	return ld;
 
 error:
+	if (mld->mld_napi.dev) {
+		napi_disable(&mld->mld_napi);
+		netif_napi_del(&mld->mld_napi);
+	}
 	kfree(mld);
 	mif_err("xxx\n");
 	return NULL;
