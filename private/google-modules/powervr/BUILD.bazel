@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "checkpatch", "kernel_module")
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "//common:scripts/checkpatch.pl",
+)
+
+filegroup(
+    name = "powervr.kconfig",
+    srcs = glob([
+        "**/Kconfig",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)
+
+kernel_module(
+    name = "powervr",
+    srcs = glob([
+        "**/*.c",
+        "**/*.h",
+        "**/*.mk",
+        "**/Kconfig",
+        "**/Makefile",
+    ]) + [
+        "Kbuild",
+        "//private/google-modules/perf:headers",
+        "//private/google-modules/soc/gs:gs_soc_headers",
+        "//private/google-modules/soc/rdo:rdo_soc_headers",
+        "//private/google-modules/trusty:headers",
+    ] + select({
+        "//private/devices/google/common:soc_is_laguna_or_later": [
+            "//private/google-modules/iif:iif_headers",
+        ],
+        "//conditions:default": [],
+    }),
+    outs = [
+        "pvrsrvkm/pvrsrvkm.ko",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    visibility = [
+        ":__subpackages__",
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/soc/rdo:__pkg__",
+    ],
+    deps = select({
+        "//private/devices/google/common:soc_is_laguna_or_later": [
+            "//private/google-modules/iif",
+            "//private/google-modules/perf:google_vote_manager",
+            "//private/google-modules/soc/gs:gs_soc_module",
+            "//private/google-modules/soc/rdo:rdo_soc_module",
+            "//private/google-modules/trusty",
+        ],
+        "//conditions:default": [],
+    }),
+)
