@@ -222,6 +222,7 @@ struct bcm_spi_priv {
 	struct bbd_device *bbd;
 	/* To register ssrdump platform */
 	struct platform_device sscd_dev;
+	bool sscd_registered;
 	/* To register ssrdump driver */
 	struct sscd_platform_data sscd_pdata;
 };
