@@ -37,6 +37,7 @@
  * through TouchComm command-response protocol.
  */
 
+#include <linux/pinctrl/consumer.h>
 #include "syna_tcm2.h"
 #include "syna_tcm2_cdev.h"
 #include "syna_tcm2_platform.h"
@@ -3538,13 +3539,13 @@ err_allocate_cdev:
  * @return
  *    on success, 0; otherwise, negative value on error.
  */
-static int syna_dev_remove(struct platform_device *pdev)
+static void syna_dev_remove(struct platform_device *pdev)
 {
 	struct syna_tcm *tcm = platform_get_drvdata(pdev);
 
 	if (!tcm) {
 		LOGW("Invalid handle to remove\n");
-		return 0;
+		return;
 	}
 #if defined(ENABLE_HELPER)
 	cancel_work_sync(&tcm->helper.work);
@@ -3604,7 +3605,7 @@ static int syna_dev_remove(struct platform_device *pdev)
 	/* release the device context */
 	syna_pal_mem_free((void *)tcm);
 
-	return 0;
+	return;
 }
 
 /*

@@ -104,7 +104,7 @@ static int sec_ts_enter_fw_mode(struct sec_ts_data *ts)
 	return 1;
 }
 
-int sec_ts_wait_for_reset_done(struct sec_ts_data *ts)
+static int sec_ts_wait_for_reset_done(struct sec_ts_data *ts)
 {
 	int ret = 0;
 
@@ -1061,7 +1061,7 @@ static int sec_ts_firmware_update(struct sec_ts_data *ts, const u8 *data,
 
 }
 
-int sec_ts_firmware_update_bl(struct sec_ts_data *ts)
+static int sec_ts_firmware_update_bl(struct sec_ts_data *ts)
 {
 	const struct firmware *fw_entry;
 	char fw_path[SEC_TS_MAX_FW_PATH];
@@ -1094,7 +1094,7 @@ err_request_fw:
 	return result;
 }
 
-int sec_ts_bl_update(struct sec_ts_data *ts)
+static int sec_ts_bl_update(struct sec_ts_data *ts)
 {
 	int ret;
 	u8 tCmd[5] = { 0xDE, 0xAD, 0xBE, 0xEF };

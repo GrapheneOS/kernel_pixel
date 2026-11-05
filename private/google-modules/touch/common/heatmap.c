@@ -219,22 +219,22 @@ static const struct vb2_queue heatmap_queue = {
 	.ops = &heatmap_queue_ops,
 	.mem_ops = &vb2_vmalloc_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
-	.min_buffers_needed = 1,
+	.min_queued_buffers = 1,
 };
 
 static int heatmap_vidioc_querycap(struct file *file, void *priv,
 		struct v4l2_capability *cap)
 {
 	struct v4l2_heatmap *v4l2 = video_drvdata(file);
-	strlcpy(cap->driver, v4l2->parent_dev->driver->name,
+	strscpy(cap->driver, v4l2->parent_dev->driver->name,
 		sizeof(cap->driver));
 	if (v4l2->input_dev != NULL && v4l2->input_dev->name != NULL) {
-		strlcpy(cap->card, v4l2->input_dev->name, sizeof(cap->card));
+		strscpy(cap->card, v4l2->input_dev->name, sizeof(cap->card));
 	} else {
-		strlcpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
+		strscpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
 	}
 
-	strlcpy(cap->bus_info, dev_name(v4l2->parent_dev),
+	strscpy(cap->bus_info, dev_name(v4l2->parent_dev),
 		sizeof(cap->bus_info));
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
 		V4L2_CAP_READWRITE | V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
@@ -248,7 +248,7 @@ static int heatmap_vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	video_input->type = V4L2_INPUT_TYPE_TOUCH;
-	strlcpy(video_input->name, "strength", sizeof(video_input->name));
+	strscpy(video_input->name, "strength", sizeof(video_input->name));
 	return 0;
 }
 
@@ -356,8 +356,8 @@ int heatmap_probe(struct v4l2_heatmap *v4l2)
 	}
 
 	/* register video device */
-	strlcpy(v4l2->device.name, dev_name(v4l2->parent_dev),
-		V4L2_DEVICE_NAME_SIZE);
+	strscpy(v4l2->device.name, dev_name(v4l2->parent_dev),
+		sizeof(v4l2->device.name));
 	error = v4l2_device_register(v4l2->parent_dev, &v4l2->device);
 	if (error)
 		goto err_free_frame_storage;
