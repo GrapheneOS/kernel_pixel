@@ -484,7 +484,7 @@ static irqreturn_t cp_active_handler(int irq, void *data)
 				cp_state_str(mc->phone_state), cp_active);
 
 	if (timer_pending(&mld->crash_ack_timer))
-		del_timer(&mld->crash_ack_timer);
+		timer_delete(&mld->crash_ack_timer);
 
 	mif_stop_logging();
 
@@ -1562,7 +1562,7 @@ static int silent_reset_cp(struct modem_ctl *mc)
 
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
-		del_timer(&mld->crash_ack_timer);
+		timer_delete(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
 
 	mif_info("Set link mode to LINK_MODE_BOOT.\n");
@@ -1753,7 +1753,7 @@ static int start_normal_boot(struct modem_ctl *mc)
 
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
-		del_timer(&mld->crash_ack_timer);
+		timer_delete(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
 
 	mif_info("Set link mode to LINK_MODE_BOOT.\n");
@@ -1896,7 +1896,7 @@ static int start_normal_boot_bl1(struct modem_ctl *mc)
 
 	/* 2cp dump WA */
 	if (timer_pending(&mld->crash_ack_timer))
-		del_timer(&mld->crash_ack_timer);
+		timer_delete(&mld->crash_ack_timer);
 	atomic_set(&mld->forced_cp_crash, 0);
 
 	mif_info("Set link mode to LINK_MODE_BOOT.\n");
@@ -3109,7 +3109,7 @@ err_dev_create_file:
 	sysfs_remove_group(&pdev->dev.kobj, &modem_group);
 	sysfs_remove_group(&pdev->dev.kobj, &sim_group);
 	sysfs_remove_group(&pdev->dev.kobj, &dynamic_pcie_spd_group);
-	unregister_modem_voice_call_event_notifier(&mc->force_crash_nb);
+	unregister_modem_force_crash_handler(&mc->force_crash_nb);
 err_force_crash_notifier:
 #if IS_ENABLED(CONFIG_CPIF_AP_SUSPEND_DURING_VOICE_CALL)
 	unregister_modem_voice_call_event_notifier(&mc->call_state_nb);
@@ -3140,7 +3140,7 @@ void s5100_uninit_modemctl_device(struct modem_ctl *mc, struct modem_data *pdata
 	sysfs_remove_group(&dev->kobj, &modem_group);
 	sysfs_remove_group(&dev->kobj, &sim_group);
 	sysfs_remove_group(&dev->kobj, &dynamic_pcie_spd_group);
-	unregister_modem_voice_call_event_notifier(&mc->force_crash_nb);
+	unregister_modem_force_crash_handler(&mc->force_crash_nb);
 #if IS_ENABLED(CONFIG_CPIF_AP_SUSPEND_DURING_VOICE_CALL)
 	unregister_modem_voice_call_event_notifier(&mc->call_state_nb);
 #endif
