@@ -20,4 +20,4 @@ abrolhos-y	:= abrolhos-device.o abrolhos-device-group.o abrolhos-fs.o abrolhos-c
 
 # This -I is for the trace file include. It was removed from ccflags-y to avoid
 # including the header stubs.
-CFLAGS_abrolhos-fs.o := -I$(srctree)/$(src)/include
+CFLAGS_abrolhos-fs.o := -I$(src)/include
