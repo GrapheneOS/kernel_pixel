@@ -24,8 +24,7 @@
 #define	VSINKPD_MIN_IR_DROP_MV			750
 #define	VSRC_NEW_MIN_PERCENT			95
 #define	VSRC_VALID_MIN_MV			500
-#define	VPPS_NEW_MIN_PERCENT			95
-#define	VPPS_VALID_MIN_MV			100
+#define	VPPS_SHUTDOWN_MIN_PERCENT		85
 #define	VSINKDISCONNECT_PD_MIN_PERCENT		90
 
 struct google_shim_tcpci_chip {
@@ -313,9 +312,10 @@ static int google_tcpci_shim_enable_auto_vbus_discharge(struct tcpc_dev *dev, bo
 }
 
 static int google_tcpci_shim_set_auto_vbus_discharge_threshold(struct tcpc_dev *dev,
-							       enum typec_pwr_opmode mode,
-							       bool pps_active,
-							       u32 requested_vbus_voltage_mv)
+						       enum typec_pwr_opmode mode,
+						       bool pps_active,
+						       u32 requested_vbus_voltage_mv,
+						       u32 apdo_min_voltage_mv)
 {
 	struct google_shim_tcpci *tcpci = tcpc_to_tcpci(dev);
 	unsigned int pwr_ctrl, threshold = 0;
@@ -337,9 +337,8 @@ static int google_tcpci_shim_set_auto_vbus_discharge_threshold(struct tcpc_dev *
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
 	} else if (mode == TYPEC_PWR_MODE_PD) {
 		if (pps_active)
-			threshold = ((VPPS_NEW_MIN_PERCENT * requested_vbus_voltage_mv / 100) -
-				     VSINKPD_MIN_IR_DROP_MV - VPPS_VALID_MIN_MV) *
-				     VSINKDISCONNECT_PD_MIN_PERCENT / 100;
+			threshold = VPPS_SHUTDOWN_MIN_PERCENT * apdo_min_voltage_mv / 100 -
+				     VSINKPD_MIN_IR_DROP_MV;
 		else
 			threshold = ((VSRC_NEW_MIN_PERCENT * requested_vbus_voltage_mv / 100) -
 				     VSINKPD_MIN_IR_DROP_MV - VSRC_VALID_MIN_MV) *
@@ -688,7 +687,7 @@ irqreturn_t google_tcpci_shim_irq(struct google_shim_tcpci *tcpci)
 		/* Read complete, clear RX status alert bit */
 		google_tcpci_shim_write16(tcpci, TCPC_ALERT, TCPC_ALERT_RX_STATUS);
 
-		tcpm_pd_receive(tcpci->port, &msg);
+		tcpm_pd_receive(tcpci->port, &msg, TCPC_TX_SOP);
 	}
 
 	if (tcpci->data->vbus_vsafe0v && (status & TCPC_ALERT_EXTENDED_STATUS)) {
@@ -807,8 +806,7 @@ void google_tcpci_shim_unregister_port(struct google_shim_tcpci *tcpci)
 }
 EXPORT_SYMBOL_GPL(google_tcpci_shim_unregister_port);
 
-static int google_tcpci_shim_probe(struct i2c_client *client,
-				   const struct i2c_device_id *i2c_id)
+static int google_tcpci_shim_probe(struct i2c_client *client)
 {
 	struct google_shim_tcpci_chip *chip;
 	int err;
