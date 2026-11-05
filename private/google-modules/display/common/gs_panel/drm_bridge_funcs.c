@@ -133,7 +133,8 @@ void gs_panel_node_attach(struct gs_drm_connector *gs_connector)
 		dev_dbg(ctx->dev, "succeed to link %s sysfs\n", sysfs_name);
 }
 
-static int gs_panel_bridge_attach(struct drm_bridge *bridge, enum drm_bridge_attach_flags flags)
+static int gs_panel_bridge_attach(struct drm_bridge *bridge, struct drm_encoder *encoder,
+			   enum drm_bridge_attach_flags flags)
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
 	struct device *dev = ctx->dev;
@@ -181,7 +182,7 @@ static void gs_panel_bridge_detach(struct drm_bridge *bridge)
 }
 
 static void gs_panel_bridge_enable(struct drm_bridge *bridge,
-				   struct drm_bridge_state *old_bridge_state)
+				   struct drm_atomic_state *state)
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
 	const struct drm_connector_state *conn_state = ctx->gs_connector->base.state;
@@ -752,7 +753,7 @@ static void gs_panel_bridge_mode_set(struct drm_bridge *bridge, const struct drm
 }
 
 static void gs_panel_bridge_disable(struct drm_bridge *bridge,
-				    struct drm_bridge_state *old_bridge_state)
+				    struct drm_atomic_state *state)
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
 	struct device *dev = ctx->dev;
@@ -802,7 +803,7 @@ static void gs_panel_bridge_disable(struct drm_bridge *bridge,
 }
 
 static void gs_panel_bridge_pre_enable(struct drm_bridge *bridge,
-				       struct drm_bridge_state *old_bridge_state)
+				       struct drm_atomic_state *state)
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
 
@@ -1029,7 +1030,7 @@ static int gs_panel_bridge_atomic_check(struct drm_bridge *bridge,
 }
 
 static void gs_panel_bridge_post_disable(struct drm_bridge *bridge,
-					 struct drm_bridge_state *old_bridge_state)
+					 struct drm_atomic_state *state)
 {
 	struct gs_panel *ctx = bridge_to_gs_panel(bridge);
 
@@ -1058,3 +1059,4 @@ const struct drm_bridge_funcs *get_panel_drm_bridge_funcs(void)
 {
 	return &gs_panel_bridge_funcs;
 }
+EXPORT_SYMBOL_GPL(get_panel_drm_bridge_funcs);
