@@ -201,7 +201,7 @@ void dbg_snapshot_get_freq_name(char (*freq_names)[DSS_FREQ_MAX_NAME_SIZE])
 	int i;
 
 	for (i = 0; i < dss_freq_size; i++)
-		strlcpy(freq_names[i], dss_freq_name[i], DSS_FREQ_MAX_NAME_SIZE);
+		strscpy(freq_names[i], dss_freq_name[i], DSS_FREQ_MAX_NAME_SIZE);
 }
 EXPORT_SYMBOL_GPL(dbg_snapshot_get_freq_name);
 
@@ -281,13 +281,13 @@ static void dbg_snapshot_suspend_resume(void *ignore, const char *action,
 		pixel_suspend_diag_suspend_resume(dss_log, action, start, curr_index);
 }
 
-void dbg_snapshot_dev_pm_cb_start(void *ignore, struct device *dev,
+static void dbg_snapshot_dev_pm_cb_start(void *ignore, struct device *dev,
 					const char *info, int event)
 {
 	dbg_snapshot_suspend(info, dev, event, DSS_FLAG_IN);
 }
 
-void dbg_snapshot_dev_pm_cb_end(void *ignore, struct device *dev, int error)
+static void dbg_snapshot_dev_pm_cb_end(void *ignore, struct device *dev, int error)
 {
 	int ret = 0;
 
@@ -320,6 +320,8 @@ static void dbg_snapshot_sched_switch(void *ignore, bool preempt, struct task_st
 {
 	dbg_snapshot_task(raw_smp_processor_id(), next);
 }
+
+void dbg_snapshot_work(work_func_t fn, int en);
 
 void dbg_snapshot_work(work_func_t fn, int en)
 {
@@ -783,7 +785,7 @@ static void dbg_snapshot_print_irq(void)
 		desc = irq_data_to_desc(data);
 
 		for_each_possible_cpu(cpu)
-			irq_stat += *per_cpu_ptr(desc->kstat_irqs, cpu);
+			irq_stat += per_cpu_ptr(desc->kstat_irqs, cpu)->cnt;
 
 		if (!irq_stat || irq_stat < irq_filter)
 			continue;
@@ -875,7 +877,7 @@ void dbg_snapshot_start_log(void)
 				__func__, dss_freq_size, ARRAY_SIZE(dss_freq_name));
 			break;
 		}
-		strlcpy(dss_freq_name[i], str, sizeof(dss_freq_name[i]));
+		strscpy(dss_freq_name[i], str, sizeof(dss_freq_name[i]));
 		++i;
 	}
 

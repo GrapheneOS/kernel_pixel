@@ -329,7 +329,7 @@ list_add:
 	return 0;
 }
 
-static int s2mpu_remove(struct platform_device *pdev)
+static void s2mpu_remove(struct platform_device *pdev)
 {
 	struct s2mpu_info *info;
 
@@ -339,7 +339,6 @@ static int s2mpu_remove(struct platform_device *pdev)
 #endif
 	s2mpu_lib_deinit(info);
 
-	return 0;
 }
 
 static const struct of_device_id s2mpu_of_match[] = {

@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_platform.h>

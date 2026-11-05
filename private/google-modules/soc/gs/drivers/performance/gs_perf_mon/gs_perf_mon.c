@@ -884,7 +884,7 @@ static int perf_mon_task(void *data)
 }
 
 /* Driver initialization code. */
-int gs_perf_mon_driver_probe(struct platform_device *pdev)
+static int gs_perf_mon_driver_probe(struct platform_device *pdev)
 {
 	unsigned int cpu;
 	struct device *dev = &pdev->dev;

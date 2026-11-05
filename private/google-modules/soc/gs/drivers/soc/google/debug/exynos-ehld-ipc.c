@@ -165,7 +165,7 @@ u32 adv_tracer_ehld_get_interval(void)
 	return plugin_ehld.interval;
 }
 
-int adv_tracer_ehld_noti_cpu_state(int cpu, int en)
+static __maybe_unused int adv_tracer_ehld_noti_cpu_state(int cpu, int en)
 {
 	struct adv_tracer_ipc_cmd cmd;
 	int ret = 0;
