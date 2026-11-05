@@ -1088,5 +1088,5 @@ int edgetpu_sync_fence_debugfs_show(struct seq_file *s, void *unused)
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
 #endif

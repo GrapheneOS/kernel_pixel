@@ -567,4 +567,4 @@ module_platform_driver(hardlockup_debug_driver);
 
 MODULE_DESCRIPTION("Module for Debugging Hardlockups via FIQ");
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(MINIDUMP);
+MODULE_IMPORT_NS("MINIDUMP");
