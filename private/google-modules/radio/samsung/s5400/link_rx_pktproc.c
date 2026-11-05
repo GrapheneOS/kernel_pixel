@@ -2163,8 +2163,12 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 
 		/* NAPI */
 		if (ppa->use_exclusive_irq) {
-			init_dummy_netdev(&q->netdev);
-			netif_napi_add_weight(&q->netdev, &q->napi, pktproc_poll, NAPI_POLL_WEIGHT);
+			q->netdev = alloc_netdev_dummy(0);
+			if (!q->netdev) {
+				ret = -ENOMEM;
+				goto create_error;
+			}
+			netif_napi_add_weight(q->netdev, &q->napi, pktproc_poll, NAPI_POLL_WEIGHT);
 			napi_enable(&q->napi);
 			q->napi_ptr = &q->napi;
 		} else {
@@ -2233,11 +2237,19 @@ create_error:
 		if (!ppa->q[i])
 			continue;
 
+		if (ppa->q[i]->netdev && ppa->q[i]->napi_ptr == &ppa->q[i]->napi) {
+			napi_disable(&ppa->q[i]->napi);
+			netif_napi_del(&ppa->q[i]->napi);
+		}
+
 		if (ppa->q[i]->manager)
 			cpif_exit_netrx_mng(ppa->q[i]->manager);
 
 		kfree(ppa->q[i]->dma_addr);
+		if (ppa->q[i]->netdev)
+			free_netdev(ppa->q[i]->netdev);
 		kfree(ppa->q[i]);
+		ppa->q[i] = NULL;
 	}
 
 	if (!ppa->info_rgn_cached && ppa->info_vbase)
