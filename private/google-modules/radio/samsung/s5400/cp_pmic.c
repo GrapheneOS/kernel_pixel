@@ -266,7 +266,7 @@ static int of_dev_node_match(struct device *dev, const void *node)
 struct device *pmic_get_device(struct device_node *node)
 {
 	struct device *dev = NULL;
-	struct bus_type *sbt = pmic_driver.driver.bus;
+	const struct bus_type *sbt = pmic_driver.driver.bus;
 
 	if (sbt)
 		dev = bus_find_device(sbt, NULL, node, of_dev_node_match);
