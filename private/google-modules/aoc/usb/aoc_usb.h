@@ -65,7 +65,7 @@ int unregister_aoc_usb_notifier(struct notifier_block *nb);
 
 extern bool aoc_alsa_usb_callback_register(void (*callback)(struct usb_device*,
 							    struct usb_host_endpoint*));
-extern bool aoc_alsa_usb_callback_unregister(void);
+extern void aoc_alsa_usb_callback_unregister(void);
 
 int notify_offload_state(bool enabled);
 int xhci_set_dcbaa_ptr(u64 aoc_dcbaa_ptr);
@@ -82,5 +82,8 @@ int usb_vendor_helper_init(void);
 extern int dwc3_otg_host_ready(bool ready);
 extern bool aoc_alsa_usb_capture_enabled(void);
 extern bool aoc_alsa_usb_playback_enabled(void);
+
+int aoc_alsa_usb_register_notifier(struct notifier_block *nb);
+void aoc_alsa_usb_unregister_notifier(struct notifier_block *nb);
 
 #endif /* __LINUX_AOC_USB_H */

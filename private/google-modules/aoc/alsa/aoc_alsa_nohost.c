@@ -91,7 +91,7 @@ static int aoc_nohost_new(struct snd_soc_component *component,
 	dma_set_mask_and_coherent(component->dev, DMA_BIT_MASK(64));
 
 	/* Allocate DMA memory */
-	if (rtd->dai_link->dpcm_playback) {
+	if (rtd->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		substream =
 			rtd->pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream;
 		snd_pcm_lib_preallocate_pages(
@@ -100,7 +100,7 @@ static int aoc_nohost_new(struct snd_soc_component *component,
 			snd_aoc_nohost_hw.buffer_bytes_max,
 			snd_aoc_nohost_hw.buffer_bytes_max);
 	}
-	if (rtd->dai_link->dpcm_capture) {
+	if (rtd->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		substream =
 			rtd->pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream;
 		snd_pcm_lib_preallocate_pages(
