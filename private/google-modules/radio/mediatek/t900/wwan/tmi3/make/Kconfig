@@ -1,0 +1,135 @@
+config MTK_WWAN_PWRCTL_SUPPORT
+	bool "Enable MTK GPIO control from MTK PCIe driver"
+	default n
+	help
+	  Enable the MTK PCIe host driver to call power control function
+	  from the wwan_pwrctl driver. This is required to sync the reset
+	  logic from PCIe and inform the wwan_pwrctl driver about the
+	  power reset.
+
+config MTK_HOST_DRV_WWAN_SUPPORT
+	bool "Enable MTK WWAN support"
+	default n
+	help
+	  Use the wwan functions instead of the generic cdev functions for
+	  the supported /dev nodes.
+
+config MTK_DATA_CPU_LOADING_OPTIMIZE
+	bool "Enable AP optimizations for DPMAIF"
+	default n
+	help
+	  Enable caching and CPU affinity for the data path (DPMAIF).
+
+config MTK_DEVLINK
+	bool "Enable devlink interface for MTK modem"
+	default n
+	help
+	  Enable the devlink interface for the MTK modem. This maybe used
+	  to expose things to the userspace that are not directly related
+	  to a device class like char/wwan node, but rather the whole modem
+	  itself.
+
+config MTK_DEVLINK_COREDUMP_SUPPORT
+	bool "Enable postdump support for MTK modem"
+	select MTK_DEVLINK
+	default n
+	help
+	  Enable the postdump support for MTK modem.
+
+config MTK_DEVLINK_LOGDUMP_SUPPORT
+	bool "Enable logdump from MTK modem"
+	select MTK_DEVLINK
+	default n
+	help
+	  Enable the logdump support from MTK modem.
+
+config MTK_MEMLOG_EVENT_SUPPORT
+	bool "Support memlog event in Thin MD host driver"
+	default n
+	help
+	  Used to control the memlog event feature of the Thin MD host driver.
+	  When this option is enabled, host driver will print
+	  high-frequency logs in hex format.
+	  The logs printed in hex format need to be parsed into
+	  plain text using a post-processing tool.
+	  Say Y here if need to enable memlog event in host driver.
+	  If unsure, say N.
+
+config GOOGLE_ASPM_CONTROL
+	bool "Upstream style ASPM control"
+	depends on ARCH_GOOGLE
+	help
+	  Replace vendor's direct register accesses with Linux standard API:
+	  pci_enable_link_state. This ensures the driver following PCI spec
+	  correctly and allows consistent system-wide policy to be overlaid
+	  on top of any driver-specific requests.
+
+config GOOGLE_ATR_WRITE_RETRY
+	bool "ATR programming retry mitigation"
+	depends on ARCH_GOOGLE
+	help
+	  Enable retry mechanism for ATR programming to mitigate the BAR2/3
+	  access issue which may result in resume timeout or SRAMROM
+	  violation.
+	  See b/495424578 and b/507778536 for details.
+
+config GOOGLE_LINK_DOWN_MMIO_PROTECT
+	bool "Link down MMIO protection"
+	depends on ARCH_GOOGLE
+	help
+	  Enable link checks in resume and REBOOTINT flow to avoid bus hang
+	  when link up failed.
+	  See b/496279367, b/496306491 and b/496959277 for details.
+
+config GOOGLE_DIRECT_COMPLETE_SUPPORT
+	bool "Support PCI direct-complete feature"
+	depends on ARCH_GOOGLE
+	default y
+	help
+	  Disable in-band PCIe wakeup to allow the PCI framework's
+	  direct-complete feature to transition the device and its parents
+	  into suspend state without running callbacks.
+
+config GOOGLE_WWAN_PKT_PRIO
+	bool "Google WWAN packet prioritization"
+	depends on ARCH_GOOGLE
+	help
+	  Enable support for Google-specific WWAN packet prioritization
+	  based on skb->mark bits 29 and 30. This is used by the
+	  MediaTek WWAN driver.
+
+config GOOGLE_B493109074_DEBUG
+	bool "Dump more fields for seq num out-of-order issue"
+	depends on ARCH_GOOGLE
+	help
+	  Dump more fields in addition to sequence number. This could help
+	  us to understand the corrupted pattern further.
+	  See b/493109074 for details.
+
+config GOOGLE_B495424578_DEBUG
+	bool "Dump ATR table for BAR2/3 access issue"
+	depends on ARCH_GOOGLE
+	help
+	  Enable ATR table dump for BAR2/3 access issue.
+	  See b/495424578 for details.
+
+config GOOGLE_B503643353_DEBUG
+	bool "Add verbose logging for usr_cnt of cldma1q4"
+	depends on ARCH_GOOGLE
+	help
+	  Enable verbose logging for usr_cnt of cldma1q4.
+	  See b/503643353 for details.
+
+config GOOGLE_B507778536_DEBUG
+	bool "MHCCIF link error reporting"
+	depends on ARCH_GOOGLE
+	help
+	  Enable link error reporting when both MHCCIF stat and mask are
+	  0xffffffff.
+	  See b/507778536 for details.
+
+config GOOGLE_B528903481_DEBUG
+	bool "CLDMA/DPMAIF register dump for link error"
+	depends on ARCH_GOOGLE
+	help
+	  Enable CLDMA/DPMAIF register dump when a link error is detected.

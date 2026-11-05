@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+# Google Battery Management System
+
+load("//build/kernel/kleaf:kernel.bzl", "ddk_module")
+
+package(default_visibility = [
+    "//private/devices/google:__subpackages__",
+    "//private/google-modules:__subpackages__",
+])
+
+filegroup(
+    name = "bms-misc.kconfig",
+    srcs = [
+        "Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+    ],
+)
+
+ddk_module(
+    name = "gvotable",
+    out = "gvotable.ko",
+    hdrs = ["include/misc/gvotable.h"],
+    conditional_srcs = {
+        "CONFIG_GOOGLE_VOTABLE": {
+            True: [
+                "gvotable.c",
+            ],
+        },
+    },
+    includes = ["include"],
+    kernel_build = "//private/devices/google/common:kernel",
+    local_defines = [
+        "DYNAMIC_DEBUG_MODULE",
+    ],
+    deps = [
+        "//common:all_headers_aarch64",
+    ],
+)
+
+ddk_module(
+    name = "logbuffer",
+    out = "logbuffer.ko",
+    hdrs = ["include/misc/logbuffer.h"],
+    conditional_srcs = {
+        "CONFIG_GOOGLE_LOGBUFFER": {
+            True: [
+                "logbuffer.c",
+            ],
+        },
+    },
+    includes = ["include"],
+    kernel_build = "//private/devices/google/common:kernel",
+    local_defines = [
+        "DYNAMIC_DEBUG_MODULE",
+    ],
+    deps = [
+        "//common:all_headers_aarch64",
+    ],
+)

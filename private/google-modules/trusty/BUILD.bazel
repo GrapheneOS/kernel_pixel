@@ -1,0 +1,209 @@
+# SPDX-License-Identifier: GPL-2.0
+
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "checkpatch", "ddk_headers", "ddk_module")
+
+package(default_visibility = [
+    "//private/devices/google:__subpackages__",
+    "//private/google-modules:__subpackages__",
+])
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "//common:scripts/checkpatch.pl",
+)
+
+filegroup(
+    name = "headers",
+    srcs = glob([
+        "include/**/*.h",
+    ]),
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+        "//private/google-modules/soc/gs/drivers/soc/google/gsa:__pkg__",
+        "//private/google-modules/video/cnm:__pkg__",
+    ],
+)
+
+ddk_headers(
+    name = "trusty_headers",
+    hdrs = [
+        ":headers",
+    ],
+    linux_includes = [
+        "include",
+    ],
+    visibility = [
+        "//private/google-modules/aoc:__subpackages__",
+        "//private/google-modules/display:__subpackages__",
+        "//private/google-modules/dpa:__subpackages__",
+        "//private/google-modules/hdcp/samsung:__subpackages__",
+        "//private/google-modules/powervr:__pkg__",
+        "//private/google-modules/soc/gs/drivers:__subpackages__",
+        "//private/google-modules/soc/rdo/drivers/iis:__pkg__",
+        "//private/google-modules/video/cnm:__subpackages__",
+    ],
+)
+
+ddk_headers(
+    name = "trusty_local_headers",
+    hdrs = [
+        "drivers/trusty/trusty-ipc-trace.h",
+        "drivers/trusty/trusty-irq-trace.h",
+        "drivers/trusty/trusty-trace.h",
+    ],
+    includes = [
+        "drivers/trusty",
+    ],
+)
+
+filegroup(
+    name = "trusty.kconfig",
+    srcs = [
+        "drivers/trusty/Kconfig",
+    ],
+    visibility = [
+        "//private/devices/google:__subpackages__",
+        "//private/google-modules/soc/gs:__pkg__",
+    ],
+)
+
+ddk_module(
+    name = "trusty-core",
+    srcs = [
+        "drivers/trusty/trusty-irq.h",
+        "drivers/trusty/trusty-sched-share.h",
+        "drivers/trusty/trusty-sched-share-api.h",
+        "drivers/trusty/trusty-smc.h",
+    ],
+    out = "trusty-core.ko",
+    conditional_srcs = {
+        "CONFIG_TRUSTY": {
+            True: [
+                "drivers/trusty/trusty.c",
+                "drivers/trusty/trusty-mem.c",
+                "drivers/trusty/trusty-sched-share.c",
+            ],
+        },
+        "CONFIG_ARM": {
+            True: ["drivers/trusty/trusty-smc-arm.S"],
+        },
+        "CONFIG_ARM64": {
+            True: ["drivers/trusty/trusty-smc-arm64.S"],
+        },
+        "CONFIG_TRUSTY_IRQ": {
+            True: [
+                "drivers/trusty/trusty-irq.c",
+            ],
+        },
+    },
+    copts = [
+        "-Werror",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        ":trusty_headers",
+        ":trusty_local_headers",
+    ],
+)
+
+ddk_module(
+    name = "trusty-log",
+    srcs = [
+        "drivers/trusty/trusty-log.h",
+    ],
+    out = "trusty-log.ko",
+    conditional_srcs = {
+        "CONFIG_TRUSTY_LOG": {
+            True: ["drivers/trusty/trusty-log.c"],
+        },
+    },
+    copts = [
+        "-Werror",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        ":trusty-core",
+        ":trusty_headers",
+    ],
+)
+
+ddk_module(
+    name = "trusty-test",
+    srcs = [
+        "drivers/trusty/trusty-test.h",
+    ],
+    out = "trusty-test.ko",
+    conditional_srcs = {
+        "CONFIG_TRUSTY_TEST": {
+            True: ["drivers/trusty/trusty-test.c"],
+        },
+    },
+    copts = [
+        "-Werror",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        ":trusty-core",
+        ":trusty_headers",
+    ],
+)
+
+ddk_module(
+    name = "trusty-virtio",
+    out = "trusty-virtio.ko",
+    conditional_srcs = {
+        "CONFIG_TRUSTY_VIRTIO": {
+            True: ["drivers/trusty/trusty-virtio.c"],
+        },
+    },
+    copts = [
+        "-Werror",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        ":trusty-core",
+        ":trusty_headers",
+    ],
+)
+
+ddk_module(
+    name = "trusty-ipc",
+    out = "trusty-ipc.ko",
+    conditional_srcs = {
+        "CONFIG_TRUSTY_VIRTIO_IPC": {
+            True: ["drivers/trusty/trusty-ipc.c"],
+        },
+    },
+    copts = [
+        "-Werror",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        ":trusty-core",
+        ":trusty_headers",
+        ":trusty_local_headers",
+    ],
+)
+
+ddk_module(
+    name = "trusty-wakelock",
+    srcs = [
+        "drivers/trusty/trusty-wakelock.h",
+    ],
+    out = "trusty-wakelock.ko",
+    conditional_srcs = {
+        "CONFIG_TRUSTY_WAKELOCK": {
+            True: ["drivers/trusty/trusty-wakelock.c"],
+        },
+    },
+    copts = [
+        "-Werror",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        ":trusty-core",
+        ":trusty-ipc",
+        ":trusty_headers",
+    ],
+)

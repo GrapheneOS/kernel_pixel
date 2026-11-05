@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+config GOOGLE_TTF_TEST
+	tristate "Google TTF test suite"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enables KUnit unit testing for the TTF module in GBMS.
+	  TTF calculates remaining charging duration using adapter power limits, battery
+	  health status, SOC thresholds, and CCCM temperature tables. The test suite
+	  validates SOC time estimation, battery current reductions, adapter power constraints,
+	  and invalid input error handling. Say Y or M to build the test suite as `google_ttf_test`.

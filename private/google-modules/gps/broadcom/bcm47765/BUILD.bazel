@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "checkpatch", "ddk_module")
+
+package(default_visibility = [
+    "//private/devices/google:__subpackages__",
+    "//private/google-modules:__subpackages__",
+])
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "//common:scripts/checkpatch.pl",
+)
+
+ddk_module(
+    name = "bcm47765_ko",
+    srcs = [
+        "bbd.c",
+        "bbd.h",
+        "bcm_gps_regs.c",
+        "bcm_gps_spi.c",
+        "bcm_gps_spi.h",
+    ],
+    out = "bcm47765.ko",
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        "//common:all_headers_aarch64",
+        "//private/google-modules/soc/gs:headers",
+    ],
+)
+
+ddk_module(
+    name = "bbd_pps_gpio",
+    srcs = [
+        "bbd_pps_gpio.c",
+    ],
+    out = "bbd_pps_gpio.ko",
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        "//common:all_headers_aarch64",
+        "//private/google-modules/soc/gs:headers",
+    ],
+)
