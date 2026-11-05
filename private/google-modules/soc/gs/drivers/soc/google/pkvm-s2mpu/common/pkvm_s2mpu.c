@@ -5,6 +5,8 @@
  */
 
 #include <linux/io.h>
+#include <linux/of_device.h>
+#include "s2mpu-module.h"
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/module.h>
@@ -23,10 +25,6 @@
 static bool print_caches;
 module_param(print_caches, bool, 0);
 
-/* Declare EL2 module init function as it is needed by pkvm_load_el2_module. */
-int __kvm_nvhe_s2mpu_hyp_init(const struct pkvm_module_ops *ops);
-/* Token of S2MPU driver, token is the load address of the module and a unique ID for it. */
-static unsigned long token;
 
 /* Number of s2mpu devices. */
 static int nr_devs_total;
@@ -89,7 +87,8 @@ int __pkvm_s2mpu_of_link(struct device *parent)
 		if (IS_ERR(pdev))
 			return PTR_ERR(pdev);
 
-		if (!pkvm_s2mpu_ready(&pdev->dev))
+		if (!pkvm_s2mpu_ready(&pdev->dev) ||
+		    (is_protected_kvm_enabled() && !s2mpu_el2_ready()))
 			return -EAGAIN;
 	}
 
@@ -172,7 +171,7 @@ int __pkvm_s2mpu_suspend(struct device *dev)
 		return 0;
 
 	if (data->pkvm_registered)
-		return pkvm_iommu_suspend(dev);
+		return s2mpu_el2_power(dev, false);
 
 	return 0;
 }
@@ -182,7 +181,7 @@ int __pkvm_s2mpu_resume(struct device *dev)
 	struct s2mpu_data *data = s2mpu_dev_data(dev);
 
 	if (data && data->pkvm_registered)
-		return pkvm_iommu_resume(dev);
+		return s2mpu_el2_power(dev, true);
 
 	/* Need to bypass S2MPU if pKVM is not there (ex: in userspace fastboot). */
 #ifdef S2MPU_V9
@@ -193,7 +192,7 @@ int __pkvm_s2mpu_resume(struct device *dev)
 	return 0;
 }
 
-int s2mpu_pm_control(struct device *dev, bool on)
+static int s2mpu_pm_control(struct device *dev, bool on)
 {
 	if (on)
 		return __pkvm_s2mpu_resume(dev);
@@ -288,7 +287,7 @@ static int s2mpu_probe(struct platform_device *pdev)
 	int ret, nr_devs = 0;
 	u8 flags = 0;
 
-	data = devm_kmalloc(dev, sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	data->dev = dev;
@@ -337,21 +336,14 @@ static int s2mpu_probe(struct platform_device *pdev)
 	if (!data->pkvm_registered)
 		dev_warn(dev, "pKVM disabled, control from kernel\n");
 	else {
-		nr_devs = nr_devs_registered++;
-		dev_info(dev, "registered with hypervisor [%d/%d]\n", nr_devs, nr_devs_total);
 		ret = sysmmu_sync_probe(dev);
 		if (ret)
 			return ret;
+		nr_devs = ++nr_devs_registered;
+		dev_info(dev, "registered with hypervisor [%d/%d]\n", nr_devs, nr_devs_total);
 	}
 
 
-	if (nr_devs_total == nr_devs_registered) {
-		ret = pkvm_iommu_finalize(0);
-		if (!ret)
-			pr_info("List of devices successfully finalized for pkvm s2mpu\n");
-		else
-			pr_err("Couldn't finalize pkvm s2mpu: %d\n", ret);
-	}
 
 	platform_set_drvdata(pdev, data);
 
@@ -426,24 +418,31 @@ static int s2mpu_driver_register(struct platform_driver *driver)
 		return ret;
 	}
 
-        if (is_protected_kvm_enabled()) {
-		ret = pkvm_load_el2_module(__kvm_nvhe_s2mpu_hyp_init, &token);
-		if (ret) {
-			pr_err("Failed to load s2mpu el2 module: %d\n", ret);
-			return ret;
-		}
-
-		ret = pkvm_iommu_s2mpu_init(token);
-		if (ret) {
-			pr_err("Can't initialize pkvm s2mpu driver: %d\n", ret);
-			return ret;
-		}
-	}
-
-	return platform_driver_register(driver);
+	ret = platform_driver_register(driver);
+	if (ret || !is_protected_kvm_enabled())
+		return ret;
+	if (nr_devs_registered != nr_devs_total)
+		return -ENODEV;
+	return s2mpu_el2_init();
 }
 
-module_driver(s2mpu_driver, s2mpu_driver_register, platform_driver_unregister);
+static int s2mpu_init_driver(void)
+{
+	return s2mpu_driver_register(&s2mpu_driver);
+}
+
+static struct kvm_iommu_driver s2mpu_kvm_driver = {
+	.init_driver = s2mpu_init_driver,
+};
+
+static int __init s2mpu_module_init(void)
+{
+	if (is_protected_kvm_enabled())
+		return kvm_iommu_register_driver(&s2mpu_kvm_driver, 0);
+	return s2mpu_init_driver();
+}
+module_init(s2mpu_module_init);
+
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("David Brazdil <dbrazdil@google.com>");
