@@ -24,9 +24,13 @@
 #define	VSINKPD_MIN_IR_DROP_MV			750
 #define	VSRC_NEW_MIN_PERCENT			95
 #define	VSRC_VALID_MIN_MV			500
-#define	VPPS_NEW_MIN_PERCENT			95
-#define	VPPS_VALID_MIN_MV			100
+#define	VPPS_SHUTDOWN_MIN_PERCENT		85
 #define	VSINKDISCONNECT_PD_MIN_PERCENT		90
+
+/* Older common kernels do not define the PPS operating minimum. */
+#ifndef PD_PPS_MIN_VOLT_MV
+#define PD_PPS_MIN_VOLT_MV			3300
+#endif
 
 struct google_shim_tcpci_chip {
 	struct google_shim_tcpci *tcpci;
@@ -336,14 +340,14 @@ static int google_tcpci_shim_set_auto_vbus_discharge_threshold(struct tcpc_dev *
 		/* To prevent disconnect when the source is fast role swap is capable. */
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
 	} else if (mode == TYPEC_PWR_MODE_PD) {
-		if (pps_active)
-			threshold = ((VPPS_NEW_MIN_PERCENT * requested_vbus_voltage_mv / 100) -
-				     VSINKPD_MIN_IR_DROP_MV - VPPS_VALID_MIN_MV) *
-				     VSINKDISCONNECT_PD_MIN_PERCENT / 100;
-		else
+		if (pps_active) {
+			threshold = VPPS_SHUTDOWN_MIN_PERCENT * max_t(u32, requested_vbus_voltage_mv, PD_PPS_MIN_VOLT_MV) / 100 -
+				     VSINKPD_MIN_IR_DROP_MV;
+		} else {
 			threshold = ((VSRC_NEW_MIN_PERCENT * requested_vbus_voltage_mv / 100) -
 				     VSINKPD_MIN_IR_DROP_MV - VSRC_VALID_MIN_MV) *
 				     VSINKDISCONNECT_PD_MIN_PERCENT / 100;
+		}
 	} else {
 		/* 3.5V for non-pd sink */
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;

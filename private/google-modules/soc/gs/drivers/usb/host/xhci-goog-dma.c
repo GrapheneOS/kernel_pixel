@@ -224,7 +224,7 @@ static int xhci_goog_rmem_device_init(struct reserved_mem *rmem,
 		mem = xhci_goog_dma_init_coherent_memory(rmem->base, rmem->base,
 							 rmem->size, true);
 
-		if (!mem)
+		if (IS_ERR(mem))
 			return PTR_ERR(mem);
 
 		rmem->priv = mem;
@@ -233,7 +233,7 @@ static int xhci_goog_rmem_device_init(struct reserved_mem *rmem,
 	if (get_dma_coherent_mem)
 		dma_mem = get_dma_coherent_mem(dev);
 	if (!dma_mem)
-		return PTR_ERR(dma_mem);
+		return -ENOMEM;
 
 	if (!dma_mem[XHCI_GOOG_DMA_RMEM_SRAM])
 		dma_mem[XHCI_GOOG_DMA_RMEM_SRAM] = (struct xhci_goog_dma_coherent_mem *)rmem->priv;
@@ -291,6 +291,7 @@ int xhci_goog_rmem_setup_latecall(struct device *dev)
 		}
 
 		rmem = of_reserved_mem_lookup(np);
+		of_node_put(np);
 		if (!rmem) {
 			dev_err(dev, "of_reserved_mem_lookup() failed\n");
 			break;

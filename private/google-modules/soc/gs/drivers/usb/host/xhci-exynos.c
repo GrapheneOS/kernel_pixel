@@ -897,7 +897,7 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	xhci->shared_hcd->tpl_support = hcd->tpl_support;
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
-		goto disable_usb_phy;
+		goto cleanup_offload;
 
 	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
 		xhci->shared_hcd->can_do_streams = 1;
@@ -911,7 +911,7 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 
 	ret = xhci_vendor_offload_setup(&pdev->dev, xhci);
 	if (ret)
-		goto disable_usb_phy;
+		goto remove_shared_hcd;
 
 	device_enable_async_suspend(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
@@ -928,8 +928,14 @@ static int xhci_exynos_probe(struct platform_device *pdev)
 	return 0;
 
 
+remove_shared_hcd:
+	usb_remove_hcd(xhci->shared_hcd);
+
 dealloc_usb2_hcd:
 	usb_remove_hcd(hcd);
+
+cleanup_offload:
+	xhci_vendor_offload_cleanup(&pdev->dev, xhci);
 
 disable_usb_phy:
 	usb_phy_shutdown(hcd->usb_phy);
