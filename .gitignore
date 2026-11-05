@@ -5,8 +5,7 @@ device.bazelrc
 
 /.repo/
 /build/
-/common/*
-!/common/BUILD.bazel
+/common/
 /external/
 /prebuilts/
 /tools/
