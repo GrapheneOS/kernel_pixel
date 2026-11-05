@@ -179,7 +179,7 @@ err_dma_heap_find:
 	return -ENOMEM;
 }
 
-void mfc_mem_dma_heap_free(struct mfc_special_buf *special_buf)
+static void mfc_mem_dma_heap_free(struct mfc_special_buf *special_buf)
 {
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(special_buf->vaddr);
 
@@ -535,6 +535,7 @@ int mfc_iommu_map_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf
 	struct device_node *node = core->device->of_node;
 	dma_addr_t reserved_base;
 	const __be32 *prop;
+	ssize_t mapped;
 
 	prop = of_get_property(node, "samsung,iommu-reserved-map", NULL);
 	if (!prop) {
@@ -544,16 +545,17 @@ int mfc_iommu_map_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf
 
 	reserved_base = of_read_number(prop, of_n_addr_cells(node));
 
-	fw_buf->map_size = iommu_map_sg(core->domain, reserved_base,
+	mapped = iommu_map_sg(core->domain, reserved_base,
 			fw_buf->sgt->sgl,
 			fw_buf->sgt->orig_nents,
-			IOMMU_READ|IOMMU_WRITE);
-	if (!fw_buf->map_size) {
+			IOMMU_READ | IOMMU_WRITE, GFP_KERNEL);
+	if (mapped <= 0) {
 		mfc_core_err("Failed to map iova (err VA: %pad, PA: %pap)\n",
 				&reserved_base, &fw_buf->paddr);
-		return -ENOMEM;
+		return mapped < 0 ? mapped : -ENOMEM;
 	}
 
+	fw_buf->map_size = mapped;
 	fw_buf->daddr = reserved_base;
 
 	return 0;

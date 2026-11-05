@@ -869,7 +869,7 @@ int mfc_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf,
 	return 0;
 }
 
-int __mfc_request_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
+static int __mfc_request_load_firmware(struct mfc_core *core, struct mfc_special_buf *fw_buf)
 {
 	const struct firmware *fw_blob;
 	int ret;

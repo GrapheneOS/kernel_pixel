@@ -2551,7 +2551,7 @@ static struct v4l2_queryctrl controls[] = {
 		.default_value = 60000,
 	},
 	{
-		.id = V4L2_CID_MPEG_VIDEO_AVERAGE_QP,
+		.id = V4L2_CID_MPEG_MFC_VIDEO_AVERAGE_QP,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "Frames average QP",
 		.minimum = 0,

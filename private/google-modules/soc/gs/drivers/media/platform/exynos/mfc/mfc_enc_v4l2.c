@@ -198,7 +198,7 @@ static int __mfc_enc_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 
 		if (j == f->index) {
 			fmt = &enc_formats[i];
-			strlcpy(f->description, fmt->name,
+			strscpy(f->description, fmt->name,
 				sizeof(f->description));
 			f->pixelformat = fmt->fourcc;
 
@@ -1031,8 +1031,8 @@ static int mfc_enc_streamoff(struct file *file, void *priv,
 }
 
 /* Query a ctrl */
-static int mfc_enc_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *qc)
+static int mfc_enc_query_ext_ctrl(struct file *file, void *priv,
+			    struct v4l2_query_ext_ctrl *qc)
 {
 	struct mfc_dev *dev = video_drvdata(file);
 	struct v4l2_queryctrl *c;
@@ -1043,7 +1043,19 @@ static int mfc_enc_queryctrl(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	*qc = *c;
+	qc->id = c->id;
+	qc->type = c->type;
+	memcpy(qc->name, c->name, sizeof(qc->name));
+	qc->minimum = c->minimum;
+	qc->maximum = c->maximum;
+	qc->step = c->step;
+	qc->default_value = c->default_value;
+	qc->flags = c->flags;
+	qc->elem_size = sizeof(s32);
+	qc->elems = 1;
+	qc->nr_of_dims = 0;
+	memset(qc->dims, 0, sizeof(qc->dims));
+	memset(qc->reserved, 0, sizeof(qc->reserved));
 	return 0;
 }
 
@@ -1130,7 +1142,7 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	case V4L2_CID_MPEG_MFC51_VIDEO_FRAME_STATUS:
 	case V4L2_CID_MPEG_VIDEO_SRC_BUF_FLAG:
 	case V4L2_CID_MPEG_VIDEO_DST_BUF_FLAG:
-	case V4L2_CID_MPEG_VIDEO_AVERAGE_QP:
+	case V4L2_CID_MPEG_MFC_VIDEO_AVERAGE_QP:
 	case V4L2_CID_MPEG_VIDEO_SUM_SKIP_MB:
 	case V4L2_CID_MPEG_VIDEO_SUM_INTRA_MB:
 	case V4L2_CID_MPEG_VIDEO_SUM_ZERO_MV_MB:
@@ -1194,18 +1206,7 @@ static int __mfc_enc_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	return ret;
 }
 
-static int mfc_enc_g_ctrl(struct file *file, void *priv,
-			 struct v4l2_control *ctrl)
-{
-	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret = 0;
 
-	mfc_debug_enter();
-	ret = __mfc_enc_get_ctrl_val(ctx, ctrl);
-	mfc_debug_leave();
-
-	return ret;
-}
 
 static inline int __mfc_enc_h264_level(enum v4l2_mpeg_video_h264_level lvl)
 {
@@ -2249,7 +2250,7 @@ static int __mfc_enc_set_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 	return ret;
 }
 
-static int mfc_enc_s_ctrl(struct file *file, void *priv,
+int mfc_enc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -2277,7 +2278,8 @@ static int mfc_enc_g_ext_ctrls(struct file *file, void *priv,
 	int i;
 	int ret = 0;
 
-	if (f->which != V4L2_CTRL_CLASS_CODEC)
+	if (f->which == V4L2_CTRL_WHICH_DEF_VAL ||
+	    f->which == V4L2_CTRL_WHICH_REQUEST_VAL)
 		return -EINVAL;
 
 	for (i = 0; i < f->count; i++) {
@@ -2388,9 +2390,7 @@ static const struct v4l2_ioctl_ops mfc_enc_ioctl_ops = {
 	.vidioc_dqbuf			= mfc_enc_dqbuf,
 	.vidioc_streamon		= mfc_enc_streamon,
 	.vidioc_streamoff		= mfc_enc_streamoff,
-	.vidioc_queryctrl		= mfc_enc_queryctrl,
-	.vidioc_g_ctrl			= mfc_enc_g_ctrl,
-	.vidioc_s_ctrl			= mfc_enc_s_ctrl,
+	.vidioc_query_ext_ctrl		= mfc_enc_query_ext_ctrl,
 	.vidioc_g_ext_ctrls		= mfc_enc_g_ext_ctrls,
 	.vidioc_s_ext_ctrls		= mfc_enc_s_ext_ctrls,
 	.vidioc_try_ext_ctrls		= mfc_enc_try_ext_ctrls,

@@ -683,7 +683,7 @@ void mfc_calc_base_addr(struct mfc_ctx *ctx, struct vb2_buffer *vb,
 
 void mfc_core_meerkat_tick(struct timer_list *t)
 {
-	struct mfc_core *core = from_timer(core, t, meerkat_timer);
+	struct mfc_core *core = timer_container_of(core, t, meerkat_timer);
 
 	mfc_core_debug(5, "meerkat is ticking!\n");
 
@@ -749,7 +749,7 @@ void mfc_core_meerkat_reset_tick(struct mfc_core *core)
 
 void mfc_core_idle_checker(struct timer_list *t)
 {
-	struct mfc_core *core = from_timer(core, t, mfc_idle_timer);
+	struct mfc_core *core = timer_container_of(core, t, mfc_idle_timer);
 	struct mfc_dev *dev = core->dev;
 
 	mfc_core_debug(5, "[MFCIDLE] MFC HW idle checker is ticking!\n");
