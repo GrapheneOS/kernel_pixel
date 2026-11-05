@@ -130,7 +130,6 @@ static int aoc_bus_match(struct device *dev, struct device_driver *drv);
 static int aoc_bus_probe(struct device *dev);
 static void aoc_bus_remove(struct device *dev);
 
-static void aoc_configure_iommu_fault_handler(struct aoc_prvdata *p);
 static void aoc_configure_iommu(struct aoc_prvdata *p, const struct firmware *fw);
 
 static struct bus_type aoc_bus_type = {
@@ -657,7 +656,6 @@ static void aoc_fw_callback(const struct firmware *fw, void *ctx)
 	if (gsa_enabled) {
 		int rc;
 
-		aoc_configure_iommu_fault_handler(prvdata);
 		rc = aoc_fw_authenticate(prvdata, fw);
 		if (rc) {
 			dev_err(dev, "GSA: FW authentication failed: %d\n", rc);
@@ -1075,6 +1073,11 @@ static struct attribute *aoc_attrs[] = {
 
 ATTRIBUTE_GROUPS(aoc);
 
+static void aoc_unregister_iommu_fault_handler(void *data)
+{
+	iommu_unregister_device_fault_handler(data);
+}
+
 static int aoc_platform_probe(struct platform_device *dev);
 static int aoc_platform_remove(struct platform_device *dev);
 static void aoc_platform_shutdown(struct platform_device *dev);
@@ -1255,14 +1258,6 @@ static int aoc_iommu_fault_handler(struct iommu_fault *fault, void *token)
 	return -EAGAIN;
 }
 
-static void aoc_configure_iommu_fault_handler(struct aoc_prvdata *p)
-{
-	struct device *dev = p->dev;
-	int rc = iommu_register_device_fault_handler(dev, aoc_iommu_fault_handler, dev);
-
-	if (rc)
-		dev_err(dev, "iommu_register_device_fault_handler failed: rc = %d\n", rc);
-}
 
 static void aoc_configure_iommu(struct aoc_prvdata *p, const struct firmware *fw)
 {
@@ -1278,7 +1273,6 @@ static void aoc_configure_iommu(struct aoc_prvdata *p, const struct firmware *fw
 		return;
 	}
 
-	aoc_configure_iommu_fault_handler(p);
 
 	iommu_offset = _aoc_fw_iommu_offset(fw);
 	iommu_size = _aoc_fw_iommu_size(fw);
@@ -2720,6 +2714,13 @@ static int aoc_platform_probe(struct platform_device *pdev)
 		goto err_find_iommu;
 	}
 
+	rc = iommu_register_device_fault_handler(dev, aoc_iommu_fault_handler, dev);
+	if (rc)
+		goto err_find_iommu;
+	rc = devm_add_action_or_reset(dev, aoc_unregister_iommu_fault_handler, dev);
+	if (rc)
+		goto err_find_iommu;
+
 	aoc_configure_ssmt(pdev);
 
 	if (!aoc_create_dma_buf_heaps(prvdata)) {
@@ -2848,7 +2849,8 @@ static int __init aoc_init(void)
 		goto err_aoc_driver;
 	}
 
-	if (platform_device_register(&sscd_dev) != 0) {
+	if (platform_device_register(&sscd_dev)) {
+		platform_device_put(&sscd_dev);
 		pr_err("failed to register AoC coredump device\n");
 		goto err_aoc_coredump;
 	}
