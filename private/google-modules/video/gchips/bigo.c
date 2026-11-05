@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/samsung-iommu-fault.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
@@ -58,6 +59,7 @@ enum misc_command {
 static int bigo_worker_thread(void *data);
 
 static struct sscd_platform_data bigo_sscd_platdata;
+static bool bigo_sscd_registered;
 
 static void bigo_sscd_release(struct device *dev)
 {
@@ -66,7 +68,6 @@ static void bigo_sscd_release(struct device *dev)
 
 static struct platform_device bigo_sscd_dev = {
 	.name            = BIGO_CHRDEV_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &bigo_sscd_platdata,
@@ -636,7 +637,7 @@ static int init_chardev(struct bigo_core *core)
 		goto err_cdev_add;
 	}
 
-	core->_class = class_create(THIS_MODULE, BIGO_DEVCLASS_NAME);
+	core->_class = class_create( BIGO_DEVCLASS_NAME);
 	if (IS_ERR(core->_class)) {
 		rc = PTR_ERR(core->_class);
 		goto err_class_create;
@@ -832,7 +833,7 @@ static int bigo_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	rc = iommu_register_device_fault_handler(&pdev->dev, bigo_iommu_fault_handler, core);
+	rc = samsung_iommu_register_fault_handler(&pdev->dev, bigo_iommu_fault_handler, core);
 	if (rc) {
 		pr_err("failed to register iommu fault handler: %d\n", rc);
 		goto err_fault_handler;
@@ -846,8 +847,17 @@ static int bigo_probe(struct platform_device *pdev)
 		rc = 0;
 	}
 
-	if(platform_device_register(&bigo_sscd_dev))
+	device_initialize(&bigo_sscd_dev.dev);
+	rc = device_set_driver_override(&bigo_sscd_dev.dev, SSCD_NAME);
+	if (!rc)
+		rc = platform_device_add(&bigo_sscd_dev);
+	if (rc) {
+		platform_device_put(&bigo_sscd_dev);
 		pr_warn("Failed to register bigo_sscd_dev.\n");
+		rc = 0;
+	} else {
+		bigo_sscd_registered = true;
+	}
 
 	bigo_init_debugfs(core);
 
@@ -859,7 +869,7 @@ static int bigo_probe(struct platform_device *pdev)
 	return rc;
 
 err_pt_client:
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 err_fault_handler:
 	pm_runtime_disable(&pdev->dev);
 err_io:
@@ -872,19 +882,21 @@ err:
 	return rc;
 }
 
-static int bigo_remove(struct platform_device *pdev)
+static void bigo_remove(struct platform_device *pdev)
 {
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
 	bigo_uninit_debugfs(core);
-	platform_device_unregister(&bigo_sscd_dev);
+	if (bigo_sscd_registered) {
+		platform_device_unregister(&bigo_sscd_dev);
+		bigo_sscd_registered = false;
+	}
 	bigo_pt_client_unregister(core);
-	iommu_unregister_device_fault_handler(&pdev->dev);
+	samsung_iommu_unregister_fault_handler(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	bigo_of_dt_release(core);
 	deinit_chardev(core);
 	platform_set_drvdata(pdev, NULL);
-	return 0;
 }
 
 static const struct of_device_id bigo_dt_match[] = {
