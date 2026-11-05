@@ -127,7 +127,7 @@ static int __mfc_dec_enum_fmt(struct mfc_dev *dev, struct v4l2_fmtdesc *f,
 
 		if (j == f->index) {
 			fmt = &dec_formats[i];
-			strlcpy(f->description, fmt->name,
+			strscpy(f->description, fmt->name,
 				sizeof(f->description));
 			f->pixelformat = fmt->fourcc;
 
@@ -1128,8 +1128,8 @@ static int mfc_dec_streamoff(struct file *file, void *priv,
 }
 
 /* Query a ctrl */
-static int mfc_dec_queryctrl(struct file *file, void *priv,
-			    struct v4l2_queryctrl *qc)
+static int mfc_dec_query_ext_ctrl(struct file *file, void *priv,
+			    struct v4l2_query_ext_ctrl *qc)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
 	struct v4l2_queryctrl *c;
@@ -1140,7 +1140,19 @@ static int mfc_dec_queryctrl(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	*qc = *c;
+	qc->id = c->id;
+	qc->type = c->type;
+	memcpy(qc->name, c->name, sizeof(qc->name));
+	qc->minimum = c->minimum;
+	qc->maximum = c->maximum;
+	qc->step = c->step;
+	qc->default_value = c->default_value;
+	qc->flags = c->flags;
+	qc->elem_size = sizeof(s32);
+	qc->elems = 1;
+	qc->nr_of_dims = 0;
+	memset(qc->dims, 0, sizeof(qc->dims));
+	memset(qc->reserved, 0, sizeof(qc->reserved));
 	return 0;
 }
 
@@ -1326,21 +1338,10 @@ static int __mfc_dec_get_ctrl_val(struct mfc_ctx *ctx, struct v4l2_control *ctrl
 }
 
 /* Get a ctrl */
-static int mfc_dec_g_ctrl(struct file *file, void *priv,
-			struct v4l2_control *ctrl)
-{
-	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
-	int ret = 0;
 
-	mfc_debug_enter();
-	ret = __mfc_dec_get_ctrl_val(ctx, ctrl);
-	mfc_debug_leave();
-
-	return ret;
-}
 
 /* Set a ctrl */
-static int mfc_dec_s_ctrl(struct file *file, void *priv,
+int mfc_dec_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
 	struct mfc_ctx *ctx = fh_to_mfc_ctx(file->private_data);
@@ -1598,7 +1599,8 @@ static int mfc_dec_g_ext_ctrls(struct file *file, void *priv,
 	int i;
 	int ret = 0;
 
-	if (f->which != V4L2_CTRL_CLASS_CODEC)
+	if (f->which == V4L2_CTRL_WHICH_DEF_VAL ||
+	    f->which == V4L2_CTRL_WHICH_REQUEST_VAL)
 		return -EINVAL;
 
 	for (i = 0; i < f->count; i++) {
@@ -1638,9 +1640,7 @@ static const struct v4l2_ioctl_ops mfc_dec_ioctl_ops = {
 	.vidioc_dqbuf			= mfc_dec_dqbuf,
 	.vidioc_streamon		= mfc_dec_streamon,
 	.vidioc_streamoff		= mfc_dec_streamoff,
-	.vidioc_queryctrl		= mfc_dec_queryctrl,
-	.vidioc_g_ctrl			= mfc_dec_g_ctrl,
-	.vidioc_s_ctrl			= mfc_dec_s_ctrl,
+	.vidioc_query_ext_ctrl		= mfc_dec_query_ext_ctrl,
 	.vidioc_g_selection		= mfc_dec_g_selection,
 	.vidioc_g_ext_ctrls		= mfc_dec_g_ext_ctrls,
 };
