@@ -2870,4 +2870,4 @@ module_init(aoc_init);
 module_exit(aoc_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_IMPORT_NS(DMA_BUF);
+MODULE_IMPORT_NS("DMA_BUF");
