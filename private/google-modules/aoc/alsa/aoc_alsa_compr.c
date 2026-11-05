@@ -391,9 +391,8 @@ static int aoc_compr_playback_open(struct snd_compr_stream *cstream)
 	alsa_stream->draining = 0; // set to 1 when partial drain
 
 	alsa_stream->timer_interval_ns = COMPR_OFFLOAD_TIMER_INTERVAL_NANOSECS;
-	hrtimer_init(&(alsa_stream->hr_timer), CLOCK_MONOTONIC,
-		     HRTIMER_MODE_REL);
-	alsa_stream->hr_timer.function = &aoc_compr_hrtimer_irq_handler;
+	hrtimer_setup(&alsa_stream->hr_timer, aoc_compr_hrtimer_irq_handler,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	dev->prvdata = alsa_stream; /* For interrupt-driven playback */
 
@@ -647,7 +646,7 @@ int aoc_compr_get_position(struct aoc_alsa_stream *alsa_stream, uint64_t *positi
 }
 
 static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_compr_stream *cstream,
-			     struct snd_compr_tstamp *arg)
+			     struct snd_compr_tstamp64 *arg)
 {
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct aoc_alsa_stream *alsa_stream = runtime->private_data;
@@ -656,7 +655,9 @@ static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_com
 	//pr_debug("%s, %pK, %pK\n", __func__, runtime, arg);
 
 	arg->byte_offset = alsa_stream->pos;
-	arg->copied_total = alsa_stream->prev_consumed - alsa_stream->hw_ptr_base;
+	arg->copied_total = alsa_stream->prev_consumed +
+			    0x100000000ULL * alsa_stream->n_overflow -
+			    alsa_stream->hw_ptr_base;
 
 	/* TODO: overflow in samples, HAL only uses pcm_io_samples for timestamps */
 	arg->sampling_rate = alsa_stream->params_rate;
@@ -668,7 +669,7 @@ static int aoc_compr_pointer(struct snd_soc_component *component, struct snd_com
 	arg->pcm_io_frames = (current_sample - alsa_stream->compr_pcm_io_sample_base) *
 			     (long)arg->sampling_rate / AOC_COMPR_OFFLOAD_DEFAULT_SR;
 
-	pr_debug("compr ptr -total bytes: %llu copied: %u diff:%llu,sampes=%u,fs=%d,base=%llu\n",
+	pr_debug("compr ptr -total bytes: %llu copied: %llu diff:%llu,sampes=%llu,fs=%d,base=%llu\n",
 		 runtime->total_bytes_available, arg->copied_total,
 		 runtime->total_bytes_available - arg->copied_total, arg->pcm_io_frames,
 		 arg->sampling_rate, alsa_stream->compr_pcm_io_sample_base);
@@ -700,7 +701,7 @@ static int aoc_compr_playback_copy(struct snd_compr_stream *cstream,
 	if (err < 0)
 		pr_err("ERR: %d failed to send metadata\n", err);
 
-	err = aoc_audio_write(alsa_stream, buf, count);
+	err = aoc_audio_write_user(alsa_stream, buf, count);
 	if (err < 0) {
 		pr_err("ERR:%d failed to write to buffer\n", err);
 		return err;
@@ -843,9 +844,6 @@ static int aoc_compr_set_params(struct snd_soc_component *component,
 	uint8_t *temp_data_buf;
 	int buffer_size;
 	unsigned long avail;
-#if !IS_ENABLED(CONFIG_SOC_GS101) && !IS_ENABLED(CONFIG_SOC_GS201)
-	int i;
-#endif
 
 	pr_debug("%s, fragment size = %d, number of fragment = %d\n", __func__,
 		 params->buffer.fragment_size, params->buffer.fragments);
@@ -878,15 +876,17 @@ static int aoc_compr_set_params(struct snd_soc_component *component,
 
 	/* TODO: need to double check on the AoC decoder requirements */
 	alsa_stream->channels  =  params->codec.ch_out;
+	/* The vendor HAL uses the snd_codec layout from before pcm_format. */
 	alsa_stream->compr_offload_codec =
-		snd_audiocodec_to_aoc_decoder(params->codec.id, codec->reserved[0]);
+		snd_audiocodec_to_aoc_decoder(params->codec.id, codec->pcm_format);
 	memset(alsa_stream->compr_offload_codec_options, 0,
 		sizeof(alsa_stream->compr_offload_codec_options));
 #if !IS_ENABLED(CONFIG_SOC_GS101) && !IS_ENABLED(CONFIG_SOC_GS201)
 	if (alsa_stream->compr_offload_codec == AUDIO_OUTPUT_DECODER_PCM) {
-		for(i = 0;i < CODEC_RESERVED_SIZE;i ++)
-			alsa_stream->compr_offload_codec_options[i] =
-				(uint8_t)codec->reserved[i];
+		alsa_stream->compr_offload_codec_options[PCM_OPTION_INDEX_BIT_DEPTH] =
+			(uint8_t)codec->pcm_format;
+		alsa_stream->compr_offload_codec_options[PCM_OPTION_INDEX_FORMAT] =
+			(uint8_t)codec->reserved[0];
 
 		alsa_stream->compr_offload_codec_options[PCM_OPTION_INDEX_BITFIELD_1] =
 			alsa_stream->stream_type == MMAPED ? 1 : 0;

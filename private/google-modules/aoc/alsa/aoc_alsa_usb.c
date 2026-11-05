@@ -11,7 +11,7 @@
 
 #include <sound/core.h>
 #include <linux/usb.h>
-#include <trace/hooks/audio_usboffload.h>
+#include <linux/notifier.h>
 
 #include "aoc_alsa.h"
 #include "card.h"
@@ -23,6 +23,19 @@ struct uaudio_dev {
 };
 
 static struct uaudio_dev uadev[SNDRV_CARDS];
+static BLOCKING_NOTIFIER_HEAD(aoc_usb_notifiers);
+
+int aoc_alsa_usb_register_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&aoc_usb_notifiers, nb);
+}
+EXPORT_SYMBOL_GPL(aoc_alsa_usb_register_notifier);
+
+void aoc_alsa_usb_unregister_notifier(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&aoc_usb_notifiers, nb);
+}
+EXPORT_SYMBOL_GPL(aoc_alsa_usb_unregister_notifier);
 
 void (*cb_func)(struct usb_device*, struct usb_host_endpoint*);
 
@@ -60,7 +73,7 @@ done:
 	return subs;
 }
 
-void usb_audio_offload_connect(struct snd_usb_audio *chip)
+static void usb_audio_offload_connect(struct snd_usb_audio *chip)
 {
 	int card_num;
 
@@ -78,9 +91,10 @@ void usb_audio_offload_connect(struct snd_usb_audio *chip)
 	chip->quirk_flags &= ~QUIRK_FLAG_GENERIC_IMPLICIT_FB;
 	chip->quirk_flags |= QUIRK_FLAG_SKIP_IMPLICIT_FB;
 	mutex_unlock(&chip->mutex);
+	blocking_notifier_call_chain(&aoc_usb_notifiers, 1, chip);
 }
 
-void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
+static void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 {
 	int card_num;
 
@@ -96,9 +110,10 @@ void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 	uadev[card_num].chip = NULL;
 	uadev[card_num].card_num = 0;
 	mutex_unlock(&chip->mutex);
+	blocking_notifier_call_chain(&aoc_usb_notifiers, 0, chip);
 }
 
-void usb_audio_offload_suspend(struct usb_interface *intf, pm_message_t message)
+static void usb_audio_offload_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	pr_debug("%s", __func__);
 }
@@ -195,31 +210,23 @@ void aoc_alsa_usb_callback_unregister(void)
 }
 EXPORT_SYMBOL_GPL(aoc_alsa_usb_callback_unregister);
 
-static void audio_usb_offload_connect(void *unused, struct usb_interface *intf,
-			struct snd_usb_audio *chip)
-{
-	usb_audio_offload_connect(chip);
-}
-
-static void audio_usb_offload_disconnect(void *unused, struct usb_interface *intf)
-{
-	struct snd_usb_audio *chip = usb_get_intfdata(intf);
-
-	usb_audio_offload_disconnect(chip);
-}
+static struct snd_usb_platform_ops aoc_usb_ops = {
+	.connect_cb = usb_audio_offload_connect,
+	.disconnect_cb = usb_audio_offload_disconnect,
+	.suspend_cb = usb_audio_offload_suspend,
+};
 
 int aoc_usb_init(void)
 {
-	int ret = 0;
+	int ret = snd_usb_register_platform_ops(&aoc_usb_ops);
 
-	register_trace_android_vh_audio_usb_offload_connect(audio_usb_offload_connect, NULL);
-	register_trace_android_rvh_audio_usb_offload_disconnect(audio_usb_offload_disconnect, NULL);
-
-	return ret;
+	if (ret)
+		return ret;
+	snd_usb_rediscover_devices();
+	return 0;
 }
 
 void aoc_usb_exit(void)
 {
-	unregister_trace_android_vh_audio_usb_offload_connect(audio_usb_offload_connect, NULL);
+	snd_usb_unregister_platform_ops();
 }
-

@@ -38,7 +38,11 @@ struct be_path_cache port_array[PORT_MAX] = {
 static const struct snd_soc_dai_ops be_dai_ops;
 static struct mutex path_mutex;
 
-static int aoc_compress_new(struct snd_soc_pcm_runtime *rtd, int num);
+static int aoc_compress_new(struct snd_soc_pcm_runtime *rtd);
+
+static const struct snd_soc_dai_ops compress_dai_ops = {
+	.compress_new = aoc_compress_new,
+};
 
 static const uint32_t rx_ep_list[] = {
 	IDX_EP2_RX,           /* low-latency-playback */
@@ -182,7 +186,7 @@ static struct snd_soc_dai_driver aoc_dai_drv[] = {
 			.channels_min = 1,
 			.channels_max = 2,
 		},
-		.compress_new = aoc_compress_new,
+		.ops = &compress_dai_ops,
 		.name = "EP7 PB",
 		.id = IDX_EP7_RX,
 	},
@@ -910,9 +914,9 @@ static struct snd_soc_dai_driver aoc_dai_drv[] = {
 
 };
 
-static int aoc_compress_new(struct snd_soc_pcm_runtime *rtd, int num)
+static int aoc_compress_new(struct snd_soc_pcm_runtime *rtd)
 {
-	int ret = snd_soc_new_compress(rtd, num);
+	int ret = snd_soc_new_compress(rtd);
 	if (ret >= 0) {
 		rtd->pcm->nonatomic = true;
 	}
