@@ -12,7 +12,7 @@
  * (also called the traditional FMP mode or legacy FMP mode).
  */
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
 #include <linux/soc/samsung/exynos-smc.h>
@@ -91,15 +91,15 @@ int exynos_ufs_crypto_init_sw_keys_mode(struct ufs_hba *hba)
 	hba->caps |= UFSHCD_CAP_CRYPTO;
 
 	/* Advertise crypto quirks to ufshcd-core. */
-	hba->android_quirks |= UFSHCD_ANDROID_QUIRK_CUSTOM_CRYPTO_PROFILE |
-		               UFSHCD_ANDROID_QUIRK_BROKEN_CRYPTO_ENABLE |
-		               UFSHCD_ANDROID_QUIRK_KEYS_IN_PRDT;
+	hba->quirks |= UFSHCD_QUIRK_CUSTOM_CRYPTO_PROFILE |
+		               UFSHCD_QUIRK_BROKEN_CRYPTO_ENABLE |
+		               UFSHCD_QUIRK_KEYS_IN_PRDT;
 	hba->sg_entry_size = sizeof(struct fmp_sg_entry);
 
 	/* Advertise crypto capabilities to the block layer. */
 	devm_blk_crypto_profile_init(hba->dev, &hba->crypto_profile, 0);
 	hba->crypto_profile.max_dun_bytes_supported = AES_BLOCK_SIZE;
-	hba->crypto_profile.key_types_supported = BLK_CRYPTO_KEY_TYPE_STANDARD;
+	hba->crypto_profile.key_types_supported = BLK_CRYPTO_KEY_TYPE_RAW;
 	hba->crypto_profile.dev = hba->dev;
 	hba->crypto_profile.modes_supported[BLK_ENCRYPTION_MODE_AES_256_XTS] =
 		FMP_DATA_UNIT_SIZE;
