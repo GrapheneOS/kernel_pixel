@@ -7,7 +7,9 @@
  * Authors: Jaegeuk Kim <jaegeuk@google.com>
  */
 
+#include "ufs_trace_types.h"
 #include <core/ufshcd-priv.h>
+#include <linux/tracepoint.h>
 #include <linux/workqueue.h>
 #include <misc/sbbm.h>
 #include "ufs-pixel.h"
@@ -337,13 +339,12 @@ static inline void record_ufs_stats(struct ufs_hba *hba)
 	}
 }
 
-void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
+				       u64 delta)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 	struct pixel_req_stats *rst;
 	enum req_type_stats cmd_type;
-	u64 delta = (u64)ktime_us_delta(lrbp->compl_time_stamp,
-		lrbp->issue_time_stamp);
 
 	/* Log for slow I/O */
 	pixel_ufs_log_slowio(hba, lrbp, delta);
@@ -596,8 +597,7 @@ static void __store_cmd_log(struct ufs_hba *hba, enum pixel_event_type event,
 	entry->queue_eh_work = queue_eh_work;
 }
 
-static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp, u8 opcode)
+static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba, u8 opcode, s64 delta)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 	struct latency_metrics *metric = NULL;
@@ -608,9 +608,6 @@ static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
 		metric = &ufs->power_stats.fdevinit_read;
 
 	if (metric) {
-		s64 delta = ktime_to_us(ktime_sub(lrbp->compl_time_stamp,
-						  lrbp->issue_time_stamp));
-
 		WARN_ON(delta < 0);
 
 		metric->count++;
@@ -621,7 +618,7 @@ static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
 }
 
 static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
-		struct ufshcd_lrb *lrbp, bool is_start)
+		struct ufshcd_lrb *lrbp, bool is_start, s64 delta)
 {
 	u8 lun = 0, opcode = 0, idn = 0, tag = 0, group_id = 0;
 	enum pixel_event_type event = EVENT_UNDEF;
@@ -650,7 +647,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 			idn = hba->dev_cmd.query.request.upiu_req.idn;
 			if (idn == QUERY_FLAG_IDN_FDEVICEINIT &&
 			    event == EVENT_QUERY_COMPL)
-				pixel_ufs_trace_fdeviceinit(hba, lrbp, opcode);
+				pixel_ufs_trace_fdeviceinit(hba, opcode, delta);
 		}
 	}
 
@@ -717,13 +714,17 @@ static void pixel_ufs_check_int_errors(void *data, struct ufs_hba *hba,
 static void pixel_ufs_send_command(void *data, struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp)
 {
+	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+
+	/* Core timestamps are only maintained while its monitor is enabled. */
+	ufs->issue_time[lrbp->task_tag] = ktime_get();
 	pixel_ufs_update_io_stats(hba, lrbp, true);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, true);
+	pixel_ufs_trace_upiu_cmd(hba, lrbp, true, 0);
 }
 
 static inline int ufshcd_get_tr_ocs(struct ufshcd_lrb *lrbp)
 {
-	return le32_to_cpu(lrbp->utr_descriptor_ptr->header.dword_2) & MASK_OCS;
+	return lrbp->utr_descriptor_ptr->header.ocs & MASK_OCS;
 }
 
 static inline int ufshcd_get_req_rsp(struct utp_upiu_rsp *ucd_rsp_ptr)
@@ -733,15 +734,18 @@ static inline int ufshcd_get_req_rsp(struct utp_upiu_rsp *ucd_rsp_ptr)
 
 static inline int ufshcd_get_rsp_upiu_result(struct utp_upiu_rsp *ucd_rsp_ptr)
 {
-	return be32_to_cpu(ucd_rsp_ptr->header.dword_1) & MASK_RSP_UPIU_RESULT;
+	return be32_to_cpu(ucd_rsp_ptr->header.dword_1) & 0xffff;
 }
 
 static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp)
 {
+	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+	s64 delta = ktime_us_delta(ktime_get(), ufs->issue_time[lrbp->task_tag]);
+
 	pixel_ufs_update_io_stats(hba, lrbp, false);
-	pixel_ufs_update_req_stats(hba, lrbp);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
+	pixel_ufs_update_req_stats(hba, lrbp, delta);
+	pixel_ufs_trace_upiu_cmd(hba, lrbp, false, delta);
 }
 
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
@@ -773,10 +777,14 @@ static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
 		return;
 
 	opcode = (u8)(*lrbp->cmd->cmnd);
-	if (opcode == WRITE_10)
+	/* The core has already copied the CDB into the command UPIU. */
+	if (opcode == WRITE_10) {
 		lrbp->cmd->cmnd[6] = 0x11;
-	else if (opcode == WRITE_16)
+		lrbp->ucd_req_ptr->sc.cdb[6] = 0x11;
+	} else if (opcode == WRITE_16) {
 		lrbp->cmd->cmnd[14] = 0x11;
+		lrbp->ucd_req_ptr->sc.cdb[14] = 0x11;
+	}
 	ufs->need_wb_flush = true;
 }
 
@@ -938,7 +946,7 @@ static ssize_t manual_gc_store(struct device *dev,
 	}
 
 	if (!ufs->manual_gc.hagc_support) {
-		err = ufshcd_bkops_ctrl(hba, (value == MANUAL_GC_ON) ?
+		err = ufshcd_bkops_ctrl_threshold(hba, (value == MANUAL_GC_ON) ?
 					BKOPS_STATUS_NON_CRITICAL:
 					BKOPS_STATUS_CRITICAL);
 		if (!hba->auto_bkops_enabled)
@@ -1007,8 +1015,8 @@ void pixel_init_manual_gc(struct ufs_hba *hba)
 	mgc->hagc_support = true;
 	mgc->delay_ms = UFSHCD_MANUAL_GC_HOLD_HIBERN8;
 
-	hrtimer_init(&mgc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	mgc->hrtimer.function = pixel_mgc_hrtimer_handler;
+	hrtimer_setup(&mgc->hrtimer, pixel_mgc_hrtimer_handler,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	INIT_WORK(&mgc->hibern8_work, pixel_mgc_hibern8_work);
 	snprintf(wq_name, ARRAY_SIZE(wq_name), "ufs_mgc_hibern8_work_%d",
@@ -1782,7 +1790,7 @@ static ssize_t _name##_show(struct device *dev,			\
 	struct ufs_hba *hba = dev_get_drvdata(dev);			\
 	u32 value;						\
 	pm_runtime_get_sync(hba->dev);			\
-	ufshcd_hold(hba, false);			\
+	ufshcd_hold(hba);			\
 	value = ufshcd_readl(hba, REG##_uname);			\
 	ufshcd_release(hba);			\
 	pm_runtime_put(hba->dev);			\
@@ -1792,8 +1800,8 @@ static DEVICE_ATTR_RO(_name)
 
 PIXEL_HC_REG_ATTR(cap, _CONTROLLER_CAPABILITIES);
 PIXEL_HC_REG_ATTR(ver, _UFS_VERSION);
-PIXEL_HC_REG_ATTR(hcpid, _CONTROLLER_DEV_ID);
-PIXEL_HC_REG_ATTR(hcmid, _CONTROLLER_PROD_ID);
+PIXEL_HC_REG_ATTR(hcpid, _CONTROLLER_PID);
+PIXEL_HC_REG_ATTR(hcmid, _CONTROLLER_MID);
 PIXEL_HC_REG_ATTR(ahit, _AUTO_HIBERNATE_IDLE_TIMER);
 PIXEL_HC_REG_ATTR(is, _INTERRUPT_STATUS);
 PIXEL_HC_REG_ATTR(ie, _INTERRUPT_ENABLE);
@@ -1903,7 +1911,6 @@ static const struct attribute_group *pixel_ufs_sysfs_groups[] = {
 	&pixel_sysfs_err_stats_group,
 	&pixel_sysfs_ufs_stats_group,
 	&pixel_sysfs_hc_register_ifc_group,
-	&pixel_sysfs_power_info_group,
 	&pixel_sysfs_power_stats_group,
 #if IS_ENABLED(CONFIG_SCSI_UFS_PIXEL_FIPS140)
 	&pixel_sysfs_fips_group,
@@ -1918,11 +1925,26 @@ static void pixel_ufs_update_sysfs_work(struct work_struct *work)
 	struct ufs_hba *hba = ufs->hba;
 	int err;
 
+	if (ufs->sysfs_groups_added)
+		return;
+
 	err = sysfs_create_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
-	if (err)
+	if (err) {
 		dev_err(hba->dev,
 			"%s: sysfs groups creation failed (err = %d)\n",
 			__func__, err);
+		return;
+	}
+
+	/* The UFS core owns power_info; retain the additional Pixel ABI files. */
+	err = sysfs_merge_group(&hba->dev->kobj, &pixel_sysfs_power_info_group);
+	if (err) {
+		dev_err(hba->dev, "%s: power_info merge failed (err = %d)\n",
+			__func__, err);
+		sysfs_remove_groups(&hba->dev->kobj, pixel_ufs_sysfs_groups);
+		return;
+	}
+	ufs->sysfs_groups_added = true;
 
 	err = sysfs_update_group(&hba->dev->kobj,
 				&pixel_sysfs_health_descriptor_group);
@@ -1939,9 +1961,32 @@ static void pixel_ufs_update_sysfs_work(struct work_struct *work)
 
 static void pixel_ufs_update_sysfs(void *data, struct ufs_hba *hba)
 {
-	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+	struct pixel_ufs *ufs = data;
 
-	queue_work(system_highpri_wq, &ufs->update_sysfs_work);
+	if (hba == ufs->hba)
+		queue_work(system_highpri_wq, &ufs->update_sysfs_work);
+}
+
+void pixel_ufs_remove_sysfs(struct pixel_ufs *ufs)
+{
+	struct attribute **attr;
+	struct kobject *kobj;
+
+	if (!ufs->sysfs_hook_registered)
+		return;
+
+	ufs->sysfs_hook_registered = false;
+	unregister_trace_android_vh_ufs_update_sysfs(pixel_ufs_update_sysfs, ufs);
+	tracepoint_synchronize_unregister();
+	cancel_work_sync(&ufs->update_sysfs_work);
+	if (ufs->sysfs_groups_added) {
+		kobj = &ufs->dev->kobj;
+		for (attr = pixel_sysfs_power_info_group.attrs; *attr; attr++)
+			sysfs_remove_file_from_group(kobj, *attr,
+						    pixel_sysfs_power_info_group.name);
+		sysfs_remove_groups(kobj, pixel_ufs_sysfs_groups);
+		ufs->sysfs_groups_added = false;
+	}
 }
 
 static void pixel_ufs_update_sdev(void *data, struct scsi_device *sdev)
@@ -1979,6 +2024,8 @@ static void pixel_ufs_init(struct pixel_ufs *ufs)
 	memset(&ufs->power_stats, 0, sizeof(struct pixel_power_stats));
 	ufs->ufs_stats.hibern8_flag = false;
 	ufs->set_gid = WB_GID_SEL;
+	ufs->sysfs_groups_added = false;
+	ufs->sysfs_hook_registered = false;
 
 	/* init power event monitoring */
 	spin_lock_init(&ufs->power_event_lock);
@@ -2002,11 +2049,6 @@ int pixel_init(struct ufs_hba *hba, struct device *pdev,
 
 	ret = register_trace_android_vh_ufs_prepare_command(
 				pixel_ufs_prepare_command, NULL);
-	if (ret)
-		return ret;
-
-	ret = register_trace_android_vh_ufs_update_sysfs(
-				pixel_ufs_update_sysfs, NULL);
 	if (ret)
 		return ret;
 
@@ -2050,6 +2092,11 @@ int pixel_init(struct ufs_hba *hba, struct device *pdev,
 
 	pixel_init_io_stats(hba);
 
+	ret = register_trace_android_vh_ufs_update_sysfs(pixel_ufs_update_sysfs, ufs);
+	if (ret)
+		return ret;
+
+	ufs->sysfs_hook_registered = true;
 	return 0;
 }
 
@@ -2057,5 +2104,6 @@ void pixel_exit(struct ufs_hba *hba)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 
+	pixel_ufs_remove_sysfs(ufs);
 	devm_kfree(ufs->dev, ufs->cmd_log.entry);
 }
