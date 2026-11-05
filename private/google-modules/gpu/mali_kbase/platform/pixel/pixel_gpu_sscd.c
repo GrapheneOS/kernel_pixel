@@ -30,7 +30,6 @@ static void sscd_release(struct device *dev)
 
 static struct sscd_platform_data sscd_pdata;
 const static struct platform_device sscd_dev_init = { .name = "mali",
-						      .driver_override = SSCD_NAME,
 						      .id = -1,
 						      .dev = {
 							      .platform_data = &sscd_pdata,
@@ -722,7 +721,10 @@ int gpu_sscd_init(struct kbase_device *kbdev)
 	int ret;
 
 	sscd_dev = sscd_dev_init;
-	ret = platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
 	if (ret)
 		platform_device_put(&sscd_dev);
 	return ret;
