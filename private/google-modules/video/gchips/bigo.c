@@ -58,6 +58,7 @@ enum misc_command {
 static int bigo_worker_thread(void *data);
 
 static struct sscd_platform_data bigo_sscd_platdata;
+static bool bigo_sscd_registered;
 
 static void bigo_sscd_release(struct device *dev)
 {
@@ -846,8 +847,14 @@ static int bigo_probe(struct platform_device *pdev)
 		rc = 0;
 	}
 
-	if(platform_device_register(&bigo_sscd_dev))
+	rc = platform_device_register(&bigo_sscd_dev);
+	if (rc) {
+		platform_device_put(&bigo_sscd_dev);
 		pr_warn("Failed to register bigo_sscd_dev.\n");
+		rc = 0;
+	} else {
+		bigo_sscd_registered = true;
+	}
 
 	bigo_init_debugfs(core);
 
@@ -877,7 +884,10 @@ static int bigo_remove(struct platform_device *pdev)
 	struct bigo_core *core = (struct bigo_core *)platform_get_drvdata(pdev);
 
 	bigo_uninit_debugfs(core);
-	platform_device_unregister(&bigo_sscd_dev);
+	if (bigo_sscd_registered) {
+		platform_device_unregister(&bigo_sscd_dev);
+		bigo_sscd_registered = false;
+	}
 	bigo_pt_client_unregister(core);
 	iommu_unregister_device_fault_handler(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
