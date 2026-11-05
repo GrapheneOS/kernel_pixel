@@ -6,6 +6,7 @@
  *
  * Author: Star Chang <starchang@google.com>
  */
+#include <linux/vmalloc.h>
 #include <linux/debugfs.h>
 #include "core.h"
 
