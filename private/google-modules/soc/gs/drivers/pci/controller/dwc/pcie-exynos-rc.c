@@ -3941,7 +3941,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		dev_dbg(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
 		if (!exynos_pcie->probe_ok) {
+			pci_lock_rescan_remove();
 			pci_rescan_bus(exynos_pcie->pci_dev->bus);
+			pci_unlock_rescan_remove();
 			if (exynos_pcie->use_msi) {
 				ret = exynos_pcie_rc_msi_init(pp);
 				if (ret) {
@@ -5429,6 +5431,8 @@ skip_sep_request_irq:
 
 	/* The controller configures CLKREQ and L1 substates for its endpoints. */
 	pci->l1ss_support = true;
+	/* Endpoints are powered and rescanned by exynos_pcie_rc_poweron(). */
+	pp->use_linkup_irq = true;
 	ret = dw_pcie_host_init(pp);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to dw pcie host init\n");
@@ -5656,6 +5660,38 @@ static void exynos_pcie_wait_cfg_access_work(struct work_struct *work)
 			&exynos_pcie->cpl_timeout_work.work);
 }
 
+static void exynos_pcie_release_root_port(void *data)
+{
+	struct pci_dev *port = data;
+
+	pm_runtime_put_noidle(&port->dev);
+	pci_dev_put(port);
+}
+
+/* Takes ownership of the pci_get_device reference, including on failure. */
+static int exynos_pcie_hold_root_port(struct device *dev, struct pci_dev *port)
+{
+	int ret;
+
+	ret = pm_runtime_resume_and_get(&port->dev);
+	if (ret < 0) {
+		pci_dev_put(port);
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(dev, exynos_pcie_release_root_port, port);
+	if (ret)
+		return ret;
+
+	/*
+	 * The controller powers down the root port outside PCI runtime PM.
+	 * Retain our own usage reference even if portdrv or userspace later
+	 * allows runtime PM again.
+	 */
+	pm_runtime_forbid(&port->dev);
+	return 0;
+}
+
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
 {
 	struct exynos_pcie *exynos_pcie;
@@ -5826,8 +5862,17 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	if (!exynos_pcie->pci_dev) {
 		logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
 			       "Failed to get pci device");
+		ret = -ENODEV;
+		dw_pcie_host_deinit(pp);
 		goto probe_fail;
 	}
+	ret = exynos_pcie_hold_root_port(&pdev->dev, exynos_pcie->pci_dev);
+	if (ret) {
+		exynos_pcie->pci_dev = NULL;
+		dw_pcie_host_deinit(pp);
+		goto probe_fail;
+	}
+
 	dev_dbg(&pdev->dev, "(%s):ep_pci_device:vendor/device id = 0x%x\n", __func__, val);
 	logbuffer_log(exynos_pcie->log, "ep_pci_device:vendor/device id = 0x%x",
 		      val);
