@@ -145,8 +145,8 @@ int kbasep_pm_metrics_init(struct kbase_device *kbdev)
 	spin_lock_init(&kbdev->pm.backend.metrics.lock);
 
 #ifdef CONFIG_MALI_MIDGARD_DVFS
-	hrtimer_init(&kbdev->pm.backend.metrics.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	kbdev->pm.backend.metrics.timer.function = dvfs_callback;
+	hrtimer_setup(&kbdev->pm.backend.metrics.timer, dvfs_callback, CLOCK_MONOTONIC,
+		      HRTIMER_MODE_REL);
 	kbdev->pm.backend.metrics.initialized = true;
 	atomic_set(&kbdev->pm.backend.metrics.timer_state, TIMER_OFF);
 	kbase_pm_metrics_start(kbdev);

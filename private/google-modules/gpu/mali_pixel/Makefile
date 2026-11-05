@@ -14,8 +14,8 @@ KBUILD_OPTIONS += CONFIG_MALI_PIXEL_GPU_SLC=y
 
 KBUILD_OPTIONS += $(KBUILD_EXTRA) # Extra config if any
 
-EXTRA_CFLAGS += -I$(M)
-EXTRA_CFLAGS += -I$(M)/../common/include
+EXTRA_CFLAGS += -I$(ROOT_DIR)/private/google-modules/gpu/mali_pixel
+EXTRA_CFLAGS += -I$(ROOT_DIR)/private/google-modules/gpu/mali_pixel/../common/include
 
 include $(ROOT_DIR)/private/google-modules/soc/gs/Makefile.include
 
