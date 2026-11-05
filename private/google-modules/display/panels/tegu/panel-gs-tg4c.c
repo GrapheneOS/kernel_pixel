@@ -1286,9 +1286,10 @@ static int tg4c_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct tg4c_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct tg4c_panel, base.bridge,
+				       get_panel_drm_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->is_hbm2_enabled = false;
 	return gs_dsi_panel_common_init(dsi, &spanel->base);

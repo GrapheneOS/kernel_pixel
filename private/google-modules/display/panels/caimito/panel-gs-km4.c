@@ -2639,9 +2639,10 @@ static int km4_panel_probe(struct mipi_dsi_device *dsi)
 	struct km4_panel *spanel;
 	struct gs_panel *ctx;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct km4_panel, base.bridge,
+				       get_panel_drm_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	ctx = &spanel->base;
 
