@@ -75,11 +75,8 @@ EDGETPU_CHIP := rio
 
 endif
 
-ifeq ($(CONFIG_$(GXP_CHIP)),m)
-
-gxp-objs += $(GCIP_DIR)/gcip.o
-
-endif
+include $(CURRENT_DIR)/$(GCIP_DIR)/objects.mk
+gxp-objs += $(addprefix $(GCIP_DIR)/,$(gcip-objects))
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
 ROOT_DIR ?= $(KERNEL_SRC)/..
@@ -161,9 +158,7 @@ EXTRA_SYMBOLS += $(GMODULE_OUT_PATH)/perf/google_pm_qos_Module.symvers
 endif
 
 modules modules_install compile_commands.json:
-	$(MAKE) -C $(KERNEL_SRC) M=$(M)/$(GCIP_DIR) gcip.o
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) W=1 $(KBUILD_OPTIONS) \
 	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)
 clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(M)/$(GCIP_DIR) $(@)
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) W=1 $(KBUILD_OPTIONS) $(@)

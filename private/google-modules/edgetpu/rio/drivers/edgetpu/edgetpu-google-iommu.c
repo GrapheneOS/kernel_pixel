@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
+#include <linux/samsung-iommu-fault.h>
 #include <linux/scatterlist.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -69,80 +70,31 @@ static void report_page_fault(struct edgetpu_dev *etdev, u64 addr, u32 pasid, u3
 }
 #endif
 
-static int edgetpu_check_dev_fault(struct edgetpu_dev *etdev, struct iommu_fault *fault)
-{
-	u64 iova;
-	uint pasid;
-	u32 perm;
-
-	if (fault->type == IOMMU_FAULT_PAGE_REQ) {
-		iova = fault->prm.addr;
-		pasid = fault->prm.pasid;
-		perm = fault->prm.perm;
-	} else if (fault->type == IOMMU_FAULT_DMA_UNRECOV) {
-		iova = fault->event.addr;
-		pasid = fault->event.pasid;
-		perm = fault->event.perm;
-	} else {
-		return -EAGAIN;
-	}
-
-	edgetpu_device_group_handle_fault(etdev, iova, pasid, !!(perm & IOMMU_FAULT_PERM_WRITE));
-	return -EAGAIN;
-}
-
-static int edgetpu_iommu_dev_fault_handler(struct iommu_fault *fault, void *token)
+static int edgetpu_iommu_fault_handler(struct samsung_iommu_fault *fault, void *token)
 {
 	struct edgetpu_dev *etdev = token;
 	static DEFINE_RATELIMIT_STATE(rs, DEFAULT_RATELIMIT_INTERVAL, DEFAULT_RATELIMIT_BURST);
 
-	/* Optional debugging info / other fixup/handling for an IOMMU fault. */
-	edgetpu_check_dev_fault(etdev, fault);
-	/* Ignore return, continue on with error reporting. */
-
+	edgetpu_device_group_handle_fault(etdev, fault->addr, fault->pasid,
+					  !!(fault->perm & IOMMU_FAULT_PERM_WRITE));
 	if (!__ratelimit(&rs))
 		return -EAGAIN;
 
-	if (fault->type == IOMMU_FAULT_DMA_UNRECOV) {
-		if (fault->event.reason == IOMMU_FAULT_REASON_PTE_FETCH)
-			report_page_fault(etdev, fault->event.addr, fault->event.pasid,
-					  fault->event.flags, fault->event.perm);
-		else
-			etdev_warn(etdev, "iommu fault reason=%u addr=%#llx pasid=%u flags=%#x perm=%#x fetch_addr=%llx\n",
-				   fault->event.reason, fault->event.addr, fault->event.pasid,
-				   fault->event.flags, fault->event.perm, fault->event.fetch_addr);
-	} else if (fault->type == IOMMU_FAULT_PAGE_REQ) {
-		report_page_fault(etdev, fault->prm.addr, fault->prm.pasid, fault->prm.flags,
-				  fault->prm.perm);
-	}
-	/* Tell the IOMMU driver to carry on */
+	if (fault->reason == SAMSUNG_IOMMU_FAULT_PTE_FETCH)
+		report_page_fault(etdev, fault->addr, fault->pasid, fault->flags, fault->perm);
+	else
+		etdev_warn(etdev, "iommu fault reason=%u addr=%#llx pasid=%u flags=%#x perm=%#x\n",
+			   fault->reason, fault->addr, fault->pasid, fault->flags, fault->perm);
+
 	return -EAGAIN;
-}
-
-static int edgetpu_iommu_fault_handler(struct iommu_domain *domain, struct device *dev,
-				       unsigned long iova, int flags, void *token)
-{
-	struct edgetpu_iommu_domain *etdomain = token;
-	struct edgetpu_dev *etdev = etdomain->etdev;
-	uint pasid = etdomain->pasid;
-
-	/* Log debugging info */
-	if (pasid)
-		edgetpu_device_group_handle_fault(etdev, iova, pasid,
-						  !!(flags & IOMMU_FAULT_WRITE));
-	/* Tell IOMMU driver we handled the fault, no need to dump SMMU event. */
-	return 0;
 }
 
 static void edgetpu_init_etdomain(struct edgetpu_iommu_domain *etdomain, struct edgetpu_dev *etdev,
 				  struct gcip_iommu_domain *gdomain, uint pasid)
 {
-	struct iommu_domain *domain = gdomain->domain;
-
 	etdomain->etdev = etdev;
 	etdomain->gdomain = gdomain;
 	etdomain->pasid = pasid;
-	iommu_set_fault_handler(domain, edgetpu_iommu_fault_handler, etdomain);
 }
 
 /*
@@ -199,6 +151,11 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 		goto err_free_etiommu;
 	}
 
+	ret = samsung_iommu_register_fault_handler(etdev->dev, edgetpu_iommu_fault_handler,
+						  etdev);
+	if (ret)
+		goto err_destroy_pool;
+
 	etiommu->iommu_group = iommu_group_get(etdev->dev);
 	if (etiommu->iommu_group)
 		iommu_group_set_name(etiommu->iommu_group, "edgetpu");
@@ -207,18 +164,16 @@ int edgetpu_mmu_attach(struct edgetpu_dev *etdev)
 
 	ret = check_default_domain(etdev, etiommu);
 	if (ret)
-		goto err_destroy_pool;
-
-	ret = iommu_register_device_fault_handler(etdev->dev, edgetpu_iommu_dev_fault_handler,
-						  etdev);
-	if (ret)
-		etdev_warn(etdev, "Failed to register fault handler! (%d)\n",
-			   ret);
+		goto err_put_group;
 
 	/* etiommu initialization done */
 	etdev->mmu_cookie = etiommu;
 	return 0;
 
+err_put_group:
+	if (etiommu->iommu_group)
+		iommu_group_put(etiommu->iommu_group);
+	samsung_iommu_unregister_fault_handler(etdev->dev);
 err_destroy_pool:
 	gcip_domain_pool_exit(&etiommu->domain_pool);
 err_free_etiommu:
@@ -231,16 +186,12 @@ void edgetpu_mmu_detach(struct edgetpu_dev *etdev)
 	struct edgetpu_iommu *etiommu = etdev->mmu_cookie;
 	struct gcip_iommu_domain *gdomain;
 	int i;
-	int ret;
 
 	if (!etiommu)
 		return;
 
-	ret = iommu_unregister_device_fault_handler(etdev->dev);
-	if (ret)
-		etdev_warn(etdev,
-			   "Failed to unregister device fault handler (%d)\n",
-			   ret);
+	samsung_iommu_unregister_fault_handler(etdev->dev);
+
 	for (i = 1; i < EDGETPU_NUM_PASIDS; i++) {
 		if (etiommu->attached_etdomains[i]) {
 			gdomain = etiommu->attached_etdomains[i]->gdomain;

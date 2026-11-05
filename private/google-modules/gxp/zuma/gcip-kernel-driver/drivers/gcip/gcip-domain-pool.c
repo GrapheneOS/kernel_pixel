@@ -53,7 +53,7 @@ int gcip_domain_pool_init(struct gcip_domain_pool *pool, struct device *dev, int
 	xa_init(&pool->domain_xa);
 
 	for (i = 0; i < size; i++) {
-		domain = iommu_domain_alloc(dev->bus);
+		domain = iommu_paging_domain_alloc(dev);
 		if (!domain)
 			domain = ERR_PTR(-ENOMEM);
 		if (IS_ERR(domain)) {
@@ -156,7 +156,7 @@ int gcip_domain_pool_attach(struct gcip_domain_pool *pool, struct gcip_iommu_dom
 	if (pasid < 0)
 		return pasid;
 
-	ret = iommu_attach_device_pasid(gdomain->domain, pool->dev, pasid);
+	ret = iommu_attach_device_pasid(gdomain->domain, pool->dev, pasid, NULL);
 	if (ret) {
 		ida_free(&pool->pasid_pool, pasid);
 		return ret;
