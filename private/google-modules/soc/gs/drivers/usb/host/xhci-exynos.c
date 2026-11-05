@@ -15,7 +15,6 @@
 #include <host/xhci.h> /* $(srctree)/drivers/usb/host/xhci.h */
 #include <host/xhci-mvebu.h> /* $(srctree)/drivers/usb/host/xhci-mvebu.h */
 #include <host/xhci-plat.h> /* $(srctree)/drivers/usb/host/xhci-plat.h */
-#include <host/xhci-rcar.h> /* $(srctree)/drivers/usb/host/xhci-rcar.h */
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
@@ -179,7 +178,7 @@ static int xhci_exynos_start(struct usb_hcd *hcd)
 	return xhci_run(hcd);
 }
 
-void xhci_exynos_portsc_power_off(struct xhci_hcd_exynos *exynos, u32 on, u32 prt)
+static void xhci_exynos_portsc_power_off(struct xhci_hcd_exynos *exynos, u32 on, u32 prt)
 {
 	struct xhci_hcd_exynos	*xhci_exynos = exynos;
 	void __iomem *portsc = xhci_exynos->usb3_portsc;
@@ -225,6 +224,8 @@ void xhci_exynos_portsc_power_off(struct xhci_hcd_exynos *exynos, u32 on, u32 pr
 
 	spin_unlock(&xhci_exynos->xhcioff_lock);
 }
+
+int xhci_exynos_port_power_set(struct xhci_hcd_exynos *exynos, u32 on, u32 prt);
 
 int xhci_exynos_port_power_set(struct xhci_hcd_exynos *exynos, u32 on, u32 prt)
 {
@@ -657,6 +658,8 @@ static void xhci_exynos_pm_runtime_init(struct device *dev)
 
 static struct xhci_exynos_ops *xhci_vendor_ops;
 
+int xhci_exynos_register_offload_ops(struct xhci_exynos_ops *offload_ops);
+
 int xhci_exynos_register_offload_ops(struct xhci_exynos_ops *offload_ops)
 {
 	if (offload_ops == NULL)
@@ -965,7 +968,7 @@ disable_runtime:
 	return ret;
 }
 
-static int xhci_exynos_remove(struct platform_device *dev)
+static void xhci_exynos_remove(struct platform_device *dev)
 {
 	struct xhci_hcd_exynos *xhci_exynos = platform_get_drvdata(dev);
 	struct usb_hcd	*hcd = xhci_exynos->hcd;
@@ -1009,7 +1012,6 @@ remove_hcd:
 	pm_runtime_put_noidle(&dev->dev);
 	pm_runtime_set_suspended(&dev->dev);
 
-	return 0;
 }
 
 static void xhci_exynos_shutdown(struct platform_device *dev)
@@ -1029,7 +1031,7 @@ static int __maybe_unused xhci_exynos_suspend(struct device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret = 0;
 	int ret_phy = 0;
-	int bypass = 0;
+	bool bypass = false;
 	struct usb_device *udev = hcd->self.root_hub;
 	pm_message_t msg;
 
@@ -1071,7 +1073,7 @@ static int __maybe_unused xhci_exynos_resume(struct device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int ret = 0;
 	int ret_phy = 0;
-	int bypass = 0;
+	bool bypass = false;
 	struct usb_device *udev = hcd->self.root_hub;
 	pm_message_t msg;
 
@@ -1084,7 +1086,7 @@ static int __maybe_unused xhci_exynos_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	ret = xhci_resume(xhci, 0);
+	ret = xhci_resume(xhci, false, false);
 	if (ret) {
 		dev_err(xhci_exynos->dev, "%s: xhci resume failed, ret = %d\n", __func__, ret);
 		return ret;
