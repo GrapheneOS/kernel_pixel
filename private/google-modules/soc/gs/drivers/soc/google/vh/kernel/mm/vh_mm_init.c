@@ -10,6 +10,7 @@
 #include "linux/delay.h"
 #include "linux/spinlock.h"
 #include <linux/cpu.h>
+#include <linux/cpuhotplug.h>
 #include <linux/mutex.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
@@ -89,6 +90,18 @@ static int task_set_cpu_affinity(struct task_struct *tsk, cpumask_t *requested,
 	return ret;
 }
 
+static int mm_cpu_online(unsigned int cpu)
+{
+	/* Run after CPUHP_AP_KTHREADS_ONLINE resets the NUMA affinity. */
+	mutex_lock(&mm_cpu_affinity_lock);
+	if (cpumask_intersects(&kswapd_requested_cpu_affinity, cpu_online_mask))
+		WARN_ON(set_cpus_allowed_ptr(tsk_kswapd, &kswapd_requested_cpu_affinity));
+	if (cpumask_intersects(&kcompactd_requested_cpu_affinity, cpu_online_mask))
+		WARN_ON(set_cpus_allowed_ptr(tsk_kcompactd, &kcompactd_requested_cpu_affinity));
+	mutex_unlock(&mm_cpu_affinity_lock);
+
+	return 0;
+}
 
 static ssize_t kswapd_cpu_affinity_show(struct kobject *kobj,
 				 struct kobj_attribute *attr, char *buf)
@@ -225,25 +238,9 @@ static ssize_t kcompactd_cpu_affinity_store(struct kobject *kobj,
 }
 
 /* kcompactd_cpu_online() resets cpumask, so we need to restore it. */
-static void vh_kcompactd_cpu_online(void *data, int cpu) {
-	cpumask_t affinity;
 
-	if (tsk_kcompactd) {
-		mutex_lock(&mm_cpu_affinity_lock);
-		cpumask_copy(&affinity, &kcompactd_requested_cpu_affinity);
-		mutex_unlock(&mm_cpu_affinity_lock);
-		if (!cpumask_empty(&affinity)) {
-			set_cpus_allowed_ptr(tsk_kcompactd, &affinity);
-		}
-	}
-}
 
 VENDOR_MM_RW(kcompactd_cpu_affinity);
-
-
-
-
-
 
 static void rvh_read_swap_cache_async_schedule_timeout(void *data, size_t *count, bool *skip)
 {
@@ -302,15 +299,22 @@ extern int pixel_mm_cma_sysfs(struct kobject *parent);
 
 static int vh_mm_init(void)
 {
-	int ret;
+	int ret, hp_state = -1;
 
 	ret = init_get_kswapd_kcompactd_tasks();
 	if (ret)
 		goto out_err;
 
+	hp_state = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "pixel/mm:online",
+					    mm_cpu_online, NULL);
+	if (hp_state < 0)
+		return hp_state;
+
 	vendor_mm_kobj = kobject_create_and_add("vendor_mm", kernel_kobj);
-	if (!vendor_mm_kobj)
-		return -ENOMEM;
+	if (!vendor_mm_kobj) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
 
 	ret = sysfs_create_groups(vendor_mm_kobj, vendor_mm_groups);
 	if (ret)
@@ -324,10 +328,6 @@ static int vh_mm_init(void)
 	if (ret)
 		goto out_err;
 
-	ret = register_trace_android_vh_mm_kcompactd_cpu_online(
-		vh_kcompactd_cpu_online, NULL);
-	if (ret)
-		goto out_err;
 
 	ret = register_trace_android_vh_tune_swappiness(vh_vmscan_tune_swappiness ,NULL);
 	if (ret)
@@ -353,6 +353,8 @@ static int vh_mm_init(void)
 	return ret;
 
 out_err:
+	if (hp_state >= 0)
+		cpuhp_remove_state_nocalls(hp_state);
 	kobject_put(vendor_mm_kobj);
 	return ret;
 }
