@@ -27,6 +27,7 @@
 #include <soc/google/exynos_cpu_cooling.h>
 #include <soc/google/exynos_pm_qos.h>
 #include <thermal_core.h>
+#include "../gs_thermal.h"
 
 #include <trace/events/power.h>
 #include <trace/events/thermal_exynos.h>
@@ -924,23 +925,13 @@ static struct thermal_zone_device *parse_ect_cooling_level(
 {
 	struct thermal_instance *instance;
 	struct thermal_zone_device *tz = NULL;
-	bool foundtz = false;
 	void *thermal_block;
 	struct ect_ap_thermal_function *function;
 	int i, temperature;
 	unsigned int freq;
 
-	mutex_lock(&cdev->lock);
-	list_for_each_entry(instance, &cdev->thermal_instances, cdev_node) {
-		tz = instance->tz;
-		if (!strncasecmp(cooling_name, tz->type, THERMAL_NAME_LENGTH)) {
-			foundtz = true;
-			break;
-		}
-	}
-	mutex_unlock(&cdev->lock);
-
-	if (!foundtz)
+	tz = gs_thermal_cdev_zone(cdev, cooling_name);
+	if (!tz)
 		goto skip_ect;
 
 	thermal_block = ect_get_block(BLOCK_AP_THERMAL);
@@ -959,7 +950,7 @@ static struct thermal_zone_device *parse_ect_cooling_level(
 		temperature = function->range_list[i].lower_bound_temperature;
 		freq = function->range_list[i].max_frequency;
 
-		instance = get_thermal_instance(tz, cdev, i);
+		instance = gs_thermal_instance(tz, cdev, i);
 		if (!instance) {
 			pr_err("%s: (%s, %d)instance isn't valid\n", __func__, cooling_name, i);
 			goto skip_ect;
@@ -980,7 +971,7 @@ skip_ect:
 	return tz;
 }
 
-ssize_t
+static ssize_t
 state2power_table_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -1002,7 +993,7 @@ state2power_table_show(struct device *dev, struct device_attribute *attr, char *
 
 static DEVICE_ATTR_RO(state2power_table);
 
-ssize_t
+static ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -1013,6 +1004,9 @@ user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	return sprintf(buf, "%lu\n", cpufreq_cdev->sysfs_req);
 }
+
+ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count);
 
 ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
@@ -1042,7 +1036,7 @@ ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(user_vote);
 
-ssize_t
+static ssize_t
 user_vote_bypass_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -1054,7 +1048,7 @@ user_vote_bypass_show(struct device *dev, struct device_attribute *attr, char *b
 	return sysfs_emit(buf, "%d\n", cpufreq_cdev->sysfs_req_bypass);
 }
 
-ssize_t user_vote_bypass_store(struct device *dev, struct device_attribute *attr,
+static ssize_t user_vote_bypass_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -1151,7 +1145,7 @@ __exynos_cpu_cooling_register(struct device_node *np,
 		goto free_idle_time;
 	}
 
-	ret = ida_simple_get(&cpufreq_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&cpufreq_ida, GFP_KERNEL);
 	if (ret < 0) {
 		cdev = ERR_PTR(ret);
 		goto free_table;
@@ -1246,7 +1240,7 @@ __exynos_cpu_cooling_register(struct device_node *np,
 remove_qos_req:
 	freq_qos_remove_request(&cpufreq_cdev->qos_req);
 remove_ida:
-	ida_simple_remove(&cpufreq_ida, cpufreq_cdev->id);
+	ida_free(&cpufreq_ida, cpufreq_cdev->id);
 free_table:
 	kfree(cpufreq_cdev->freq_table);
 free_idle_time:
