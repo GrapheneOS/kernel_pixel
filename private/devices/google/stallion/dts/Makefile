@@ -26,9 +26,9 @@ zumapro_stallion_overlays += \
         zumapro/zumapro-dpm-userdebug.dtbo \
         zumapro/zumapro-dpm-user.dtbo
 
-DTC_FLAGS_zumapro-dpm-eng += -a 4096
-DTC_FLAGS_zumapro-dpm-user += -a 4096
-DTC_FLAGS_zumapro-dpm-userdebug += -a 4096
+DTC_FLAGS_zumapro/zumapro-dpm-eng += -a 4096
+DTC_FLAGS_zumapro/zumapro-dpm-user += -a 4096
+DTC_FLAGS_zumapro/zumapro-dpm-userdebug += -a 4096
 
 # Usage:
 #   $(call DTBS_overlay_template, overlay, base_dtb, suffix)
