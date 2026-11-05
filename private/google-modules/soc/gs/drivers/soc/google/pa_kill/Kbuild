@@ -3,7 +3,7 @@
 # Makefile for Procative Kill
 
 # Needed for the trace points
-CFLAGS_pa_kill_core.o = -I$(srctree)/$(src)
+CFLAGS_pa_kill_core.o = -I$(src)
 
 obj-$(CONFIG_PROACTIVE_KILL) += pa_kill.o
 
