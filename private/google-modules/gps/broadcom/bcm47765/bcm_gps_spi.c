@@ -68,7 +68,7 @@ static int bcm_spi_register_sscd(struct bcm_spi_priv *priv)
 	ret = platform_device_add_data(pdev, &priv->sscd_pdata, sizeof(priv->sscd_pdata));
 	if (ret)
 		goto put_device;
-	ret = driver_set_override(&pdev->dev, &pdev->driver_override, SSCD_NAME, strlen(SSCD_NAME));
+	ret = device_set_driver_override(&pdev->dev, SSCD_NAME);
 	if (ret)
 		goto put_device;
 	ret = platform_device_add(pdev);
@@ -563,7 +563,7 @@ static const struct file_operations bcm_spi_fops = {
 
 /* Misc. functions */
 
-unsigned long bcm_clock_get_ms(void)
+static unsigned long bcm_clock_get_ms(void)
 {
 	struct timespec64 t;
 	unsigned long now;
@@ -577,7 +577,7 @@ unsigned long bcm_clock_get_ms(void)
 	return now - init_time;
 }
 
-void wait1secDelay(unsigned int count)
+static void wait1secDelay(unsigned int count)
 {
 	if (count <= 100)
 		usleep_range(1000, 2000);
