@@ -19,6 +19,7 @@
 #define SUPPORT_PM_SLEEP 1
 #endif
 
+#include <soc/google/thermal.h>
 #include <linux/kernel.h>
 #include <linux/printk.h>
 #include <linux/module.h>
@@ -14862,7 +14863,7 @@ static int google_battery_probe(struct platform_device *pdev)
 	if (ret < 0)
 		dev_info(batt_drv->device, "RAVG: not available\n");
 
-	batt_drv->tz_dev = devm_thermal_of_zone_register(batt_drv->device, 0,
+	batt_drv->tz_dev = google_devm_thermal_of_zone_register(batt_drv->device, 0,
 							 batt_drv,
 							 &google_battery_tz_ops);
 	if (IS_ERR(batt_drv->tz_dev)) {
