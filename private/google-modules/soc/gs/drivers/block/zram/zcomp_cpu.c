@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include <linux/module.h>
-#include <linux/crypto.h>
+#include <crypto/acompress.h>
 #include <linux/highmem.h>
 #include <linux/cpuhotplug.h>
 #include <linux/local_lock.h>
@@ -31,10 +31,11 @@ struct zcomp_strm {
 	/* The members ->buffer and ->tfm are protected by ->lock. */
 	local_lock_t lock;
 	void *buffer;
-	struct crypto_comp *tfm;
+	struct crypto_acomp *tfm;
+	struct acomp_req *req;
 };
 
-struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
+static struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
 {
 	struct zcomp_strm *zstrm = comp->private;
 
@@ -42,14 +43,14 @@ struct zcomp_strm *zcomp_stream_get(struct zcomp *comp)
 	return this_cpu_ptr(zstrm);
 }
 
-void zcomp_stream_put(struct zcomp *comp)
+static void zcomp_stream_put(struct zcomp *comp)
 {
 	struct zcomp_strm *zstrm = comp->private;
 
 	local_unlock(&zstrm->lock);
 }
 
-int zcomp_cpu_compress(struct zcomp *comp, struct page *page,
+static int zcomp_cpu_compress(struct zcomp *comp, struct page *page,
 				struct zcomp_cookie *cookie)
 {
 	int err;
@@ -74,13 +75,13 @@ int zcomp_cpu_compress(struct zcomp *comp, struct page *page,
 	comp_len = PAGE_SIZE * 2;
 	stream = zcomp_stream_get(comp);
 	src = kmap_atomic(page);
-	err = crypto_comp_compress(stream->tfm, src, PAGE_SIZE,
-					stream->buffer, &comp_len);
+	acomp_request_set_src_nondma(stream->req, src, PAGE_SIZE);
+	acomp_request_set_dst_nondma(stream->req, stream->buffer, comp_len);
+	err = crypto_acomp_compress(stream->req);
+	comp_len = stream->req->dlen;
 	kunmap_atomic(src);
-	if (unlikely(err)) {
-		zcomp_stream_put(comp);
+	if (unlikely(err))
 		pr_err("Compression failed! err=%d\n", err);
-	}
 
 	err = zcomp_copy_buffer(err, stream->buffer, comp_len, cookie);
 	zcomp_stream_put(comp);
@@ -88,7 +89,7 @@ int zcomp_cpu_compress(struct zcomp *comp, struct page *page,
 	return err;
 }
 
-int zcomp_cpu_decompress(struct zcomp *comp, void *src,
+static int zcomp_cpu_decompress(struct zcomp *comp, void *src,
 			unsigned int src_len, struct page *page)
 {
 	void *dst;
@@ -98,8 +99,9 @@ int zcomp_cpu_decompress(struct zcomp *comp, void *src,
 
 	dst = kmap_atomic(page);
 	stream = zcomp_stream_get(comp);
-	ret = crypto_comp_decompress(stream->tfm, src, src_len,
-							dst, &dst_len);
+	acomp_request_set_src_nondma(stream->req, src, src_len);
+	acomp_request_set_dst_nondma(stream->req, dst, dst_len);
+	ret = crypto_acomp_decompress(stream->req);
 	zcomp_stream_put(comp);
 	kunmap_atomic(dst);
 
@@ -108,8 +110,10 @@ int zcomp_cpu_decompress(struct zcomp *comp, void *src,
 
 static void zcomp_strm_free(struct zcomp_strm *zstrm)
 {
+	acomp_request_free(zstrm->req);
+	zstrm->req = NULL;
 	if (!IS_ERR_OR_NULL(zstrm->tfm))
-		crypto_free_comp(zstrm->tfm);
+		crypto_free_acomp(zstrm->tfm);
 	free_pages((unsigned long)zstrm->buffer, 1);
 	zstrm->tfm = NULL;
 	zstrm->buffer = NULL;
@@ -121,20 +125,22 @@ static void zcomp_strm_free(struct zcomp_strm *zstrm)
  */
 static int zcomp_strm_init(struct zcomp_strm *zstrm, struct zcomp *comp)
 {
-	zstrm->tfm = crypto_alloc_comp(comp->algo_name, 0, 0);
+	zstrm->tfm = crypto_alloc_acomp(comp->algo_name, 0, CRYPTO_ALG_ASYNC);
+	if (!IS_ERR(zstrm->tfm))
+		zstrm->req = acomp_request_alloc(zstrm->tfm);
 	/*
 	 * allocate 2 pages. 1 for compressed data, plus 1 extra for the
 	 * case when compressed size is larger than the original one
 	 */
 	zstrm->buffer = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, 1);
-	if (IS_ERR_OR_NULL(zstrm->tfm) || !zstrm->buffer) {
+	if (IS_ERR_OR_NULL(zstrm->tfm) || !zstrm->req || !zstrm->buffer) {
 		zcomp_strm_free(zstrm);
 		return -ENOMEM;
 	}
 	return 0;
 }
 
-int zcomp_cpu_create(struct zcomp *comp, const char *name)
+static int zcomp_cpu_create(struct zcomp *comp, const char *name)
 {
 	int ret = -ENOMEM;
 
@@ -153,7 +159,7 @@ cleanup:
 	return ret;
 }
 
-void zcomp_cpu_destroy(struct zcomp *comp)
+static void zcomp_cpu_destroy(struct zcomp *comp)
 {
 	cpuhp_state_remove_instance(CPUHP_ZCOMP_PREPARE, &comp->node);
 	free_percpu(comp->private);
@@ -167,7 +173,7 @@ const struct zcomp_operation zcomp_cpu_op = {
 	.decompress = zcomp_cpu_decompress,
 };
 
-int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
+static int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 {
 	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
 	struct zcomp_strm *zstrm;
@@ -182,7 +188,7 @@ int zcomp_cpu_up_prepare(unsigned int cpu, struct hlist_node *node)
 	return ret;
 }
 
-int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
+static int zcomp_cpu_dead(unsigned int cpu, struct hlist_node *node)
 {
 	struct zcomp *comp = hlist_entry(node, struct zcomp, node);
 	struct zcomp_strm *zstrm;
