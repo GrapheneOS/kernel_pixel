@@ -75,10 +75,10 @@ static int dp_probe(struct platform_device *pdev)
 	return -EFAULT;
 }
 
-static int dp_remove(struct platform_device *pdev)
+static void dp_remove(struct platform_device *pdev)
 {
 	pr_err("%s: not supported by this device\n", __func__);
-	return -EFAULT;
+	return;
 }
 
 

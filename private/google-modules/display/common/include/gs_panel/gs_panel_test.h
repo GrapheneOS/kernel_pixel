@@ -89,7 +89,7 @@ int gs_panel_read_register_value(struct gs_panel_test *test, const struct gs_pan
 				 u8 *value);
 
 int gs_panel_test_common_init(struct platform_device *pdev, struct gs_panel_test *test);
-int gs_panel_test_common_remove(struct platform_device *pdev);
+void gs_panel_test_common_remove(struct platform_device *pdev);
 
 #define GS_PANEL_REG(_name, _address)                         \
 	{                                                     \
