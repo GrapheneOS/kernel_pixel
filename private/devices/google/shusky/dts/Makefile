@@ -27,9 +27,9 @@ shusky_overlays += \
 	zuma/zuma-dpm-userdebug.dtbo \
 	zuma/zuma-dpm-user.dtbo
 
-DTC_FLAGS_zuma-dpm-eng += -a 4096
-DTC_FLAGS_zuma-dpm-user += -a 4096
-DTC_FLAGS_zuma-dpm-userdebug += -a 4096
+DTC_FLAGS_zuma/zuma-dpm-eng += -a 4096
+DTC_FLAGS_zuma/zuma-dpm-user += -a 4096
+DTC_FLAGS_zuma/zuma-dpm-userdebug += -a 4096
 
 shusky_dtbs := \
 	zuma/zuma-a0-foplp.dtb \

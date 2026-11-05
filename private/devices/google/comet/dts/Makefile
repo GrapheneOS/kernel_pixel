@@ -16,9 +16,9 @@ zuma_comet_dtbs := \
 	zuma/zuma-b0-foplp.dtb \
 	zuma/zuma-b0-ipop.dtb
 
-DTC_FLAGS_zuma-dpm-eng += -a 4096
-DTC_FLAGS_zuma-dpm-user += -a 4096
-DTC_FLAGS_zuma-dpm-userdebug += -a 4096
+DTC_FLAGS_zuma/zuma-dpm-eng += -a 4096
+DTC_FLAGS_zuma/zuma-dpm-user += -a 4096
+DTC_FLAGS_zuma/zuma-dpm-userdebug += -a 4096
 
 # zumapro dtbo
 zumapro_comet_overlays := \
@@ -40,9 +40,9 @@ zumapro_comet_dtbs := \
 	zumapro/zumapro-a1-foplp.dtb \
 	zumapro/zumapro-a1-ipop.dtb
 
-DTC_FLAGS_zumapro-dpm-eng += -a 4096
-DTC_FLAGS_zumapro-dpm-user += -a 4096
-DTC_FLAGS_zumapro-dpm-userdebug += -a 4096
+DTC_FLAGS_zumapro/zumapro-dpm-eng += -a 4096
+DTC_FLAGS_zumapro/zumapro-dpm-user += -a 4096
+DTC_FLAGS_zumapro/zumapro-dpm-userdebug += -a 4096
 
 
 # Usage:
