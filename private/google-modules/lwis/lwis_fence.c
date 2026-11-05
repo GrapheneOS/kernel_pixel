@@ -196,7 +196,6 @@ static void lwis_dma_fence_release(struct dma_fence *fence)
 }
 
 static struct dma_fence_ops lwis_fence_dma_fence_ops = {
-	.use_64bit_seqno = true,
 	.get_driver_name = lwis_fence_get_driver_name,
 	.get_timeline_name = lwis_fence_get_timeline_name,
 	.release = lwis_dma_fence_release,
@@ -214,7 +213,7 @@ static struct lwis_fence *fence_create(struct lwis_device *lwis_dev)
 		return ERR_PTR(-ENOMEM);
 
 	/* Init DMA fence */
-	dma_fence_init(&new_fence->dma_fence, &lwis_fence_dma_fence_ops, &new_fence->lock,
+	dma_fence_init64(&new_fence->dma_fence, &lwis_fence_dma_fence_ops, &new_fence->lock,
 		       dma_fence_context_alloc(1), atomic64_inc_return(&dma_fence_sequence));
 
 	new_fence->lwis_top_dev = lwis_dev->top_dev;
