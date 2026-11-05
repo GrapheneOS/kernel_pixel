@@ -5,6 +5,7 @@
  * Author: Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
  */
 
+#include <linux/of.h>
 #include <linux/iova.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
