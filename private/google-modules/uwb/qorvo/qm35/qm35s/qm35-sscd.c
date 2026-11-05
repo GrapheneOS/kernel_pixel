@@ -4,7 +4,7 @@
 
 #define NAME "uwb"
 
-void qm35_release_coredump(struct device *dev)
+static void qm35_release_coredump(struct device *dev)
 {
 }
 
@@ -47,6 +47,7 @@ int qm35_register_coredump(struct qm35_ctx *qm35_ctx)
 
 	ret = platform_device_register(&sscd->sscd_dev);
 	if (ret) {
+		platform_device_put(&sscd->sscd_dev);
 		devm_kfree(&spi->dev, sscd);
 		return ret;
 	}
