@@ -64,6 +64,8 @@ int max77759_clr_irq(struct bcl_device *bcl_dev, int idx)
 
 }
 
+int max77759_adjust_batoilo_lvl(struct bcl_device *bcl_dev, u8 lower_enable, u8 set_batoilo1_lvl);
+
 int max77759_adjust_batoilo_lvl(struct bcl_device *bcl_dev, u8 lower_enable, u8 set_batoilo1_lvl)
 {
 	int ret;
