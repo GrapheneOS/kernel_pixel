@@ -1371,7 +1371,7 @@ static int google_dual_batt_gauge_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dual_fg_drv);
 
 	psy_cfg.drv_data = dual_fg_drv;
-	psy_cfg.of_node = pdev->dev.of_node;
+	psy_cfg.fwnode = of_fwnode_handle(pdev->dev.of_node);
 
 	if (of_property_read_bool(pdev->dev.of_node, "google,psy-type-unknown"))
 		gdbatt_psy_desc.psy_dsc.type = POWER_SUPPLY_TYPE_UNKNOWN;
@@ -1435,12 +1435,12 @@ static int google_dual_batt_gauge_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int google_dual_batt_gauge_remove(struct platform_device *pdev)
+static void google_dual_batt_gauge_remove(struct platform_device *pdev)
 {
 	struct dual_fg_drv *dual_fg_drv = platform_get_drvdata(pdev);
 
 	if (!dual_fg_drv)
-		return 0;
+		return;
 
 	power_supply_unreg_notifier(&dual_fg_drv->fg_nb);
 	gbms_free_chg_profile(&dual_fg_drv->chg_profile);
@@ -1450,7 +1450,6 @@ static int google_dual_batt_gauge_remove(struct platform_device *pdev)
 	if (dual_fg_drv->log)
 		logbuffer_unregister(dual_fg_drv->log);
 
-	return 0;
 }
 
 static void google_dual_batt_gauge_shutdown(struct platform_device *pdev)

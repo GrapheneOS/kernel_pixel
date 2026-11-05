@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
+#include "bms_gpio.h"
 #include "google_bms.h"
 #include "max77759.h"
 #include "max77759_charger.h"
@@ -1393,8 +1394,6 @@ static void gs101_setup_default_usecase(struct max77759_usecase_data *uc_data)
 bool gs101_setup_usecases(struct max77759_usecase_data *uc_data,
 			  struct device_node *node)
 {
-	enum of_gpio_flags flags = 0;
-
 	if (!node) {
 		gs101_setup_default_usecase(uc_data);
 		return false;
@@ -1410,10 +1409,12 @@ bool gs101_setup_usecases(struct max77759_usecase_data *uc_data,
 
 	/* for enabling charging over pogo */
 	if (uc_data->pogo_ovp_en == -EPROBE_DEFER) {
-		uc_data->pogo_ovp_en = of_get_named_gpio_flags(node, "max77759,pogo-ovp-en", 0,
-							       &flags);
-		if (uc_data->pogo_ovp_en >= 0)
-			uc_data->pogo_ovp_en_act_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+		const char *property = "max77759,pogo-ovp-en-gpios";
+
+		if (!of_find_property(node, property, NULL))
+			property = "max77759,pogo-ovp-en";
+		uc_data->pogo_ovp_en = bms_of_get_gpio(node, property,
+						     &uc_data->pogo_ovp_en_act_low);
 	}
 	if (uc_data->pogo_vout_en == -EPROBE_DEFER) {
 		uc_data->pogo_vout_en = of_get_named_gpio(node, "max77759,pogo-vout-sw-en", 0);
@@ -1495,4 +1496,3 @@ void gs101_dump_usecasase_config(struct max77759_usecase_data *uc_data)
 		uc_data->rx_otg_en, uc_data->ext_otg_only);
 }
 EXPORT_SYMBOL_GPL(gs101_dump_usecasase_config);
-
