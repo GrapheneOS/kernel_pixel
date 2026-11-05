@@ -1,0 +1,3 @@
+# private/google-modules/touch/sec/p26/Kconfig
+CONFIG_TOUCHSCREEN_SEC_TS=m
+CONFIG_INPUT_POWER_KEYDEBUG=m

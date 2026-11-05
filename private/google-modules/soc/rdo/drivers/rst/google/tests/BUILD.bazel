@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright 2026 Google LLC
+
+"""Reset driver test suite definitions."""
+
+load(
+    "//private/devices/google/common/kleaf:bste.bzl",
+    "bste_cc_binary",
+    "bste_test_suite",
+)
+load("//private/google-modules/soc/rdo/common/tests/power:bste_platform_defs.bzl", "bste_platform")
+load(":platform/mbu/mbu_rst_defs.bzl", "MBU_RST_DEFS")
+
+platform_defs = bste_platform.select(MBU_RST_DEFS)
+
+bste_cc_binary(
+    name = "rst_test_runner",
+    srcs = [
+        "rst_control.c",
+        "rst_control.h",
+        "rst_defs.h",
+        "rst_test_runner.c",
+    ] + platform_defs.binary_srcs,
+    deps = [
+        "//private/google-modules/soc/rdo/common/tests/power:bste_kmsg_utils",
+        "//private/google-modules/soc/rdo/common/tests/power:bste_log",
+        "//private/google-modules/soc/rdo/common/tests/power:fs_utils",
+        "//private/google-modules/soc/rdo/power-controller/tests:pd_control",
+    ],
+)
+
+bste_test_suite(
+    name = "cpm_reset_tests",
+    srcs = platform_defs.suite_srcs,
+    data = [
+        ":rst_test_runner",
+    ],
+    test_cases = platform_defs.test_cases,
+)
+
+filegroup(
+    name = "rst_test_suites",
+    srcs = [
+        ":cpm_reset_tests",
+    ],
+    visibility = ["//private/devices/google:__subpackages__"],
+)

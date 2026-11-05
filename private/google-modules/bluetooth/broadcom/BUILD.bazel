@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "checkpatch", "ddk_module")
+
+package(default_visibility = [
+    "//private/devices/google:__subpackages__",
+    "//private/google-modules:__subpackages__",
+])
+
+checkpatch(
+    name = "checkpatch",
+    checkpatch_pl = "//common:scripts/checkpatch.pl",
+)
+
+ddk_module(
+    name = "nitrous",
+    srcs = [
+        "nitrous.c",
+    ],
+    out = "nitrous.ko",
+    kernel_build = "//private/devices/google/common:kernel",
+    deps = [
+        "//common:all_headers_aarch64",
+        "//private/google-modules/bms/misc:logbuffer",
+        "//private/google-modules/soc/gs:headers",
+    ] + select({
+        "//private/devices/google/common:soc_is_zumapro_or_before": [
+            "//private/google-modules/soc/gs/drivers/soc/google:exynos-cpupm",
+        ],
+        "//conditions:default": [],
+    }),
+)

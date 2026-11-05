@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config GOOGLE_MD2AP_WAKEUP_MONITOR
+	bool "MD-to-AP wakeup monitor"
+	depends on ARCH_GOOGLE
+	help
+	  Enable MD-to-AP wakeup monitor feature to pinpoint wakeup
+	  packet and expose the wakeup reason to user space via sysfs.
+
+config GOOGLE_MODEM_CDD
+	bool "Crash Debug Dump reporting"
+	depends on GOOGLE_CRASH_DEBUG_DUMP
+	help
+	  Enable modem status reporting for Crash Debug Dump feature.
+	  This can provide a quick glance of modem status when device
+	  enters ramdump mode.
+
+config GOOGLE_MODEM_DATA_AFFINITY
+	bool "Google custom CPU affinity"
+	depends on GOOGLE_MODEM_DATA_EXT
+	help
+	  Use Google's custom CPU affinity tables instead of vendor defaults.
+	  Includes a runtime size check to ensure safety.
+
+config GOOGLE_MODEM_DATA_EXT
+	bool "Google data plane extensions"
+	depends on ARCH_GOOGLE
+	default y
+	help
+	  Gatekeeping option for all Google-specific data plane
+	  enhancements.
+
+config GOOGLE_MODEM_DATA_FAST_DMA_SYNC
+	bool "Fast DMA sync optimization"
+	depends on GOOGLE_MODEM_DATA_EXT
+	help
+	  Enable fast DMA sync when the page address is already known.
+
+config GOOGLE_MODEM_DATA_LRO_SIZE_LIMIT
+	bool "Limit RX LRO packets max size"
+	depends on GOOGLE_MODEM_DATA_EXT
+	help
+	  Limit max Large Receive Offload (LRO) size to avoid
+	  skb_over_panic on certain network device (e.g. USB NCM).
+
+config GOOGLE_MODEM_SOC_BW_QOS
+	bool "Modem SoC QoS for DDR bandwidth"
+	depends on GOOGLE_MODEM_DATA_EXT
+	help
+	  Enable SoC QoS and DDR bandwidth voting.
+
+config GOOGLE_WWAN_MLLB
+	bool "WWAN Modem Low-Level Benchmark (MLLB) Support"
+	depends on ARCH_GOOGLE
+	help
+	  This feature provides a high-performance raw data sink for benchmarking
+	  the WWAN modem data plane. It intercepts packets at the WWAN receive
+	  layer to measure raw throughput and provides a 256-second history log.

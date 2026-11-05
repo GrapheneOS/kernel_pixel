@@ -1,0 +1,1 @@
+source "$(KCONFIG_EXT_PREFIX)Kconfig"

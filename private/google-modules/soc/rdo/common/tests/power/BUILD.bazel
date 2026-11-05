@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright 2026 Google LLC
+
+"""Shared power test utility libraries."""
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+
+package(default_visibility = ["//private/google-modules/soc/rdo:__subpackages__"])
+
+cc_library(
+    name = "bste_log",
+    srcs = ["log/bste_log.c"],
+    hdrs = ["log/bste_log.h"],
+    includes = ["log"],
+)
+
+cc_library(
+    name = "fs_utils",
+    srcs = ["fs/fs_utils.c"],
+    hdrs = ["fs/fs_utils.h"],
+    includes = ["fs"],
+    deps = [":bste_log"],
+)
+
+cc_library(
+    name = "bste_kmsg_utils",
+    srcs = ["kmsg/kmsg_utils.c"],
+    hdrs = ["kmsg/kmsg_utils.h"],
+    includes = ["kmsg"],
+    deps = [":bste_log"],
+)

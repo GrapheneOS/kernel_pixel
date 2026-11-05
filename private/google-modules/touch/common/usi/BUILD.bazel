@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+load("@kleaf//build/kernel/kleaf:kernel.bzl", "ddk_module")
+
+package(default_visibility = [
+    "//private/devices/google:__subpackages__",
+    "//private/google-modules:__subpackages__",
+])
+
+filegroup(
+    name = "kconfig",
+    srcs = ["Kconfig"],
+)
+
+ddk_module(
+    name = "goog_usi_stylus",
+    srcs = glob([
+        "**/*.h",
+    ]) + [
+        "goog_usi_stylus.c",
+    ],
+    out = "goog_usi_stylus.ko",
+    hdrs = glob([
+        "**/*.h",
+    ]),
+    includes = [
+        ".",
+    ],
+    kernel_build = "//private/devices/google/common:kernel",
+    local_defines = [
+        "DYNAMIC_DEBUG_MODULE",
+    ],
+    deps = [
+        "//common:all_headers_aarch64",
+    ],
+)
