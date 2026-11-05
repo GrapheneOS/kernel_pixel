@@ -18,6 +18,8 @@
 
 #include "../../vh/include/sched.h"
 
+#include "vmscan.h"
+
 #define CREATE_TRACE_POINTS
 #include "pixel_mm_trace.h"
 
@@ -129,11 +131,11 @@ void rvh_madvise_pageout_end(void *data, void *private, struct list_head *folio_
 		return;
 
 	while (!list_empty(&vendor_private->ret_list)) {
-		struct page *page;
+		struct folio *folio;
 
-		page = lru_to_page(&vendor_private->ret_list);
-		wait_on_page_writeback(page);
-		list_move(&page->lru, folio_list);
+		folio = lru_to_folio(&vendor_private->ret_list);
+		folio_wait_writeback(folio);
+		list_move(&folio->lru, folio_list);
 	}
 
 	kfree(vendor_private);

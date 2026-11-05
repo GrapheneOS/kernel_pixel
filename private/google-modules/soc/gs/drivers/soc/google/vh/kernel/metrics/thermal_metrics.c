@@ -7,6 +7,7 @@
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#include "metrics.h"
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -244,7 +245,7 @@ static int get_tz_cb_stats(tr_handle instance, struct temperature_residency_stat
  * Rate limit logging to have time gap of at least ABNORMAL_UEVENT_TIMEOUT_SEC
  * between uevents of same abnormality_type.
  */
-int report_thermal_abnormal_uevent(tr_handle instance, enum abnormality_type type,
+static int report_thermal_abnormal_uevent(tr_handle instance, enum abnormality_type type,
 					 int temp)
 {
 	time64_t now = ktime_get_seconds();

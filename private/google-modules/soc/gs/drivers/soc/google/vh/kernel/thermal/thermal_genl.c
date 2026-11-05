@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <uapi/linux/thermal.h>
+#include "thermal_genl.h"
 
 #define NUM_EVENT 2
 static const int thermal_genl_enable[NUM_EVENT] = {
