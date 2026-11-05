@@ -3039,7 +3039,7 @@ int aoc_audio_voip_stop(struct aoc_alsa_stream *alsa_stream)
 /* TODO: this function is modified to deal with the issue where ALSA appl_ptr
  * and the reader pointer in AoC ringer buffer are out-of-sync due to overflow
  */
-int aoc_audio_read(struct aoc_alsa_stream *alsa_stream, void *dest,
+int aoc_audio_read(struct aoc_alsa_stream *alsa_stream, struct iov_iter *dest,
 		   uint32_t count)
 {
 	int err = 0;
@@ -3074,7 +3074,7 @@ int aoc_audio_read(struct aoc_alsa_stream *alsa_stream, void *dest,
 	if (!aoc_online_state(dev))
 		memset(tmp, 0, count);
 
-	err = copy_to_user(dest, tmp, count);
+	err = count - copy_to_iter(tmp, count, dest);
 	if (err != 0) {
 		pr_err("ERR: %d bytes not copied to user space\n", err);
 		err = -EFAULT;
@@ -3084,7 +3084,7 @@ out:
 	return err < 0 ? err : 0;
 }
 
-int aoc_audio_write(struct aoc_alsa_stream *alsa_stream, void *src,
+int aoc_audio_write(struct aoc_alsa_stream *alsa_stream, struct iov_iter *src,
 		    uint32_t count)
 {
 	int err = 0;
@@ -3116,7 +3116,7 @@ int aoc_audio_write(struct aoc_alsa_stream *alsa_stream, void *src,
 		if (alsa_stream->cstream)
 			pr_debug("compr offload, count: %d, blocksize: %d\n", count, block_size);
 
-		err = copy_from_user(tmp, src, block_size);
+		err = block_size - copy_from_iter(tmp, block_size, src);
 		if (err != 0) {
 			pr_err("ERR: %d bytes not read from user space\n", err);
 			err = -EFAULT;
@@ -3130,11 +3130,19 @@ int aoc_audio_write(struct aoc_alsa_stream *alsa_stream, void *src,
 		}
 
 		count -= block_size;
-		src += block_size;
 	}
 
 out:
 	return err < 0 ? err : 0;
+}
+
+int aoc_audio_write_user(struct aoc_alsa_stream *alsa_stream, void __user *src,
+			 uint32_t count)
+{
+	struct iov_iter iter;
+
+	iov_iter_ubuf(&iter, ITER_SOURCE, src, count);
+	return aoc_audio_write(alsa_stream, &iter, count);
 }
 
 int aoc_displayport_service_alloc(struct aoc_chip *chip)

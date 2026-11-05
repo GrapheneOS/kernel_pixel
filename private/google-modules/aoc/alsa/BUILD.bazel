@@ -20,6 +20,7 @@ filegroup(
         "*.h",
     ]),
     visibility = [
+        "//private/google-modules/aoc/usb:__pkg__",
         "//private/google-modules/display/samsung:__pkg__",
     ],
 )
