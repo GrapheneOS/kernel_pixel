@@ -41,9 +41,6 @@ obj-y				    	+= debug/
 # Emerald Hill
 obj-$(CONFIG_GOOGLE_EH) += eh/
 
-# GCMA
-obj-$(CONFIG_GCMA) += gcma/
-
 # Proactive Kill
 obj-$(CONFIG_PROACTIVE_KILL) += pa_kill/
 
