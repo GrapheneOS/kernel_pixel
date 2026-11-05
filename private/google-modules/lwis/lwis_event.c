@@ -820,7 +820,7 @@ int lwis_device_event_enable(struct lwis_device *lwis_dev, int64_t event_id, boo
 			if (enabled)
 				mod_timer(&lwis_dev->heartbeat_timer, jiffies);
 			else
-				del_timer(&lwis_dev->heartbeat_timer);
+				timer_delete(&lwis_dev->heartbeat_timer);
 			break;
 		}
 		default: {
