@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 #include <linux/module.h>
+#include <linux/samsung-secure-iova.h>
 
 #define SECURE_DMA_BASE	0x40000000
 /*

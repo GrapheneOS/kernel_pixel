@@ -467,7 +467,7 @@ static int smra_vh_init(void)
 	return 0;
 }
 
-int __init smra_init(void)
+static int __init smra_init(void)
 {
 	int err;
 
