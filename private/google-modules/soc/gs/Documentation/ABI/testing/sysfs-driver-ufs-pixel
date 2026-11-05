@@ -33,6 +33,8 @@ Date:		December, 2020
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
 Description:
 		This directory contains UFS power related settings info.
+		These Pixel attributes share the directory with the core UFS
+		power information attributes on newer kernels.
 		gear_tx: Current transmit gear
 		gear_rx: Current receive gear
 		lane_tx: Current transmit lane
