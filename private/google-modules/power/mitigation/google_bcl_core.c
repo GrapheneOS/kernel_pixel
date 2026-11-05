@@ -26,6 +26,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/thermal.h>
@@ -71,17 +72,6 @@ static const unsigned int xclkout_source[] = {
 	XCLKOUT_SOURCE_GPU
 };
 
-void update_irq_start_times(struct bcl_device *bcl_dev, int id);
-void update_irq_end_times(struct bcl_device *bcl_dev, int id);
-void pwrwarn_update_start_time(struct bcl_device *bcl_dev,
-				int id, struct irq_duration_stats *bins,
-				bool *pwr_warn_triggered,
-				enum CONCURRENT_PWRWARN_IRQ bin_ind);
-void pwrwarn_update_end_time(struct bcl_device *bcl_dev, int id,
-				struct irq_duration_stats *bins,
-				enum CONCURRENT_PWRWARN_IRQ bin_ind);
-void trace_bcl_zone_stats(struct bcl_zone *zone, int value);
-
 static struct power_supply *google_get_power_supply(struct bcl_device *bcl_dev, const char *str)
 {
 	static struct power_supply *psy[2];
@@ -89,7 +79,7 @@ static struct power_supply *google_get_power_supply(struct bcl_device *bcl_dev, 
 	int err = 0;
 
 	batt_psy = NULL;
-	err = power_supply_get_by_phandle_array(bcl_dev->device->of_node, str,
+	err = power_supply_get_by_reference_array(dev_fwnode(bcl_dev->device), str,
 						psy, ARRAY_SIZE(psy));
 	if (err > 0)
 		batt_psy = psy[0];
@@ -335,7 +325,7 @@ static int google_bcl_set_soc(struct bcl_device *bcl_dev, int low, int high)
 
 static int tz_bcl_set_soc(struct thermal_zone_device *tz, int low, int high)
 {
-	return google_bcl_set_soc(tz->devdata, low, high);
+	return google_bcl_set_soc(thermal_zone_device_priv(tz), low, high);
 }
 
 static int google_bcl_read_soc(struct bcl_device *bcl_dev, int *val)
@@ -369,7 +359,7 @@ static int google_bcl_read_soc(struct bcl_device *bcl_dev, int *val)
 
 static int tz_bcl_read_soc(struct thermal_zone_device *tz, int *val)
 {
-	return google_bcl_read_soc(tz->devdata, val);
+	return google_bcl_read_soc(thermal_zone_device_priv(tz), val);
 }
 
 static void google_bcl_evaluate_soc(struct work_struct *work)
@@ -2259,10 +2249,10 @@ static void google_bcl_parse_clk_div_dtree(struct bcl_device *bcl_dev)
 	bcl_dev->core_conf[SUBSYSTEM_CPU1].clkdivstep = ret ? 0 : val;
 	ret = of_property_read_u32(np, "cpu0_clkdivstep", &val);
 	bcl_dev->core_conf[SUBSYSTEM_CPU0].clkdivstep = ret ? 0 : val;
-	bcl_dev->vdroop1_pin = of_get_gpio(np, 0);
-	bcl_dev->vdroop2_pin = of_get_gpio(np, 1);
-	bcl_dev->modem_gpio1_pin = of_get_gpio(np, 2);
-	bcl_dev->modem_gpio2_pin = of_get_gpio(np, 3);
+	bcl_dev->vdroop1_pin = of_get_named_gpio(np, "gpios", 0);
+	bcl_dev->vdroop2_pin = of_get_named_gpio(np, "gpios", 1);
+	bcl_dev->modem_gpio1_pin = of_get_named_gpio(np, "gpios", 2);
+	bcl_dev->modem_gpio2_pin = of_get_named_gpio(np, "gpios", 3);
 	ret = of_property_read_u32(np, "rffe_channel", &val);
 	bcl_dev->rffe_channel = ret ? 11 : val;
 	ret = of_property_read_u32(np, "cpu0_cluster", &val);
@@ -2467,7 +2457,7 @@ static enum hrtimer_restart bcl_hrtimer_irq_handler(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void setup_batoilo_ifpmic_qbat_open(struct bcl_device *bcl_dev, bool enable)
+static void setup_batoilo_ifpmic_qbat_open(struct bcl_device *bcl_dev, bool enable)
 {
 	if (!IS_ENABLED(CONFIG_SOC_ZUMAPRO))
 		return;
@@ -2489,8 +2479,8 @@ void google_bcl_enable_timer(struct bcl_device *bcl_dev)
 	if (!IS_ENABLED(CONFIG_SOC_ZUMAPRO))
 		return;
 
-	hrtimer_init(&(bcl_dev->hr_timer), CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	bcl_dev->hr_timer.function = bcl_hrtimer_irq_handler;
+	hrtimer_setup(&bcl_dev->hr_timer, bcl_hrtimer_irq_handler,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	setup_batoilo_ifpmic_qbat_open(bcl_dev, false);
 }
 
@@ -2678,7 +2668,7 @@ bcl_soc_probe_exit:
 	return 0;
 }
 
-static int google_bcl_remove(struct platform_device *pdev)
+static void google_bcl_remove(struct platform_device *pdev)
 {
 	struct bcl_device *bcl_dev = platform_get_drvdata(pdev);
 
@@ -2688,7 +2678,6 @@ static int google_bcl_remove(struct platform_device *pdev)
 	google_bcl_remove_thermal(bcl_dev);
 	wakeup_source_unregister(bcl_dev->ws);
 
-	return 0;
 }
 
 static void google_bcl_shutdown(struct platform_device *pdev)
