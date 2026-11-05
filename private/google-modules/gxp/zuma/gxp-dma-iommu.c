@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/iommu.h>
+#include <linux/samsung-iommu-fault.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -34,33 +35,13 @@ struct gxp_dma_iommu_manager {
 
 /* Fault handler */
 
-static int iommu_fault_handler(struct iommu_fault *fault, void *token)
+static int iommu_fault_handler(struct samsung_iommu_fault *fault, void *token)
 {
 	struct device *dev = token;
 
-	switch (fault->type) {
-	case IOMMU_FAULT_DMA_UNRECOV:
-		dev_err(dev, "Unrecoverable IOMMU fault!\n");
-		dev_err(dev, "reason = %08X\n", fault->event.reason);
-		dev_err(dev, "flags = %08X\n", fault->event.flags);
-		dev_err(dev, "pasid = %08X\n", fault->event.pasid);
-		dev_err(dev, "perm = %08X\n", fault->event.perm);
-		dev_err(dev, "addr = %llX\n", fault->event.addr);
-		dev_err(dev, "fetch_addr = %llX\n", fault->event.fetch_addr);
-		break;
-	case IOMMU_FAULT_PAGE_REQ:
-		dev_err(dev, "IOMMU page request fault!\n");
-		dev_err(dev, "flags = %08X\n", fault->prm.flags);
-		dev_err(dev, "pasid = %08X\n", fault->prm.pasid);
-		dev_err(dev, "grpid = %08X\n", fault->prm.grpid);
-		dev_err(dev, "perm = %08X\n", fault->prm.perm);
-		dev_err(dev, "addr = %llX\n", fault->prm.addr);
-		break;
-	default:
-		dev_err(dev, "Unexpected IOMMU fault type (%d)\n", fault->type);
-	}
-
-	/* Tells the IOMMU driver to carry on. */
+	dev_err(dev, "Unrecoverable IOMMU fault!\n");
+	dev_err(dev, "reason = %08X flags = %08X pasid = %08X perm = %08X addr = %llX\n",
+		fault->reason, fault->flags, fault->pasid, fault->perm, fault->addr);
 	return -EAGAIN;
 }
 
@@ -128,7 +109,7 @@ int gxp_dma_init(struct gxp_dev *gxp)
 		return PTR_ERR(mgr->default_domain);
 	}
 
-	if (iommu_register_device_fault_handler(gxp->dev, iommu_fault_handler, gxp->dev)) {
+	if (samsung_iommu_register_fault_handler(gxp->dev, iommu_fault_handler, gxp->dev)) {
 		dev_err(gxp->dev, "Failed to register iommu fault handler\n");
 		return -EIO;
 	}
@@ -140,9 +121,7 @@ int gxp_dma_init(struct gxp_dev *gxp)
 
 void gxp_dma_exit(struct gxp_dev *gxp)
 {
-	if (iommu_unregister_device_fault_handler(gxp->dev))
-		dev_err(gxp->dev,
-			"Failed to unregister IOMMU fault handler\n");
+	samsung_iommu_unregister_fault_handler(gxp->dev);
 }
 
 #define EXT_TPU_MBX_SIZE 0x2000
@@ -533,12 +512,4 @@ u64 gxp_dma_encode_gcip_map_flags(uint gxp_dma_flags, unsigned long dma_attrs)
 #endif
 
 	return gcip_iommu_encode_gcip_map_flags(dir, coherent, dma_attrs, restrict_iova, mmio);
-}
-
-int gxp_iommu_fault_handler(struct iommu_domain *domain, struct device *dev, unsigned long iova,
-			    int flags, void *token)
-{
-	dev_dbg(dev, "IOMMU fault on address %08lX. flags = %08X", iova, flags);
-	/* Tell the IOMMU driver we are OK with this fault. */
-	return 0;
 }
