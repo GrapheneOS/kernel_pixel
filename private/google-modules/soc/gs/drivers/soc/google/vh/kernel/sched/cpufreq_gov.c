@@ -128,7 +128,6 @@ extern unsigned int pmu_poll_time_ms;
 static void pmu_poll_defer_work(u64 time);
 
 #if IS_ENABLED(CONFIG_UCLAMP_TASK) && IS_ENABLED(CONFIG_FAIR_GROUP_SCHED)
-extern unsigned long cpu_util_cfs_group_mod(int cpu);
 #else
 #define cpu_util_cfs_group_mod cpu_util_cfs
 #endif
@@ -139,14 +138,6 @@ unsigned int map_scaling_freq(int cpu, unsigned int freq)
 
 	return policy ? clamp(freq, policy->min, policy->max) : freq;
 }
-
-#if !IS_ENABLED(CONFIG_TICK_DRIVEN_LATGOV)
-extern int get_ev_data(int cpu, unsigned long *inst, unsigned long *cyc,
-			unsigned long *stall, unsigned long *l2_cachemiss,
-			unsigned long *l3_cachemiss, unsigned long *mem_stall,
-			unsigned long *l2_cache_wb, unsigned long *l3_cache_access,
-			unsigned long *mem_count, unsigned long *cpu_freq);
-#endif
 
 /************************ Governor internals ***********************/
 #if IS_ENABLED(CONFIG_PIXEL_EM_FREQUENCY_SCALING)
@@ -396,7 +387,7 @@ void update_uclamp_stats(int cpu, u64 time)
 	struct uclamp_stats *stats = &per_cpu(uclamp_stats, cpu);
 	s64 delta_ns = time - stats->last_update_time;
 	struct rq *rq = cpu_rq(cpu);
-	unsigned long cpu_util = min(capacity_orig_of(cpu), cpu_util_cfs(rq) + cpu_util_rt(rq));
+	unsigned long cpu_util = min(capacity_orig_of(cpu), cpu_util_cfs(cpu) + cpu_util_rt(rq));
 	unsigned long cpu_util_max_clamped = min(capacity_orig_of(cpu), cpu_util_cfs_group_mod(cpu) +
 						 cpu_util_rt(rq));
 	unsigned int uclamp_min = READ_ONCE(rq->uclamp[UCLAMP_MIN].value);

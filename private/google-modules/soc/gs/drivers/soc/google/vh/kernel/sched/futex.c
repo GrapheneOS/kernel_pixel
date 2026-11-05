@@ -16,6 +16,9 @@
 #include "sched_priv.h"
 
 void vh_alter_futex_plist_add_pixel_mod(void *data, struct plist_node *q_list,
+						struct plist_head *hb_chain, bool *already_on_hb);
+
+void vh_alter_futex_plist_add_pixel_mod(void *data, struct plist_node *q_list,
 						struct plist_head *hb_chain, bool *already_on_hb)
 {
 	struct futex_q *this, *next;
