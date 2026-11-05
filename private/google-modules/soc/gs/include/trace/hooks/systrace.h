@@ -47,7 +47,7 @@ TRACE_EVENT(0,
 	TP_fast_assign(
 		__entry->flag = flag;
 		__entry->pid = pid;
-		__assign_str(name, name);
+		__assign_str(name);
 		__entry->value = value;
 	),
 	TP_printk("%s|%d|%s|%lld",
