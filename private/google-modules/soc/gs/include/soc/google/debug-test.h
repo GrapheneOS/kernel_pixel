@@ -27,4 +27,6 @@ extern void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch
 static inline void debug_trigger_register(struct debug_trigger *soc_trigger, char *arch_name) {}
 #endif
 
+void pull_down_other_cpus(void);
+
 #endif /* DEBUG_TEST_H */
