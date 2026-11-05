@@ -489,7 +489,7 @@ static DEVICE_ATTR_RO(s2mpg15_lpf_power);
 static DEVICE_ATTR_RO(s2mpg15_acc_current);
 static DEVICE_ATTR_RO(s2mpg15_acc_power);
 
-int create_s2mpg15_meter_sysfs(struct s2mpg15_meter *s2mpg15)
+static int create_s2mpg15_meter_sysfs(struct s2mpg15_meter *s2mpg15)
 {
 	struct device *s2mpg15_meter_dev = s2mpg15->dev;
 	int err = -ENODEV;
@@ -608,7 +608,7 @@ static int s2mpg15_meter_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int s2mpg15_meter_remove(struct platform_device *pdev)
+static void s2mpg15_meter_remove(struct platform_device *pdev)
 {
 	struct s2mpg15_meter *s2mpg15 = platform_get_drvdata(pdev);
 
@@ -618,7 +618,6 @@ static int s2mpg15_meter_remove(struct platform_device *pdev)
 #if IS_ENABLED(CONFIG_DRV_SAMSUNG_PMIC)
 	pmic_device_destroy(s2mpg15->dev->devt);
 #endif
-	return 0;
 }
 
 static void s2mpg15_meter_shutdown(struct platform_device *pdev)

@@ -11,6 +11,7 @@
 #include "phy-samsung-usb-cal.h"
 
 #include "exynos-usb-blkcon-sfr.h"
+#include "exynos-usb-blkcon.h"
 
 static void ready_rewa(struct exynos_usbphy_info *cal_info);
 

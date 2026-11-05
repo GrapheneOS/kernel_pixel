@@ -14,7 +14,7 @@
 #ifndef __EUSB_REPEATER_H__
 #define __EUSB_REPEATER_H__
 
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <linux/completion.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>

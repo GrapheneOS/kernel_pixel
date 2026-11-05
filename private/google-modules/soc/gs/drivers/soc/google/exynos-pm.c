@@ -288,6 +288,8 @@ int register_pcie_is_connect(u32 (*func)(void))
 }
 EXPORT_SYMBOL_GPL(register_pcie_is_connect);
 
+bool is_test_pcieon_suspend_set(void);
+
 bool is_test_pcieon_suspend_set(void)
 {
 	if (!pm_dbg)

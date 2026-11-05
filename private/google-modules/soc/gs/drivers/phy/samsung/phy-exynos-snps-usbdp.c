@@ -94,6 +94,8 @@ static void cr_port_clear(struct exynos_usbphy_info *info)
 	writel(reg, base + SNPS_USBDPPHY_REG_PHY_CR_PARA_CON0);
 }
 
+void phy_exynos_snps_usbdp_cr_write(struct exynos_usbphy_info *info, u16 addr, u16 data);
+
 void phy_exynos_snps_usbdp_cr_write(struct exynos_usbphy_info *info, u16 addr, u16 data)
 {
 	void __iomem *base = info->regs_base;
@@ -139,6 +141,8 @@ void phy_exynos_snps_usbdp_cr_write(struct exynos_usbphy_info *info, u16 addr, u
 	else
 		cr_clk_low(info);
 }
+
+u16 phy_exynos_snps_usbdp_cr_read(struct exynos_usbphy_info *info, u16 addr);
 
 u16 phy_exynos_snps_usbdp_cr_read(struct exynos_usbphy_info *info, u16 addr)
 {
@@ -219,7 +223,7 @@ static void lane0_reset(struct exynos_usbphy_info *info, int val)
 #define TCA_USB31_DPALT_2L 3
 #define FLD_OP_MODE 1
 
-int phy_exynos_snps_usbdp_tca_ctrl_sync(struct exynos_usbphy_info *info, int mux, int low_power_en)
+static int phy_exynos_snps_usbdp_tca_ctrl_sync(struct exynos_usbphy_info *info, int mux, int low_power_en)
 {
 	u32 reg;
 	void *tca_base = info->regs_base_2nd;
@@ -278,6 +282,8 @@ int phy_exynos_snps_usbdp_tca_ctrl_sync(struct exynos_usbphy_info *info, int mux
  *
  * Used in POGO use case to set TCA on Type-C plug-in
  */
+void phy_exynos_snps_usbdp_tca_set(struct exynos_usbphy_info *info, int mux, int low_power_en);
+
 void phy_exynos_snps_usbdp_tca_set(struct exynos_usbphy_info *info, int mux, int low_power_en)
 {
 	u32 tca_config;
@@ -291,7 +297,7 @@ void phy_exynos_snps_usbdp_tca_set(struct exynos_usbphy_info *info, int mux, int
 	phy_exynos_snps_usbdp_tca_ctrl_sync(info, mux, low_power_en);
 }
 
-int phy_exynos_snps_usbdp_nc2usb_mode(struct exynos_usbphy_info *info, int val)
+static int phy_exynos_snps_usbdp_nc2usb_mode(struct exynos_usbphy_info *info, int val)
 {
 	u32 reg;
 	void *tca_base = info->regs_base_2nd;
@@ -328,7 +334,7 @@ int phy_exynos_snps_usbdp_nc2usb_mode(struct exynos_usbphy_info *info, int val)
 	return ret;
 }
 
-void phy_exynos_snps_dptx_reset(struct exynos_usbphy_info *info, int val)
+static void phy_exynos_snps_dptx_reset(struct exynos_usbphy_info *info, int val)
 {
 	u32 reg;
 	void *base = info->regs_base;
@@ -345,6 +351,8 @@ void phy_exynos_snps_dptx_reset(struct exynos_usbphy_info *info, int val)
 	((SNPS_USBDPPHY_REG_DP_CONFIG13_p)(&reg))->b.dp_tx3_reset = val;
 	writel(reg, base + SNPS_USBDPPHY_REG_DP_CONFIG13);
 }
+
+void phy_exynos_snps_usbdp_phy_initiate(struct exynos_usbphy_info *info);
 
 void phy_exynos_snps_usbdp_phy_initiate(struct exynos_usbphy_info *info)
 {
@@ -396,6 +404,8 @@ void phy_exynos_snps_usbdp_phy_initiate(struct exynos_usbphy_info *info)
 	else
 		writel(0x0, base + SNPS_USBDPPHY_REG_TCA_CONFIG);
 }
+
+void phy_exynos_snps_usbdp_tune_each(struct exynos_usbphy_info *info, char *name, int val);
 
 void phy_exynos_snps_usbdp_tune_each(struct exynos_usbphy_info *info, char *name, int val)
 {
@@ -484,6 +494,8 @@ void phy_exynos_snps_usbdp_tune_each(struct exynos_usbphy_info *info, char *name
 		writel(reg, base + SNPS_USBDPPHY_REG_PHY_EXT_CONFIG21);
 	}
 }
+
+void phy_exynos_snps_usbdp_tune_each_cr(struct exynos_usbphy_info *info, char *name, int val);
 
 void phy_exynos_snps_usbdp_tune_each_cr(struct exynos_usbphy_info *info, char *name, int val)
 {
@@ -719,7 +731,7 @@ static void phy_exynos_snps_usbdp_lane_config(struct exynos_usbphy_info *info)
 	writel(reg, base + SNPS_USBDPPHY_REG_PHY_EXT_CONFIG14);
 }
 #endif
-void phy_exynos_snps_usbdp_config_mplla(struct exynos_usbphy_info *info)
+static void phy_exynos_snps_usbdp_config_mplla(struct exynos_usbphy_info *info)
 {
 	u32 reg;
 	void *base = info->regs_base;
@@ -775,7 +787,7 @@ static int update_fw_to_sram(struct exynos_usbphy_info *info)
 	return 0;
 }
 
-void phy_exynos_snps_usbdp_phy_sram_ext_ld_done(struct exynos_usbphy_info *info, int val)
+static void phy_exynos_snps_usbdp_phy_sram_ext_ld_done(struct exynos_usbphy_info *info, int val)
 {
 	u32 reg;
 	void *base = info->regs_base;
@@ -794,6 +806,8 @@ void phy_exynos_snps_usbdp_phy_sram_ext_ld_done(struct exynos_usbphy_info *info,
 		reg = readl(base + SNPS_USBDPPHY_REG_PHY_SRAM_CON);
 	} while (((SNPS_USBDPPHY_REG_PHY_SRAM_CON_p)(&reg))->b.phy0_sram_init_done == 0);
 }
+
+void phy_exynos_snps_usbdp_tune(struct exynos_usbphy_info *info);
 
 void phy_exynos_snps_usbdp_tune(struct exynos_usbphy_info *info)
 {
@@ -902,7 +916,7 @@ static int additional_cr_reg_update(struct exynos_usbphy_info *info)
 	return 0;
 }
 
-void phy_exynos_snps_tx_gen2_deemp_set(struct exynos_usbphy_info *info)
+static void phy_exynos_snps_tx_gen2_deemp_set(struct exynos_usbphy_info *info)
 {
 	void __iomem *link_base;
 	u32 reg;
@@ -943,6 +957,8 @@ void phy_exynos_snps_tx_gen2_deemp_set(struct exynos_usbphy_info *info)
 	writel(reg, link_base + USB31DRD_LINK_LCSR_TX_DEEMPH_3);
 
 }
+
+int phy_exynos_snps_usbdp_phy_enable(struct exynos_usbphy_info *info);
 
 int phy_exynos_snps_usbdp_phy_enable(struct exynos_usbphy_info *info)
 {
@@ -1029,6 +1045,8 @@ int phy_exynos_snps_usbdp_phy_enable(struct exynos_usbphy_info *info)
 
 	return 0;
 }
+
+void phy_exynos_snps_usbdp_phy_disable(struct exynos_usbphy_info *info);
 
 void phy_exynos_snps_usbdp_phy_disable(struct exynos_usbphy_info *info)
 {

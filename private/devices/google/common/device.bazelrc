@@ -11,6 +11,9 @@ build --flag_alias=nouse_prebuilt_fips140=no//private/devices/google/common:use_
 # Preserve optional globs used by the older Pixel build definitions.
 build --noincompatible_disallow_empty_glob
 
+# Retain the console SRCU exports used by atomic-context UART checks.
+build --user_kmi_symbol_lists=//private/devices/google/common:additional_kmi_symbol_lists
+
 # Debug configs
 import %workspace%/private/devices/google/common/debug/debug.bazelrc
 
