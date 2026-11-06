@@ -10502,7 +10502,7 @@ wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg)
 		return -ENOMEM;
 	}
 
-	strlcpy(ndev->name, NMI_IFNAME, sizeof(ndev->name));
+	strscpy(ndev->name, NMI_IFNAME, sizeof(ndev->name));
 
 	/* Copy the reference to bcm_cfg80211 */
 	priv = (struct bcm_cfg80211 **)netdev_priv(ndev);

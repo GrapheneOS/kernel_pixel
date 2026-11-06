@@ -48,7 +48,7 @@
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0))
 #include <linux/unaligned.h>
 #else
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 12, 0) */
 #include <linux/fs.h>
 #include <linux/namei.h>

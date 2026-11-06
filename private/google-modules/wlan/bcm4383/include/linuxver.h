@@ -42,6 +42,7 @@
 
 #include <typedefs.h>
 #include <linux/version.h>
+#include <linux/sched/clock.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))
 #include <linux/config.h>
 #else
@@ -469,8 +470,8 @@ static inline void tasklet_init(struct tasklet_struct *tasklet,
 
 #define tasklet_kill(tasklet)	{ do {} while (0); }
 
-/* 2.4.x introduced del_timer_sync() */
-#define del_timer_sync(timer) del_timer(timer)
+/* 2.4.x introduced timer_delete_sync() */
+#define timer_delete_sync(timer) timer_delete(timer)
 
 #else
 
