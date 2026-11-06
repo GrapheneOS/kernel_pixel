@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * include/linux/mfd/samsung/s2mpg10.h
+ * include/linux/mfd/samsung/s2mpg10-gs.h
  *
  * Copyright (C) 2016 Samsung Electrnoics
  *

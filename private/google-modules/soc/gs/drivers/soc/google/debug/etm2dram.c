@@ -47,6 +47,8 @@ struct etm2dram_private {
 	struct notifier_block pm_nb;
 };
 
+int etm2dram_delayed_start(int delay_secs);
+
 int etm2dram_delayed_start(int delay_secs)
 {
 	struct adv_tracer_ipc_cmd cmd;
@@ -69,6 +71,8 @@ int etm2dram_delayed_start(int delay_secs)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(etm2dram_delayed_start);
+
+int etm2dram_cancel_delayed_start(void);
 
 int etm2dram_cancel_delayed_start(void)
 {
@@ -340,7 +344,7 @@ arm_store(struct device *dev, struct device_attribute *attr,
 	int ret;
 	struct etm2dram_private *data = dev_get_drvdata(dev);
 
-	ret = strtobool(buf, &new_value);
+	ret = kstrtobool(buf, &new_value);
 	if (ret < 0)
 		return ret;
 
@@ -420,9 +424,12 @@ static int etm2dram_probe(struct platform_device *pdev)
 	return etm2dram_set_databuf(data->dbuf_base, data->dbuf_size);
 }
 
-static int etm2dram_remove(struct platform_device *pdev)
+static void etm2dram_remove(struct platform_device *pdev)
 {
-	return etm2dram_set_databuf(0, 0);
+	int ret = etm2dram_set_databuf(0, 0);
+
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable trace buffer: %d\n", ret);
 }
 
 static const struct of_device_id etm2dram_matches[] = {

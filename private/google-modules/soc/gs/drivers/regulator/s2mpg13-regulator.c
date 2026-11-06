@@ -583,7 +583,7 @@ static ssize_t s2mpg13_pmic_write_show(struct device *dev,
 static DEVICE_ATTR_RW(s2mpg13_pmic_write);
 static DEVICE_ATTR_RW(s2mpg13_pmic_read);
 
-int create_s2mpg13_pmic_sysfs(struct s2mpg13_pmic *s2mpg13)
+static int create_s2mpg13_pmic_sysfs(struct s2mpg13_pmic *s2mpg13)
 {
 	struct device *s2mpg13_pmic = s2mpg13->dev;
 	int err = -ENODEV;
@@ -610,7 +610,7 @@ int create_s2mpg13_pmic_sysfs(struct s2mpg13_pmic *s2mpg13)
 }
 #endif
 
-void s2mpg13_ocp_detection_config(struct s2mpg13_pmic *s2mpg13,
+static void s2mpg13_ocp_detection_config(struct s2mpg13_pmic *s2mpg13,
 				  struct s2mpg13_platform_data *pdata)
 {
 	int ret;
@@ -651,7 +651,7 @@ void s2mpg13_ocp_detection_config(struct s2mpg13_pmic *s2mpg13,
 		dev_err(s2mpg13->dev, "i2c write error setting BUCK_OCP_CTRL7: %d\n", ret);
 }
 
-int s2mpg13_ocp_warn(struct s2mpg13_pmic *s2mpg13,
+static int s2mpg13_ocp_warn(struct s2mpg13_pmic *s2mpg13,
 		     struct s2mpg13_platform_data *pdata)
 {
 	u8 val;
@@ -715,7 +715,7 @@ err:
 	return -1;
 }
 
-int s2mpg13_oi_function(struct s2mpg13_pmic *s2mpg13)
+static int __maybe_unused s2mpg13_oi_function(struct s2mpg13_pmic *s2mpg13)
 {
 	int ret = 0;
 	/* add OI configuration code if necessary */
