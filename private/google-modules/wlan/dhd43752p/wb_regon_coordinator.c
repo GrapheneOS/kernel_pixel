@@ -256,6 +256,8 @@ static int wbrc_bt_dev_release(struct inode *inodep, struct file *filep)
 	return 0;
 }
 
+void wbrc_signal_bt_reset(struct wbrc_pvt_data *wbrc_data);
+
 void wbrc_signal_bt_reset(struct wbrc_pvt_data *wbrc_data)
 {
 	pr_info("%s\n", __func__);
@@ -270,6 +272,8 @@ void wbrc_signal_bt_reset(struct wbrc_pvt_data *wbrc_data)
 
 	wake_up_interruptible(&wbrc_data->outmsg_waitq);
 }
+
+int wbrc_init(void);
 
 int wbrc_init(void)
 {
@@ -293,7 +297,7 @@ int wbrc_init(void)
 		goto err_register;
 	}
 
-	wbrc_data->wbrc_bt_dev_class = class_create(THIS_MODULE, CLASS_NAME);
+	wbrc_data->wbrc_bt_dev_class = class_create(CLASS_NAME);
 	err = PTR_ERR(wbrc_data->wbrc_bt_dev_class);
 	if (IS_ERR(wbrc_data->wbrc_bt_dev_class)) {
 		pr_alert("Failed to register device class\n");
@@ -321,6 +325,8 @@ err_register:
 	g_wbrc_data = NULL;
 	return err;
 }
+
+void wbrc_exit(void);
 
 void wbrc_exit(void)
 {
@@ -350,6 +356,9 @@ MODULE_AUTHOR(AUTHOR);
  * Returns 1 if the @condition evaluated to true
  */
 #define WBRC_RESET_WAIT_TIMEOUT 4000
+int
+wbrc_reset_wait_on_condition(wait_queue_head_t *reset_waitq, uint *var, uint condition);
+
 int
 wbrc_reset_wait_on_condition(wait_queue_head_t *reset_waitq, uint *var, uint condition)
 {
@@ -402,6 +411,8 @@ int wbrc_wl2bt_reset(void)
 	return ret;
 }
 EXPORT_SYMBOL(wbrc_wl2bt_reset);
+
+int wbrc_signal_wlan_reset(struct wbrc_pvt_data *wbrc_data);
 
 int wbrc_signal_wlan_reset(struct wbrc_pvt_data *wbrc_data)
 {

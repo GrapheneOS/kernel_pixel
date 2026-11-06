@@ -1331,6 +1331,8 @@ static int wl_android_set_suspendmode(struct net_device *dev, char *command)
 	return ret;
 }
 
+int wl_android_get_80211_mode(struct net_device *dev, char *command, int total_len);
+
 int wl_android_get_80211_mode(struct net_device *dev, char *command, int total_len)
 {
 	uint8 mode[5];
@@ -1350,6 +1352,8 @@ int wl_android_get_80211_mode(struct net_device *dev, char *command, int total_l
 
 extern chanspec_t
 wl_chspec_driver_to_host(chanspec_t chanspec);
+int wl_android_get_chanspec(struct net_device *dev, char *command, int total_len);
+
 int wl_android_get_chanspec(struct net_device *dev, char *command, int total_len)
 {
 	int error = 0;
@@ -1423,6 +1427,8 @@ int wl_android_get_chanspec(struct net_device *dev, char *command, int total_len
 }
 
 /* returns current datarate datarate returned from firmware are in 500kbps */
+int wl_android_get_datarate(struct net_device *dev, char *command, int total_len);
+
 int wl_android_get_datarate(struct net_device *dev, char *command, int total_len)
 {
 	int  error = 0;
@@ -1438,6 +1444,8 @@ int wl_android_get_datarate(struct net_device *dev, char *command, int total_len
 	bytes_written = snprintf(command, total_len, "%s %d", CMD_DATARATE, (datarate/2));
 	return bytes_written;
 }
+int wl_android_get_assoclist(struct net_device *dev, char *command, int total_len);
+
 int wl_android_get_assoclist(struct net_device *dev, char *command, int total_len)
 {
 	int  error = 0;
@@ -4623,8 +4631,7 @@ static int wl_android_get_p2p_dev_addr(struct net_device *ndev, char *command, i
 	int ret;
 	struct ether_addr p2pdev_addr;
 
-#define MAC_ADDR_STR_LEN 18
-	if (total_len < MAC_ADDR_STR_LEN) {
+	if (total_len < MAC_ADDR_STR_LEN + 1) {
 		DHD_ERROR(("wl_android_get_p2p_dev_addr: buflen %d is less than p2p dev addr\n",
 			total_len));
 		return -1;
@@ -6414,6 +6421,10 @@ done:
 
 s32
 wl_android_get_freq_list_chanspecs(struct net_device *ndev, wl_uint32_list_t *list,
+	s32 buflen, const char* cmd_str, int sta_channel, chanspec_band_t sta_acs_band);
+
+s32
+wl_android_get_freq_list_chanspecs(struct net_device *ndev, wl_uint32_list_t *list,
 	s32 buflen, const char* cmd_str, int sta_channel, chanspec_band_t sta_acs_band)
 {
 	u32 freq = 0;
@@ -6487,6 +6498,10 @@ wl_android_get_freq_list_chanspecs(struct net_device *ndev, wl_uint32_list_t *li
 	}
 	return ret;
 }
+
+s32
+wl_android_get_band_chanspecs(struct net_device *ndev, void *buf, s32 buflen,
+	chanspec_band_t band, bool acs_req);
 
 s32
 wl_android_get_band_chanspecs(struct net_device *ndev, void *buf, s32 buflen,
@@ -6604,6 +6619,9 @@ wl_android_restore_auto_channel_scan_state(struct net_device *ndev)
 
 	return BCME_OK;
 }
+
+s32
+wl_android_get_best_channels(struct net_device *dev, char* cmd, int total_len);
 
 s32
 wl_android_get_best_channels(struct net_device *dev, char* cmd, int total_len)
@@ -7675,6 +7693,8 @@ wl_android_get_tid(struct net_device *dev, char* command, int total_len)
 #endif /* SUPPORT_SET_TID */
 #endif /* CUSTOMER_HW4_PRIVATE_CMD */
 
+int wl_android_set_roam_mode(struct net_device *dev, char *command);
+
 int wl_android_set_roam_mode(struct net_device *dev, char *command)
 {
 	int error = 0;
@@ -7697,6 +7717,8 @@ int wl_android_set_roam_mode(struct net_device *dev, char *command)
 		mode, error));
 	return 0;
 }
+
+int wl_android_set_ibss_beacon_ouidata(struct net_device *dev, char *command, int total_len);
 
 int wl_android_set_ibss_beacon_ouidata(struct net_device *dev, char *command, int total_len)
 {
@@ -8582,6 +8604,8 @@ int wl_android_set_ibss_antenna(struct net_device *dev, char *command, int total
 }
 #endif /* WLAIBSS */
 
+int wl_keep_alive_set(struct net_device *dev, char* extra);
+
 int wl_keep_alive_set(struct net_device *dev, char* extra)
 {
 	wl_mkeep_alive_pkt_t	mkeep_alive_pkt;
@@ -8848,6 +8872,9 @@ wl_cfg80211_p2plo_deinit(struct bcm_cfg80211 *cfg)
 	return  ret;
 }
 s32
+wl_cfg80211_p2plo_listen_start(struct net_device *dev, u8 *buf, int len);
+
+s32
 wl_cfg80211_p2plo_listen_start(struct net_device *dev, u8 *buf, int len)
 {
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
@@ -8926,6 +8953,9 @@ exit :
 	return ret;
 }
 s32
+wl_cfg80211_p2plo_listen_stop(struct net_device *dev);
+
+s32
 wl_cfg80211_p2plo_listen_stop(struct net_device *dev)
 {
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
@@ -8944,6 +8974,9 @@ exit:
 }
 
 s32
+wl_cfg80211_p2plo_offload(struct net_device *dev, char *cmd, char* buf, int len);
+
+s32
 wl_cfg80211_p2plo_offload(struct net_device *dev, char *cmd, char* buf, int len)
 {
 	int ret = 0;
@@ -8960,6 +8993,9 @@ wl_cfg80211_p2plo_offload(struct net_device *dev, char *cmd, char* buf, int len)
 	}
 	return ret;
 }
+void
+wl_cfg80211_cancel_p2plo(struct bcm_cfg80211 *cfg);
+
 void
 wl_cfg80211_cancel_p2plo(struct bcm_cfg80211 *cfg)
 {
@@ -9267,6 +9303,9 @@ wl_android_get_lqcm_report(struct net_device *dev, char *command, int total_len)
 #endif /* SUPPORT_LQCM */
 
 int
+wl_android_get_snr(struct net_device *dev, char *command, int total_len);
+
+int
 wl_android_get_snr(struct net_device *dev, char *command, int total_len)
 {
 	int bytes_written, error = 0;
@@ -9285,6 +9324,9 @@ wl_android_get_snr(struct net_device *dev, char *command, int total_len)
 }
 
 #ifdef SUPPORT_AP_HIGHER_BEACONRATE
+int
+wl_android_set_ap_beaconrate(struct net_device *dev, char *command);
+
 int
 wl_android_set_ap_beaconrate(struct net_device *dev, char *command)
 {
@@ -9323,6 +9365,8 @@ wl_android_set_ap_beaconrate(struct net_device *dev, char *command)
 	return err;
 }
 
+int wl_android_get_ap_basicrate(struct net_device *dev, char *command, int total_len);
+
 int wl_android_get_ap_basicrate(struct net_device *dev, char *command, int total_len)
 {
 	char *pos, *token;
@@ -9356,6 +9400,9 @@ int wl_android_get_ap_basicrate(struct net_device *dev, char *command, int total
 
 #ifdef SUPPORT_AP_RADIO_PWRSAVE
 int
+wl_android_get_ap_rps(struct net_device *dev, char *command, int total_len);
+
+int
 wl_android_get_ap_rps(struct net_device *dev, char *command, int total_len)
 {
 	char *pos, *token;
@@ -9388,6 +9435,9 @@ wl_android_get_ap_rps(struct net_device *dev, char *command, int total_len)
 	return bytes_written;
 
 }
+
+int
+wl_android_set_ap_rps(struct net_device *dev, char *command, int total_len);
 
 int
 wl_android_set_ap_rps(struct net_device *dev, char *command, int total_len)
@@ -9428,6 +9478,9 @@ wl_android_set_ap_rps(struct net_device *dev, char *command, int total_len)
 
 	return err;
 }
+
+int
+wl_android_set_ap_rps_params(struct net_device *dev, char *command, int total_len);
 
 int
 wl_android_set_ap_rps_params(struct net_device *dev, char *command, int total_len)
@@ -9494,6 +9547,9 @@ wl_android_set_ap_rps_params(struct net_device *dev, char *command, int total_le
 #endif /* SUPPORT_AP_RADIO_PWRSAVE */
 
 #if defined(DHD_HANG_SEND_UP_TEST)
+void
+wl_android_make_hang_with_reason(struct net_device *dev, const char *string_num);
+
 void
 wl_android_make_hang_with_reason(struct net_device *dev, const char *string_num)
 {
@@ -10591,6 +10647,9 @@ exit:
 }
 
 int
+_wl_android_bcnrecv_stop(struct bcm_cfg80211 *cfg, struct net_device *ndev, uint reason);
+
+int
 _wl_android_bcnrecv_stop(struct bcm_cfg80211 *cfg, struct net_device *ndev, uint reason)
 {
 	s32 err = BCME_OK;
@@ -11034,6 +11093,9 @@ wl_android_get_softap_elna_bypass(struct net_device *dev, char *command, int tot
 #endif /* SUPPORT_SOFTAP_ELNA_BYPASS */
 
 #ifdef WL_NAN
+int
+wl_android_get_nan_status(struct net_device *dev, char *command, int total_len);
+
 int
 wl_android_get_nan_status(struct net_device *dev, char *command, int total_len)
 {
@@ -13284,6 +13346,8 @@ wl_genl_handle_msg(
 	return 0;
 }
 #endif /* WL_GENL */
+
+int wl_fatal_error(void * wl, int rc);
 
 int wl_fatal_error(void * wl, int rc)
 {

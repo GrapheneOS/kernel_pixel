@@ -137,10 +137,14 @@ void update_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver)
 	WL_DBG(("%d AP, %d cache item(s), err=%d\n", n_roam_cache, channel_list.n, error));
 }
 
+void set_roam_band(int band);
+
 void set_roam_band(int band)
 {
 	roam_band = band;
 }
+
+void reset_roam_cache(struct bcm_cfg80211 *cfg);
 
 void reset_roam_cache(struct bcm_cfg80211 *cfg)
 {
@@ -187,6 +191,9 @@ add_roam_cache_list(uint8 *SSID, uint32 SSID_len, chanspec_t chanspec)
 }
 
 void
+add_roam_cache(struct bcm_cfg80211 *cfg, wl_bss_info_t *bi);
+
+void
 add_roam_cache(struct bcm_cfg80211 *cfg, wl_bss_info_t *bi)
 {
 	if (!cfg->rcc_enabled) {
@@ -213,6 +220,9 @@ static bool is_duplicated_channel(const chanspec_t *channels, int n_channels, ch
 
 	return FALSE;
 }
+
+int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan,
+	chanspec_t *channels, int n_channels, const wlc_ssid_t *ssid, int ioctl_ver);
 
 int get_roam_channel_list(struct bcm_cfg80211 *cfg, chanspec_t target_chan,
 	chanspec_t *channels, int n_channels, const wlc_ssid_t *ssid, int ioctl_ver)
@@ -427,6 +437,8 @@ add_roamscan_chanspec_list(struct net_device *dev, uint nchan, chanspec_t *chans
 #endif /* WES_SUPPORT */
 
 #ifdef ROAM_CHANNEL_CACHE
+int init_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver);
+
 int init_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver)
 {
 	int err;
@@ -454,6 +466,8 @@ int init_roam_cache(struct bcm_cfg80211 *cfg, int ioctl_ver)
 	return 0;
 }
 
+void print_roam_cache(struct bcm_cfg80211 *cfg);
+
 void print_roam_cache(struct bcm_cfg80211 *cfg)
 {
 	int i;
@@ -470,6 +484,8 @@ void print_roam_cache(struct bcm_cfg80211 *cfg)
 			roam_cache[i].ssid_len, roam_cache[i].ssid));
 	}
 }
+
+void wl_update_roamscan_cache_by_band(struct net_device *dev, int band);
 
 void wl_update_roamscan_cache_by_band(struct net_device *dev, int band)
 {

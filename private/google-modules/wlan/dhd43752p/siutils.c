@@ -8908,6 +8908,9 @@ BCMPOSTTRAPFN(si_clear_backplane_to_per_core)(si_t *sih, uint coreid, uint coreu
 #endif /* AXI_TIMEOUTS || AXI_TIMEOUTS_NIC */
 
 uint32
+BCMPOSTTRAPFN(si_clear_backplane_to)(si_t *sih);
+
+uint32
 BCMPOSTTRAPFN(si_clear_backplane_to)(si_t *sih)
 {
 	if ((CHIPTYPE(sih->socitype) == SOCI_AI) ||
@@ -8936,6 +8939,9 @@ BCMATTACHFN(si_update_backplane_timeouts)(const si_t *sih, bool enable, uint32 t
  * This routine adds the AXI timeouts for
  * chipcommon, pcie and ARM slave wrappers
  */
+void
+si_slave_wrapper_add(si_t *sih);
+
 void
 si_slave_wrapper_add(si_t *sih)
 {

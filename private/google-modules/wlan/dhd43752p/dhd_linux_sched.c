@@ -28,12 +28,16 @@
 #include <typedefs.h>
 #include <linuxver.h>
 
+int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
+
 int setScheduler(struct task_struct *p, int policy, struct sched_param *param)
 {
 	int rc = 0;
 	rc = sched_setscheduler(p, policy, param);
 	return rc;
 }
+
+int get_scheduler_policy(struct task_struct *p);
 
 int get_scheduler_policy(struct task_struct *p)
 {

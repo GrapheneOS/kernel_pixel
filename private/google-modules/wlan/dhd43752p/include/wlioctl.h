@@ -9683,7 +9683,7 @@ typedef struct wl_pwrstats_query {
 typedef BWL_PRE_PACKED_STRUCT struct wl_pwrstats {
 	uint16 version;		      /**< Version = 2 is TLV format */
 	uint16 length;		      /**< Length of entire structure */
-	uint8 data[1];		      /**< TLV data, a series of structures,
+	uint8 data[];		      /**< TLV data, a series of structures,
 				       * each starting with type and length.
 				       *
 				       * Padded as necessary so each section

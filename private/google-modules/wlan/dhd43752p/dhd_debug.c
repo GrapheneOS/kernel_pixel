@@ -460,6 +460,9 @@ dhd_dbg_msgtrace_msg_parser(void *event_data)
 #define DATA_UNIT_FOR_LOG_CNT 4
 
 int
+replace_percent_p_to_x(char *fmt);
+
+int
 replace_percent_p_to_x(char *fmt)
 {
 	int p_to_x_done = FALSE;
@@ -517,6 +520,9 @@ replace_percent_p_to_x(char *fmt)
 
 /* To identify format of types %Ns where N >= 0 is a number */
 bool
+check_valid_string_format(char *curr_ptr);
+
+bool
 check_valid_string_format(char *curr_ptr)
 {
 	char *next_ptr;
@@ -541,6 +547,9 @@ check_valid_string_format(char *curr_ptr)
 }
 
 /* To identify format of non string format types */
+bool
+check_valid_non_string_format(char *curr_ptr);
+
 bool
 check_valid_non_string_format(char *curr_ptr)
 {
@@ -589,6 +598,9 @@ done:
 #endif
 #define EL_PARSE_VER	"V02"
 static uint64 verboselog_ts_saved = 0;
+
+bool
+dhd_dbg_process_event_log_hdr(event_log_hdr_t *log_hdr, prcd_event_log_hdr_t *prcd_log_hdr);
 
 bool
 dhd_dbg_process_event_log_hdr(event_log_hdr_t *log_hdr, prcd_event_log_hdr_t *prcd_log_hdr)
@@ -1383,6 +1395,9 @@ dhd_dbg_bt_log_handler(dhd_pub_t *dhdp, void *data, uint datalen)
  * dhd_dbg_set_event_log_tag : modify the state of an event log tag
  */
 void
+dhd_dbg_set_event_log_tag(dhd_pub_t *dhdp, uint16 tag, uint8 set);
+
+void
 dhd_dbg_set_event_log_tag(dhd_pub_t *dhdp, uint16 tag, uint8 set)
 {
 	wl_el_tag_params_t pars;
@@ -1668,6 +1683,9 @@ __dhd_dbg_pkt_hash(uintptr_t pkt, uint32 pktid)
 	(((ts).tv_sec * USEC_PER_SEC) + ((ts).tv_nsec / NSEC_PER_USEC))
 
 uint32
+__dhd_dbg_driver_ts_usec(void);
+
+uint32
 __dhd_dbg_driver_ts_usec(void)
 {
 	struct timespec64 ts;
@@ -1675,6 +1693,9 @@ __dhd_dbg_driver_ts_usec(void)
 	ts = ktime_to_timespec64(ktime_get_boottime());
 	return ((uint32)(__TIMESPEC64_TO_US(ts)));
 }
+
+wifi_tx_packet_fate
+__dhd_dbg_map_tx_status_to_pkt_fate(uint16 status);
 
 wifi_tx_packet_fate
 __dhd_dbg_map_tx_status_to_pkt_fate(uint16 status)
@@ -1840,6 +1861,9 @@ __dhd_dbg_free_rx_pkts(dhd_pub_t *dhdp, dhd_dbg_rx_info_t *rx_pkts,
 }
 
 void
+__dhd_dbg_dump_pkt_info(dhd_pub_t *dhdp, dhd_dbg_pkt_info_t *info);
+
+void
 __dhd_dbg_dump_pkt_info(dhd_pub_t *dhdp, dhd_dbg_pkt_info_t *info)
 {
 	if (DHD_PKT_MON_DUMP_ON()) {
@@ -1858,6 +1882,10 @@ __dhd_dbg_dump_pkt_info(dhd_pub_t *dhdp, dhd_dbg_pkt_info_t *info)
 
 void
 __dhd_dbg_dump_tx_pkt_info(dhd_pub_t *dhdp, dhd_dbg_tx_info_t *tx_pkt,
+	uint16 count);
+
+void
+__dhd_dbg_dump_tx_pkt_info(dhd_pub_t *dhdp, dhd_dbg_tx_info_t *tx_pkt,
 	uint16 count)
 {
 	if (DHD_PKT_MON_DUMP_ON()) {
@@ -1866,6 +1894,10 @@ __dhd_dbg_dump_tx_pkt_info(dhd_pub_t *dhdp, dhd_dbg_tx_info_t *tx_pkt,
 		__dhd_dbg_dump_pkt_info(dhdp, &tx_pkt->info);
 	}
 }
+
+void
+__dhd_dbg_dump_rx_pkt_info(dhd_pub_t *dhdp, dhd_dbg_rx_info_t *rx_pkt,
+	uint16 count);
 
 void
 __dhd_dbg_dump_rx_pkt_info(dhd_pub_t *dhdp, dhd_dbg_rx_info_t *rx_pkt,
@@ -2719,6 +2751,9 @@ dhd_dbg_process_tx_status(dhd_pub_t *dhdp, void *pkt,
 		cnt = 0; \
 	} \
 }
+
+void print_roam_chan_list(char *prefix, uint chan_num, uint16 band_2g,
+	uint16 uni2a, uint8 uni3, uint8 *uni2c);
 
 void print_roam_chan_list(char *prefix, uint chan_num, uint16 band_2g,
 	uint16 uni2a, uint8 uni3, uint8 *uni2c)

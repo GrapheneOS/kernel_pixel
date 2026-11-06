@@ -232,6 +232,9 @@ bool wl_cfg80211_is_oce_ap(struct wiphy *wiphy, const u8 *bssid_hint)
 
 /* Dump the contents of the encoded wps ie buffer and get pbc value */
 void
+wl_validate_wps_ie(const char *wps_ie, s32 wps_ie_len, bool *pbc);
+
+void
 wl_validate_wps_ie(const char *wps_ie, s32 wps_ie_len, bool *pbc)
 {
 	#define WPS_IE_FIXED_LEN 6
@@ -1583,6 +1586,11 @@ wl_get_nl80211_band(u32 wl_band)
 
 	return err;
 }
+
+s32
+wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
+	struct ieee80211_channel *chan,
+	enum nl80211_channel_type channel_type);
 
 s32
 wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
@@ -3159,6 +3167,12 @@ s32
 wl_cfg80211_parse_ap_ies(
 	struct net_device *dev,
 	struct cfg80211_beacon_data *info,
+	struct parsed_ies *ies);
+
+s32
+wl_cfg80211_parse_ap_ies(
+	struct net_device *dev,
+	struct cfg80211_beacon_data *info,
 	struct parsed_ies *ies)
 {
 	struct parsed_ies prb_ies;
@@ -3205,6 +3219,12 @@ fail:
 
 	return err;
 }
+
+s32
+wl_cfg80211_set_ies(
+	struct net_device *dev,
+	struct cfg80211_beacon_data *info,
+	s32 bssidx);
 
 s32
 wl_cfg80211_set_ies(
@@ -3872,8 +3892,9 @@ s32
 wl_cfg80211_change_beacon(
 	struct wiphy *wiphy,
 	struct net_device *dev,
-	struct cfg80211_beacon_data *info)
+	struct cfg80211_ap_update *params)
 {
+	struct cfg80211_beacon_data *info = &params->beacon;
 	s32 err = BCME_OK;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	struct parsed_ies ies;
@@ -4437,7 +4458,7 @@ wl_notify_connect_status_ap(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		sinfo.assoc_req_ies_len = len;
 		WL_INFORM_MEM(("[%s] new sta event for "MACDBG "\n",
 			ndev->name, MAC2STRDBG(e->addr.octet)));
-		cfg80211_new_sta(ndev, e->addr.octet, &sinfo, GFP_ATOMIC);
+		cfg80211_new_sta(ndev->ieee80211_ptr, e->addr.octet, &sinfo, GFP_ATOMIC);
 #ifdef WL_WPS_SYNC
 		wl_wps_session_update(ndev, WPS_STATE_LINKUP, e->addr.octet);
 #endif /* WL_WPS_SYNC */
@@ -4455,7 +4476,7 @@ wl_notify_connect_status_ap(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		 */
 		WL_INFORM_MEM(("[%s] del sta event for "MACDBG "\n",
 			ndev->name, MAC2STRDBG(e->addr.octet)));
-		cfg80211_del_sta(ndev, e->addr.octet, GFP_ATOMIC);
+		cfg80211_del_sta(ndev->ieee80211_ptr, e->addr.octet, GFP_ATOMIC);
 #ifdef WL_WPS_SYNC
 		wl_wps_session_update(ndev, WPS_STATE_LINKDOWN, e->addr.octet);
 #endif /* WL_WPS_SYNC */
@@ -4637,11 +4658,13 @@ wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 #elif ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) && \
 		(LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)))
 s32 wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-	const u8 *peer, u8 action_code, u8 dialog_token, u16 status_code,
+	const u8 *peer, int link_id,
+	u8 action_code, u8 dialog_token, u16 status_code,
 	u32 peer_capability, const u8 *buf, size_t len)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
 s32 wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-       const u8 *peer, u8 action_code, u8 dialog_token, u16 status_code,
+       const u8 *peer, int link_id,
+	u8 action_code, u8 dialog_token, u16 status_code,
        u32 peer_capability, bool initiator, const u8 *buf, size_t len)
 #else /* CONFIG_ARCH_MSM && TDLS_MGMT_VERSION2 */
 s32
@@ -4949,7 +4972,12 @@ wl_cfg80211_set_mac_acl(struct wiphy *wiphy, struct net_device *cfgdev,
 
 #ifdef WL_CFG80211_MONITOR
 int
-wl_cfg80211_set_monitor_channel(struct wiphy *wiphy, struct cfg80211_chan_def *chandef)
+wl_cfg80211_set_monitor_channel(struct wiphy *wiphy, struct net_device *monitor_dev,
+	struct cfg80211_chan_def *chandef);
+
+int
+wl_cfg80211_set_monitor_channel(struct wiphy *wiphy, struct net_device *monitor_dev,
+	struct cfg80211_chan_def *chandef)
 {
 	int err = BCME_OK;
 	struct bcm_cfg80211 *cfg;
@@ -5051,6 +5079,14 @@ int wl_chspec_chandef(chanspec_t chanspec,
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION (3, 5, 0) && (LINUX_VERSION_CODE <= (3, 7, 0)))
 	struct chan_info *chaninfo,
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)) */
+	struct wiphy *wiphy);
+
+int wl_chspec_chandef(chanspec_t chanspec,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 8, 0))
+	struct cfg80211_chan_def *chandef,
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION (3, 5, 0) && (LINUX_VERSION_CODE <= (3, 7, 0)))
+	struct chan_info *chaninfo,
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 5, 0)) */
 	struct wiphy *wiphy)
 {
 	uint16 freq = 0;
@@ -5133,6 +5169,9 @@ int wl_chspec_chandef(chanspec_t chanspec,
 }
 
 void
+wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec, struct wiphy *wiphy);
+
+void
 wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec, struct wiphy *wiphy)
 {
 	u32 freq;
@@ -5166,7 +5205,7 @@ wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec, struct wip
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION (3, 8, 0))
 	freq = chandef.chan ? chandef.chan->center_freq : chandef.center_freq1;
-	cfg80211_ch_switch_notify(dev, &chandef, 0, 0);
+	cfg80211_ch_switch_notify(dev, &chandef, 0);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION (3, 5, 0) && (LINUX_VERSION_CODE <= (3, 7, 0)))
 	freq = chan_info.freq;
 	cfg80211_ch_switch_notify(dev, freq, chan_info.chan_type);

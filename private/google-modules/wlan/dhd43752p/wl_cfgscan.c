@@ -1252,6 +1252,9 @@ wl_retrieve_wps_attribute(const u8 *buf, u16 element_id)
 }
 
 bool
+wl_is_wps_enrollee_active(struct net_device *ndev, const u8 *ie_ptr, u16 len);
+
+bool
 wl_is_wps_enrollee_active(struct net_device *ndev, const u8 *ie_ptr, u16 len)
 {
 	const u8 *ie;
@@ -2591,6 +2594,9 @@ wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
  * get modified in between.
  */
 struct wireless_dev *
+wl_get_scan_wdev(struct bcm_cfg80211 *cfg);
+
+struct wireless_dev *
 wl_get_scan_wdev(struct bcm_cfg80211 *cfg)
 {
 	struct wireless_dev *wdev = NULL;
@@ -2762,7 +2768,7 @@ wl_notify_escan_complete(struct bcm_cfg80211 *cfg,
 		dev = ndev;
 	}
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 	/* clear scan enq time on complete */
 	CLR_TS(cfg, scan_enq);
 	CLR_TS(cfg, scan_start);
@@ -2896,7 +2902,7 @@ int wl_cfg80211_scan_suppress(struct net_device *dev, int suppress)
 		return 0;
 	}
 
-	del_timer_sync(&cfg->scan_supp_timer);
+	timer_delete_sync(&cfg->scan_supp_timer);
 
 	if ((ret = wldev_ioctl_set(dev, WLC_SET_SCANSUPPRESS,
 		&suppress, sizeof(int))) < 0) {
@@ -3198,7 +3204,7 @@ wl_notify_scan_status(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	err = wl_inform_bss(cfg);
 
 scan_done_out:
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 	WL_CFG_DRV_LOCK(&cfg->cfgdrv_lock, flags);
 	if (cfg->scan_request) {
 		_wl_notify_scan_done(cfg, false);
@@ -3209,6 +3215,8 @@ scan_done_out:
 	mutex_unlock(&cfg->scan_sync);
 	return err;
 }
+
+void wl_notify_scan_done(struct bcm_cfg80211 *cfg, bool aborted);
 
 void wl_notify_scan_done(struct bcm_cfg80211 *cfg, bool aborted)
 {
@@ -5086,7 +5094,7 @@ wl_priortize_scan_over_listen(struct bcm_cfg80211 *cfg,
 	wl_set_drv_status(cfg, FAKE_REMAINING_ON_CHANNEL, ndev);
 
 	WL_DBG(("cancel current listen timer \n"));
-	del_timer_sync(&cfg->p2p->listen_timer);
+	timer_delete_sync(&cfg->p2p->listen_timer);
 
 	wl_clr_p2p_status(cfg, LISTEN_EXPIRED);
 
@@ -5102,7 +5110,8 @@ wl_priortize_scan_over_listen(struct bcm_cfg80211 *cfg,
 #if defined(WL_CFG80211_P2P_DEV_IF)
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
-	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie)
+	struct ieee80211_channel *channel, unsigned int duration, u64 *cookie,
+	const u8 *addr)
 #else
 s32
 wl_cfgscan_remain_on_channel(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev,
