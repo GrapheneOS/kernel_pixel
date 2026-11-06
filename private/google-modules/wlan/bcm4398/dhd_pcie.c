@@ -4731,7 +4731,7 @@ dhdpcie_download_code_file(struct dhd_bus *bus, char *pfw_path)
 			__FUNCTION__, file_size));
 	} else {
 		file_size = fwpkg_get_firmware_img_size(fwpkg);
-		strlcpy(bus->fwsig_filename, pfw_path, sizeof(bus->fwsig_filename));
+		strscpy(bus->fwsig_filename, pfw_path, sizeof(bus->fwsig_filename));
 		DHD_INFO(("%s Using COMBINED image (size %d)\n",
 			__FUNCTION__, file_size));
 	}
@@ -13000,8 +13000,8 @@ dhdpcie_bus_save_download_info(dhd_bus_t *bus, uint32 download_addr,
 	}
 
 	bus->fw_download_addr = download_addr;
-	strlcpy(bus->fwsig_filename, signature_fname, sizeof(bus->fwsig_filename));
-	strlcpy(bus->bootloader_filename, bloader_fname, sizeof(bus->bootloader_filename));
+	strscpy(bus->fwsig_filename, signature_fname, sizeof(bus->fwsig_filename));
+	strscpy(bus->bootloader_filename, bloader_fname, sizeof(bus->bootloader_filename));
 	bus->bootloader_addr = bloader_download_addr;
 #ifdef GDB_PROXY
 	/* GDB proxy bootloader mode - if signature file specified (i.e.
@@ -16557,8 +16557,8 @@ dhdpcie_readshared(dhd_bus_t *bus)
 			for (addr = 0; addr < MAX_HP2P_FLOWS; addr++) {
 				hp2p_info_t *hp2p_info = &bus->dhd->hp2p_info[addr];
 				hp2p_info->hrtimer_init = FALSE;
-				hrtimer_init(&hp2p_info->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-				hp2p_info->timer.function = &dhd_hp2p_write;
+				hrtimer_setup(&hp2p_info->timer, dhd_hp2p_write,
+					      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 			}
 		}
 	}
@@ -23073,7 +23073,7 @@ dhd_bus_get_socram_buf(struct dhd_bus *bus, struct dhd_pub *dhdp)
 void
 dhd_bus_set_signature_path(struct dhd_bus *bus, char *sig_path)
 {
-	strlcpy(bus->fwsig_filename, sig_path, sizeof(bus->fwsig_filename));
+	strscpy(bus->fwsig_filename, sig_path, sizeof(bus->fwsig_filename));
 }
 
 void

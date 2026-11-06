@@ -58,7 +58,7 @@
 #endif /* ENABLE_ADAPTIVE_SCHED */
 #include <linux/rtc.h>
 #include <asm/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <dhd_linux_priv.h>
 
 #ifdef DHD_SPMI
@@ -2917,7 +2917,7 @@ _dhd_set_multicast_list(dhd_info_t *dhd, int ifidx)
 		return;
 	}
 
-	strlcpy(bufp, "mcast_list", buflen);
+	strscpy(bufp, "mcast_list", buflen);
 	bufp += strlen("mcast_list") + 1;
 
 	cnt = htol32(cnt);
@@ -3213,7 +3213,7 @@ dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 		info.ifidx = ifidx;
 		info.bssidx = bssidx;
 		info.role = if_event->event.role;
-		strlcpy(info.name, if_event->name, sizeof(info.name));
+		strscpy(info.name, if_event->name, sizeof(info.name));
 		if (is_valid_ether_addr(if_event->mac)) {
 			mac_addr = if_event->mac;
 		} else {
@@ -5175,7 +5175,7 @@ dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 				"truncating last byte with null\n", __FUNCTION__));
 			info.driver[sizeof(info.driver) - 1] = '\0';
 		}
-		strlcpy(drvname, info.driver, sizeof(drvname));
+		strscpy(drvname, info.driver, sizeof(drvname));
 
 		/* clear struct for return */
 		bzero(&info, sizeof(info));
@@ -5184,7 +5184,7 @@ dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 		/* if dhd requested, identify ourselves */
 		if (strcmp(drvname, "?dhd") == 0) {
 			snprintf(info.driver, sizeof(info.driver), "dhd");
-			strlcpy(info.version, EPI_VERSION_STR, sizeof(info.version));
+			strscpy(info.version, EPI_VERSION_STR, sizeof(info.version));
 		}
 
 		/* otherwise, require dongle to be up */
@@ -7622,7 +7622,7 @@ dhd_event_ifadd(dhd_info_t *dhdinfo, wl_event_data_if_t *ifevent, char *name, ui
 
 		memcpy(&if_event->event, ifevent, sizeof(if_event->event));
 		memcpy(if_event->mac, mac, ETHER_ADDR_LEN);
-		strlcpy(if_event->name, name, sizeof(if_event->name));
+		strscpy(if_event->name, name, sizeof(if_event->name));
 		dhd_deferred_schedule_work(dhdinfo->dhd_deferred_wq, (void *)if_event,
 			DHD_WQ_WORK_IF_ADD, dhd_ifadd_event_handler, DHD_WQ_WORK_PRIORITY_LOW);
 	}
@@ -7652,7 +7652,7 @@ dhd_event_ifdel(dhd_info_t *dhdinfo, wl_event_data_if_t *ifevent, char *name, ui
 	}
 	memcpy(&if_event->event, ifevent, sizeof(if_event->event));
 	memcpy(if_event->mac, mac, ETHER_ADDR_LEN);
-	strlcpy(if_event->name, name, sizeof(if_event->name));
+	strscpy(if_event->name, name, sizeof(if_event->name));
 	dhd_deferred_schedule_work(dhdinfo->dhd_deferred_wq, (void *)if_event, DHD_WQ_WORK_IF_DEL,
 		dhd_ifdel_event_handler, DHD_WQ_WORK_PRIORITY_LOW);
 
@@ -7974,7 +7974,7 @@ dhd_allocate_if(dhd_pub_t *dhdpub, int ifidx, const char *name,
 	dhd_dev_priv_save(ifp->net, dhdinfo, ifp, ifidx);
 
 	if (name && name[0]) {
-		strlcpy(ifp->net->name, name, IFNAMSIZ);
+		strscpy(ifp->net->name, name, IFNAMSIZ);
 	}
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 9))
@@ -7998,14 +7998,14 @@ dhd_allocate_if(dhd_pub_t *dhdpub, int ifidx, const char *name,
 	ifp->net->destructor = free_netdev;
 #endif /* WL_CFG80211 */
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 9) */
-	strlcpy(ifp->name, ifp->net->name, sizeof(ifp->name));
+	strscpy(ifp->name, ifp->net->name, sizeof(ifp->name));
 	dhdinfo->iflist[ifidx] = ifp;
 
 /* initialize the dongle provided if name */
 	if (dngl_name) {
-		strlcpy(ifp->dngl_name, dngl_name, sizeof(ifp->dngl_name));
+		strscpy(ifp->dngl_name, dngl_name, sizeof(ifp->dngl_name));
 	} else if (name) {
-		strlcpy(ifp->dngl_name, name, sizeof(ifp->dngl_name));
+		strscpy(ifp->dngl_name, name, sizeof(ifp->dngl_name));
 	}
 
 #ifdef PCIE_FULL_DONGLE
@@ -9199,7 +9199,7 @@ dhd_update_fw_path(dhd_pub_t *dhdpub, const char *fw_path)
 		dhd_info_t *dhdinfo = dhdpub->info;
 
 		ASSERT(dhdinfo != NULL);
-		(void)strlcpy(dhdinfo->fw_path, fw_path, sizeof(dhdinfo->fw_path));
+		(void)strscpy(dhdinfo->fw_path, fw_path, sizeof(dhdinfo->fw_path));
 #ifdef SHOW_LOGTRACE
 		dhd_update_logstrs_path(dhdinfo);
 		dhd_init_logstrs_map_arrays(dhdinfo);
@@ -9336,7 +9336,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	if (iface_name[0]) {
 		int len;
 		char ch;
-		strlcpy(if_name, iface_name, sizeof(if_name));
+		strscpy(if_name, iface_name, sizeof(if_name));
 		len = strlen(if_name);
 		ch = if_name[len - 1];
 		if ((ch > '9' || ch < '0') && (len < IFNAMSIZ - 2)) {
@@ -10111,7 +10111,7 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 			DHD_ERROR(("fw path len exceeds max len of dhdinfo->fw_path\n"));
 			return FALSE;
 		}
-		strlcpy(dhdinfo->fw_path, fw, fw_path_len);
+		strscpy(dhdinfo->fw_path, fw, fw_path_len);
 #ifdef SHOW_LOGTRACE
 		dhd_update_logstrs_path(dhdinfo);
 #endif /* SHOW_LOGTRACE */
@@ -10123,7 +10123,7 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 			return FALSE;
 		}
 		bzero(dhdinfo->nv_path, nv_path_len);
-		strlcpy(dhdinfo->nv_path, nv, nv_path_len);
+		strscpy(dhdinfo->nv_path, nv, nv_path_len);
 #ifdef DHD_USE_SINGLE_NVRAM_FILE
 		/* Remove "_net" or "_mfg" tag from current nvram path */
 		{
@@ -10158,7 +10158,7 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 			DHD_ERROR(("signature path len exceeds max len of dhdinfo->sig_path\n"));
 			return FALSE;
 		}
-		strlcpy(dhdinfo->sig_path, signature_path, sig_path_len);
+		strscpy(dhdinfo->sig_path, signature_path, sig_path_len);
 	}
 
 #ifdef DHD_UCODE_DOWNLOAD
@@ -10168,7 +10168,7 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 			DHD_ERROR(("uc path len exceeds max len of dhdinfo->uc_path\n"));
 			return FALSE;
 		}
-		strlcpy(dhdinfo->uc_path, uc, sizeof(dhdinfo->uc_path));
+		strscpy(dhdinfo->uc_path, uc, sizeof(dhdinfo->uc_path));
 	}
 #endif /* DHD_UCODE_DOWNLOAD */
 
@@ -10237,7 +10237,7 @@ extern bool dhd_update_btfw_path(dhd_info_t *dhdinfo, char* btfw_path)
 			DHD_ERROR(("fw path len exceeds max len of dhdinfo->btfw_path\n"));
 			return FALSE;
 		}
-		strlcpy(dhdinfo->btfw_path, fw, sizeof(dhdinfo->btfw_path));
+		strscpy(dhdinfo->btfw_path, fw, sizeof(dhdinfo->btfw_path));
 	}
 
 	/* clear the path in module parameter */
@@ -10403,7 +10403,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		DHD_GENERAL_LOCK(&dhd->pub, flags);
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 
 #endif /* !BCMPCIE_OOB_HOST_WAKE */
 		DHD_STOP_RPM_TIMER(&dhd->pub);
@@ -10458,7 +10458,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		DHD_GENERAL_LOCK(&dhd->pub, flags);
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 		DHD_ERROR(("%s failed bus is not ready\n", __FUNCTION__));
 		DHD_STOP_RPM_TIMER(&dhd->pub);
 #ifdef BCMSDIO
@@ -10481,7 +10481,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 		DHD_GENERAL_LOCK(&dhd->pub, flags);
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 		DHD_ERROR(("%s failed to sync with dongle\n", __FUNCTION__));
 		DHD_OS_WD_WAKE_UNLOCK(&dhd->pub);
 		return ret;
@@ -11831,8 +11831,8 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 
 #if defined(CUSTOM_COUNTRY_CODE_XZ)
 	/* Set initial country code to XZ */
-	strlcpy(dhd->dhd_cspec.country_abbrev, "XZ", WLC_CNTRY_BUF_SZ);
-	strlcpy(dhd->dhd_cspec.ccode, "XZ", WLC_CNTRY_BUF_SZ);
+	strscpy(dhd->dhd_cspec.country_abbrev, "XZ", WLC_CNTRY_BUF_SZ);
+	strscpy(dhd->dhd_cspec.ccode, "XZ", WLC_CNTRY_BUF_SZ);
 	DHD_PRINT(("%s: Set initial country code to XZ(World Wide Safe)\n", __FUNCTION__));
 #endif /* CUSTOM_COUNTRY_CODE_XZ */
 	/* Set Country code  */
@@ -12080,7 +12080,7 @@ dhd_optimised_preinit_ioctls(dhd_pub_t * dhd)
 				DHD_ERROR(("Couldn't find New line character\n"));
 			} else {
 				bzero(clm_version, CLM_VER_STR_LEN);
-				strlcpy(clm_version, ver_temp_buf,
+				strscpy(clm_version, ver_temp_buf,
 					MIN(strlen(ver_temp_buf) + 1, CLM_VER_STR_LEN));
 				DHD_INFO(("CLM version = %s\n", clm_version));
 			}
@@ -12911,8 +12911,8 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 #ifndef CONFIG_WLAN_MERLOT
 #if defined(CUSTOM_COUNTRY_CODE_XZ)
 	/* Set initial country code to XZ */
-	strlcpy(dhd->dhd_cspec.country_abbrev, "XZ", WLC_CNTRY_BUF_SZ);
-	strlcpy(dhd->dhd_cspec.ccode, "XZ", WLC_CNTRY_BUF_SZ);
+	strscpy(dhd->dhd_cspec.country_abbrev, "XZ", WLC_CNTRY_BUF_SZ);
+	strscpy(dhd->dhd_cspec.ccode, "XZ", WLC_CNTRY_BUF_SZ);
 	DHD_PRINT(("%s: Set initial country code to XZ(World Wide Safe)\n", __FUNCTION__));
 #endif /* CUSTOM_COUNTRY_CODE_XZ */
 	/* Set Country code  */
@@ -13712,7 +13712,7 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 				DHD_ERROR(("Couldn't find New line character\n"));
 			} else {
 				bzero(clm_version, CLM_VER_STR_LEN);
-				strlcpy(clm_version, ver_temp_buf,
+				strscpy(clm_version, ver_temp_buf,
 					MIN(strlen(ver_temp_buf) + 1, CLM_VER_STR_LEN));
 				DHD_INFO(("CLM version = %s\n", clm_version));
 			}
@@ -15003,7 +15003,7 @@ void dhd_detach(dhd_pub_t *dhdp)
 	dhd->wd_timer_valid = FALSE;
 	DHD_GENERAL_UNLOCK(&dhd->pub, flags);
 	if (timer_valid)
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 	DHD_STOP_RPM_TIMER(&dhd->pub);
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_THREADS_CREATED) {
@@ -15479,11 +15479,11 @@ _dhd_module_init(void)
 #endif /* BCM_ROUTER_DHD */
 
 	if (firmware_path[0] != '\0') {
-		strlcpy(fw_bak_path, firmware_path, sizeof(fw_bak_path));
+		strscpy(fw_bak_path, firmware_path, sizeof(fw_bak_path));
 	}
 
 	if (nvram_path[0] != '\0') {
-		strlcpy(nv_bak_path, nvram_path, sizeof(nv_bak_path));
+		strscpy(nv_bak_path, nvram_path, sizeof(nv_bak_path));
 	}
 
 	do {
@@ -15500,8 +15500,8 @@ _dhd_module_init(void)
 			}
 			DHD_ERROR(("%s: Failed to load the driver, try cnt %d\n",
 				__FUNCTION__, retry));
-			strlcpy(firmware_path, fw_bak_path, sizeof(firmware_path));
-			strlcpy(nvram_path, nv_bak_path, sizeof(nvram_path));
+			strscpy(firmware_path, fw_bak_path, sizeof(firmware_path));
+			strscpy(nvram_path, nv_bak_path, sizeof(nvram_path));
 		}
 	} while (retry--);
 
@@ -15974,7 +15974,7 @@ dhd_os_wd_timer(void *bus, uint wdtick)
 	if (!wdtick && dhd->wd_timer_valid == TRUE) {
 		dhd->wd_timer_valid = FALSE;
 		DHD_GENERAL_UNLOCK(pub, flags);
-		del_timer_sync(&dhd->timer);
+		timer_delete_sync(&dhd->timer);
 #ifdef BCMSDIO
 		DHD_OS_WD_WAKE_UNLOCK(pub);
 #endif /* BCMSDIO */
@@ -16062,7 +16062,7 @@ dhd_os_runtimepm_timer(void *bus, uint tick)
 		if (dhd->rpm_timer_valid == TRUE) {
 			dhd->rpm_timer_valid = FALSE;
 			DHD_GENERAL_UNLOCK(pub, flags);
-			del_timer_sync(&dhd->rpm_timer);
+			timer_delete_sync(&dhd->rpm_timer);
 			DHD_PRINT(("DHD Runtime PM Timer OFF \n"));
 			/* we have already released the lock, so just go to exit */
 			goto exit;
@@ -18332,9 +18332,9 @@ void dhd_get_customized_country_code(struct net_device *dev, char *country_iso_c
 		 */
 		if ((strncmp(country_iso_code, "", WLC_CNTRY_BUF_SZ) == 0) ||
 				(strncmp(country_iso_code, "00", WLC_CNTRY_BUF_SZ) == 0)) {
-			strlcpy(country_iso_code, "XZ", WLC_CNTRY_BUF_SZ);
-			strlcpy(cspec->country_abbrev, country_iso_code, WLC_CNTRY_BUF_SZ);
-			strlcpy(cspec->ccode, country_iso_code, WLC_CNTRY_BUF_SZ);
+			strscpy(country_iso_code, "XZ", WLC_CNTRY_BUF_SZ);
+			strscpy(cspec->country_abbrev, country_iso_code, WLC_CNTRY_BUF_SZ);
+			strscpy(cspec->ccode, country_iso_code, WLC_CNTRY_BUF_SZ);
 			DHD_PRINT(("%s: ccode change to %s\n", __FUNCTION__, country_iso_code));
 		}
 	}
@@ -18398,7 +18398,7 @@ int dhd_net_set_fw_path(struct net_device *dev, char *fw)
 	if (!fw || fw[0] == '\0')
 		return -EINVAL;
 
-	strlcpy(dhd->fw_path, fw, sizeof(dhd->fw_path));
+	strscpy(dhd->fw_path, fw, sizeof(dhd->fw_path));
 
 #if defined(OEM_ANDROID) && defined(SOFTAP)
 	if (strstr(fw, "apsta") != NULL) {
@@ -21851,9 +21851,9 @@ dhd_os_get_version(struct net_device *dev, bool dhd_ver, char **buf, uint32 size
 
 	bzero(*buf, size);
 	if (dhd_ver) {
-		strlcpy(*buf, dhd_version, size);
+		strscpy(*buf, dhd_version, size);
 	} else {
-		strlcpy(*buf, fw_str, size);
+		strscpy(*buf, fw_str, size);
 	}
 	return BCME_OK;
 }
@@ -23589,7 +23589,7 @@ dhd_print_kirqstats(dhd_pub_t *dhd, unsigned int irq_num)
 	bcm_bprintf(&strbuf, "dhd irq %u:", irq_num);
 	for_each_online_cpu(i)
 		bcm_bprintf(&strbuf, "%10u ",
-			desc->kstat_irqs ? *per_cpu_ptr(desc->kstat_irqs, i) : 0);
+			irq_desc_kstat_cpu(desc, i));
 	if (desc->irq_data.chip) {
 		if (desc->irq_data.chip->name)
 			bcm_bprintf(&strbuf, " %8s", desc->irq_data.chip->name);

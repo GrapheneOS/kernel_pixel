@@ -536,7 +536,7 @@ wbrc_init(void)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
 	wbrc_data->wbrc_bt_dev_class = class_create(CLASS_NAME);
 #else
-	wbrc_data->wbrc_bt_dev_class = class_create(THIS_MODULE, CLASS_NAME);
+	wbrc_data->wbrc_bt_dev_class = class_create(CLASS_NAME);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)) */
 	err = PTR_ERR(wbrc_data->wbrc_bt_dev_class);
 	if (IS_ERR(wbrc_data->wbrc_bt_dev_class)) {
