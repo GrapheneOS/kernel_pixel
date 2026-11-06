@@ -284,7 +284,7 @@ static int ppa957db2d_read_id(struct exynos_panel *ctx)
 	if (ctx->panel_rev < PANEL_REV_EVT2) {
 		/* hardcode 0 as reading id is not supported in this panel_rev */
 		dev_info(ctx->dev, "read_id is not supported in panel_rev: 0x%x\n", ctx->panel_rev);
-		strlcpy(ctx->panel_id, "0", PANEL_ID_MAX);
+		strscpy(ctx->panel_id, "0", PANEL_ID_MAX);
 		return 0;
 	}
 
@@ -306,7 +306,7 @@ static int ppa957db2d_read_id(struct exynos_panel *ctx)
 
 	if (read_bytes != 1) {
 		dev_warn(ctx->dev, "Unable to read panel id (%d)\n", read_bytes);
-		strlcpy(ctx->panel_id, "0", PANEL_ID_MAX);
+		strscpy(ctx->panel_id, "0", PANEL_ID_MAX);
 		return -EIO;
 	}
 
