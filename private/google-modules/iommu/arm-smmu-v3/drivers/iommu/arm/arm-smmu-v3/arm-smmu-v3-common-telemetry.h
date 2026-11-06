@@ -202,7 +202,6 @@ struct arm_smmu_device_telemetry_common
  */
 void arm_smmu_device_telemetry_free(struct arm_smmu_device *smmu_device, int mode);
 
-void arm_smmu_telemetry_register_hvc(void);
 extern int ptw_hvc_num;
 
 void arm_smmu_dom_tlm_map_end(struct arm_smmu_domain_telemetry_common *asdtc);

@@ -1979,9 +1979,10 @@ static int kvm_arm_smmu_array_alloc(void)
 
 
 
+#ifdef MODULE
 extern void __kvm_nvhe_pkvm_ptw_hvc_call(struct user_pt_regs *);
 
-void arm_smmu_telemetry_register_hvc(void)
+static void arm_smmu_telemetry_register_hvc(void)
 {
 	if (ptw_hvc_num >= 0)
 		return;
@@ -1991,6 +1992,8 @@ void arm_smmu_telemetry_register_hvc(void)
 	if (ptw_hvc_num <= 0)
 		pr_err("Failed to register HVC call for PTW - %d\n", ptw_hvc_num);
 }
+
+#endif
 
 static int kvm_arm_smmu_telemetry_alloc(void)
 {
@@ -2161,6 +2164,7 @@ static int kvm_arm_smmu_v3_init_drv(void)
 		pr_err("Failed to load SMMUv3 IOMMU EL2 module: %d\n", ret);
 		goto unregister_driver;
 	}
+	/* The handler address is valid only after the EL2 module has loaded. */
 	arm_smmu_telemetry_register_hvc();
 #endif
 	/*

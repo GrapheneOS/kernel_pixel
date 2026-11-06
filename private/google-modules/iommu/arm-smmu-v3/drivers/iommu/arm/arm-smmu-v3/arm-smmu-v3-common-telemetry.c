@@ -13,10 +13,6 @@
 /* Registered HVC number for page table walks, used to trigger EL2 walks */
 int ptw_hvc_num = -1;
 
-void __weak arm_smmu_telemetry_register_hvc(void)
-{
-}
-
 static struct kobject *arm_smmu_root_sysfs_kobj;
 static struct kobject *arm_smmu_domains_sysfs_kobj;
 static struct kobject *arm_smmu_devices_sysfs_kobj;
@@ -1297,8 +1293,6 @@ static void arm_smmu_telemetry_init(void)
 		static_branch_enable(&iommu_telemetry_on);
 		update_hyp_tel_enable(1);
 	}
-
-	arm_smmu_telemetry_register_hvc();
 
 	arm_smmu_telemetry_init_done = 1;
 
