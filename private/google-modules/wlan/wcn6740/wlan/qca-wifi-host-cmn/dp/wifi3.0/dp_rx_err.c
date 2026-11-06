@@ -418,7 +418,6 @@ more_msdu_link_desc:
 
 		goto more_msdu_link_desc;
 	}
-	quota--;
 	dp_rx_link_desc_return_by_addr(soc, buf_addr_info,
 				       HAL_BM_ACTION_PUT_IN_IDLE_LIST);
 	return rx_bufs_used;

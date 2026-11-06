@@ -42,7 +42,7 @@ struct qdf_dev;
 #define __qdf_for_each_cpu(cpu, maskp) \
 for_each_cpu(cpu, maskp)
 #define __qdf_for_each_cpu_not(cpu, maskp) \
-for_each_cpu_not(cpu, maskp)
+for_each_cpu_andnot(cpu, cpu_possible_mask, maskp)
 
 /**
  * __qdf_dev_alloc_mem() - allocate memory
