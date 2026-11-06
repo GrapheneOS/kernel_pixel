@@ -1180,7 +1180,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 	int i;
 	int ret;
 	struct vm_area_struct *vma;
-	struct vm_area_struct **vmas;
 	unsigned int foll_flags = FOLL_LONGTERM | FOLL_WRITE;
 	int tried;
 
@@ -1220,14 +1219,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 	}
 	mmap_read_unlock(current->mm);
 
-	/* Allocate our own vmas array non-contiguous. */
-	vmas = kvmalloc((num_pages * sizeof(*vmas)), GFP_KERNEL | __GFP_NOWARN);
-	if (!vmas) {
-		etdev_err(etdev, "out of memory allocating vmas (%lu bytes)",
-			  num_pages * sizeof(*pages));
-		kvfree(pages);
-		return ERR_PTR(-ENOMEM);
-	}
 
 	/*
 	 * pin_user_pages may fail due to temporary page reference counts held
@@ -1239,13 +1230,12 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 			lru_cache_disable();
 
 		mmap_read_lock(current->mm);
-		ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags, pages, vmas);
+		ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags, pages);
 
 		if (ret == -EFAULT && !*preadonly) {
 			foll_flags &= ~FOLL_WRITE;
 			*preadonly = true;
-			ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags, pages,
-					     vmas);
+			ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags, pages);
 		}
 		mmap_read_unlock(current->mm);
 
@@ -1256,7 +1246,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 			break;
 	}
 
-	kvfree(vmas);
 
 	if (tried > 0)
 		etdev_info(etdev, "mapping required %d retries with LRU cache disabled", tried);

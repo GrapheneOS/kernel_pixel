@@ -1180,9 +1180,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 	int i;
 	int ret;
 	struct vm_area_struct *vma;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
-	struct vm_area_struct **vmas;
-#endif
 	unsigned int foll_flags = FOLL_LONGTERM | FOLL_WRITE;
 	int tried;
 
@@ -1261,17 +1258,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 	for (i = 0; i < ret; i++)
 		unpin_user_page(pages[i]);
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
-	/* Allocate our own vmas array non-contiguous. */
-	vmas = kvmalloc((num_pages * sizeof(*vmas)), GFP_KERNEL | __GFP_NOWARN);
-	if (!vmas) {
-		etdev_err(etdev, "out of memory allocating vmas (%lu bytes)",
-			  num_pages * sizeof(*pages));
-		kvfree(pages);
-		return ERR_PTR(-ENOMEM);
-	}
-#endif
-
 	/*
 	 * pin_user_pages may fail due to temporary page reference counts held
 	 * in various areas. Retry under lru_cache_disable to release additional
@@ -1282,11 +1268,7 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 			lru_cache_disable();
 
 		mmap_read_lock(current->mm);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
-		ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags, pages, vmas);
-#else
 		ret = pin_user_pages(host_addr & PAGE_MASK, num_pages, foll_flags, pages);
-#endif
 		mmap_read_unlock(current->mm);
 
 		if (tried > 0)
@@ -1296,9 +1278,6 @@ static struct page **edgetpu_pin_user_pages(struct edgetpu_device_group *group,
 			break;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 5, 0)
-	kvfree(vmas);
-#endif
 	if (tried > 0)
 		etdev_info(etdev, "mapping required %d retries with LRU cache disabled", tried);
 	if (ret < 0) {
