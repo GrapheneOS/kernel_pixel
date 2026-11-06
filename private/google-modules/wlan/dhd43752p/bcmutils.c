@@ -1039,6 +1039,9 @@ bcmdumptslog(struct bcmstrbuf *b)
 #if defined(BCMDBG) || defined(DHD_DEBUG)
 /* pretty hex print a pkt buffer chain */
 void
+prpkt(const char *msg, osl_t *osh, void *p0);
+
+void
 prpkt(const char *msg, osl_t *osh, void *p0)
 {
 	void *p;
@@ -2643,7 +2646,7 @@ bcm_find_vendor_ie(const  void *tlvs, uint tlvs_len, const char *voui, uint8 *ty
 		{
 			/* compare optional type */
 			if (type_len == 0 ||
-			    !bcmp(&ie->data[DOT11_OUI_LEN], type, type_len)) {
+			    !bcmp((const uint8 *)ie->data + DOT11_OUI_LEN, type, type_len)) {
 
 				COV_TAINTED_DATA_ARG(ie);
 

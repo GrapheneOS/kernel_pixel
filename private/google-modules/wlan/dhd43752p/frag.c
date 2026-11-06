@@ -32,6 +32,10 @@
  */
 int
 bcm_tlv_dot11_defrag(const void *buf, uint buf_len, uint8 id, bool id_ext,
+	uint8 *out, uint *out_len);
+
+int
+bcm_tlv_dot11_defrag(const void *buf, uint buf_len, uint8 id, bool id_ext,
 	uint8 *out, uint *out_len)
 {
 	int err = BCME_OK;
