@@ -178,7 +178,7 @@ static int debugfs_log_eventfd_signal_set(void *data, u64 val)
 		goto out;
 	}
 
-	ret = eventfd_signal(gxp->core_telemetry_mgr->efd);
+	eventfd_signal(gxp->core_telemetry_mgr->efd);
 
 out:
 	mutex_unlock(&gxp->core_telemetry_mgr->lock);

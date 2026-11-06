@@ -89,6 +89,7 @@ static bool check_client_has_available_vd_wakelock(struct gxp_client *client,
 #if IS_ENABLED(CONFIG_SUBSYSTEM_COREDUMP)
 
 static struct sscd_platform_data gxp_sscd_pdata;
+static bool gxp_sscd_registered;
 
 static void gxp_sscd_release(struct device *dev)
 {
@@ -97,7 +98,6 @@ static void gxp_sscd_release(struct device *dev)
 
 static struct platform_device gxp_sscd_dev = {
 	.name = GXP_DRIVER_NAME,
-	.driver_override = SSCD_NAME,
 	.id = -1,
 	.dev = {
 		.platform_data = &gxp_sscd_pdata,
@@ -107,17 +107,29 @@ static struct platform_device gxp_sscd_dev = {
 
 static void gxp_common_platform_reg_sscd(void)
 {
-	/* Registers SSCD platform device */
-	if (gxp_debug_dump_is_enabled()) {
-		if (platform_device_register(&gxp_sscd_dev))
-			pr_err("Unable to register SSCD platform device\n");
+	int ret;
+
+	if (!gxp_debug_dump_is_enabled())
+		return;
+
+	device_initialize(&gxp_sscd_dev.dev);
+	ret = device_set_driver_override(&gxp_sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&gxp_sscd_dev);
+	if (ret) {
+		pr_err(GXP_NAME " Unable to register SSCD platform device: %d\n", ret);
+		platform_device_put(&gxp_sscd_dev);
+		return;
 	}
+	gxp_sscd_registered = true;
 }
 
 static void gxp_common_platform_unreg_sscd(void)
 {
-	if (gxp_debug_dump_is_enabled())
+	if (gxp_sscd_registered) {
 		platform_device_unregister(&gxp_sscd_dev);
+		gxp_sscd_registered = false;
+	}
 }
 
 #else /* CONFIG_SUBSYSTEM_COREDUMP */
@@ -1872,7 +1884,7 @@ static __init int gxp_fs_init(void)
 {
 	int ret;
 
-	gxp_class = class_create(THIS_MODULE, GXP_NAME);
+	gxp_class = class_create(GXP_NAME);
 	if (IS_ERR(gxp_class)) {
 		pr_err(GXP_NAME " error creating gxp class: %ld\n",
 		       PTR_ERR(gxp_class));
