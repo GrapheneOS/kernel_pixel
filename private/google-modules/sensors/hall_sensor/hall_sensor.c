@@ -211,7 +211,7 @@ static int hall_sensor_config_gpio(struct hall_sensor_drv_data *hall_data,
 				   int gpio) {
 	struct device *dev = hall_data->dev;
 	int ret = 0;
-	ret = devm_gpio_request(dev, gpio, "hall-gpio");
+	ret = devm_gpio_request_one(dev, gpio, GPIOF_IN, "hall-gpio");
 	if (ret) {
 		dev_err(dev, "Failed to request gpio with error %d.\n", ret);
 		return ret;
@@ -272,12 +272,11 @@ static int hall_sensor_probe(struct platform_device *pdev) {
 	return ret;
 }
 
-static int hall_sensor_remove(struct platform_device *pdev) {
+static void hall_sensor_remove(struct platform_device *pdev) {
 	struct hall_sensor_drv_data *hall_data = platform_get_drvdata(pdev);
 
 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
 	hall_sensor_enable(hall_data, false);
-	return 0;
 }
 
 static struct of_device_id hall_sensor_of_match[] = {
