@@ -1077,6 +1077,7 @@ int google_pcie_rc_poweron(int num)
 	int retry = LINK_WAIT_MAX_RETRIES;
 	unsigned long flags;
 	bool link_up = false;
+	bool rescan;
 
 	gpcie = google_pcie_get_handle(num);
 	if (!gpcie)
@@ -1085,11 +1086,18 @@ int google_pcie_rc_poweron(int num)
 	google_pcie_dump_icd(gpcie, "poweron start");
 
 	dev_dbg(gpcie->dev, "running poweron sequence...\n");
+	/*
+	 * PCI removal callbacks can take link_lock when powering off the link.
+	 * Take the rescan lock first, and only for initial enumeration.
+	 */
+	rescan = !READ_ONCE(gpcie->enumeration_done);
+	if (rescan)
+		pci_lock_rescan_remove();
 	mutex_lock(&gpcie->link_lock);
 	if (gpcie->is_link_up) {
 		dev_err(gpcie->dev, "Link is up, quit poweron\n");
-		mutex_unlock(&gpcie->link_lock);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	pci = gpcie->pci;
@@ -1097,8 +1105,8 @@ int google_pcie_rc_poweron(int num)
 	pci_dev = pci_get_slot(bus, 0);
 	if (!pci_dev) {
 		dev_err(gpcie->dev, "Could not find the pci_dev");
-		mutex_unlock(&gpcie->link_lock);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unlock;
 	}
 
 	if (gpcie->aux_clk) {
@@ -1106,8 +1114,7 @@ int google_pcie_rc_poweron(int num)
 		if (ret < 0) {
 			dev_err(gpcie->dev, "Failed aux_clk enable: %d\n", ret);
 			pci_dev_put(pci_dev);
-			mutex_unlock(&gpcie->link_lock);
-			return ret;
+			goto unlock;
 		}
 	}
 
@@ -1234,7 +1241,7 @@ int google_pcie_rc_poweron(int num)
 	if (!gpcie->enumeration_done) {
 		dev_dbg(gpcie->dev, "Rescanning bus for devices\n");
 		pci_rescan_bus(bus);
-		gpcie->enumeration_done = true;
+		WRITE_ONCE(gpcie->enumeration_done, true);
 	}
 
 	if (!gpcie->curr_mapped_busdev)
@@ -1244,9 +1251,8 @@ int google_pcie_rc_poweron(int num)
 	pci_dev_put(pci_dev);
 	google_pcie_dump_icd(gpcie, "poweron end");
 	device_wakeup_enable(gpcie->dev);
-	mutex_unlock(&gpcie->link_lock);
-
-	return 0;
+	ret = 0;
+	goto unlock;
 
 reset_icc_bw:
 	google_pcie_set_icc_bw(gpcie, 0, 0);
@@ -1273,7 +1279,10 @@ pm_put:
 	pm_runtime_put_sync(gpcie->dev);
 	pm_runtime_set_suspended(gpcie->dev);
 	pci_dev_put(pci_dev);
+unlock:
 	mutex_unlock(&gpcie->link_lock);
+	if (rescan)
+		pci_unlock_rescan_remove();
 	return ret;
 }
 EXPORT_SYMBOL_GPL(google_pcie_rc_poweron);
