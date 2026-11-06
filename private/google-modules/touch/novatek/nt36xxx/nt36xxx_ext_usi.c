@@ -23,6 +23,8 @@
 #define DIAGNOSTIC_HOST_CMD		0x74
 #define MAX_SPI_BUF_SIZE		10
 
+int32_t nvt_get_usi_data_diag(uint8_t *beacon, uint8_t *response);
+
 int32_t nvt_get_usi_data_diag(uint8_t *beacon, uint8_t *response)
 {
 	uint8_t spi_buf[MAX_SPI_BUF_SIZE];

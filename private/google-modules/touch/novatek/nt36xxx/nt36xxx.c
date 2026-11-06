@@ -16,6 +16,7 @@
  * more details.
  *
  */
+#include <linux/pinctrl/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -1025,7 +1026,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
+static void nvt_ts_wakeup_gesture_report(uint8_t gesture_id, uint8_t *data)
 {
 	unsigned int keycode = 0;
 	uint8_t func_type = data[2];
@@ -1069,12 +1070,10 @@ static int32_t nvt_parse_dt(struct device *dev)
 	u16 values[2];
 
 #if NVT_TOUCH_SUPPORT_HW_RST
-	ts->reset_gpio = of_get_named_gpio_flags(np, "novatek,reset-gpio", 0,
-			 &ts->reset_flags);
+	ts->reset_gpio = of_get_named_gpio(np, "novatek,reset-gpio", 0);
 	NVT_LOG("novatek,reset-gpio=%d\n", ts->reset_gpio);
 #endif
-	ts->irq_gpio = of_get_named_gpio_flags(np, "novatek,irq-gpio", 0,
-					       &ts->irq_flags);
+	ts->irq_gpio = of_get_named_gpio(np, "novatek,irq-gpio", 0);
 	NVT_LOG("novatek,irq-gpio=%d\n", ts->irq_gpio);
 
 	ts->pen_support = of_property_read_bool(np, "novatek,pen-support");
@@ -2197,7 +2196,7 @@ static int32_t nvt_ts_probe(struct spi_device *client)
 	}
 
 	//---prepare for spi parameter---
-	if (ts->client->master->flags & SPI_MASTER_HALF_DUPLEX) {
+	if (ts->client->controller->flags & SPI_CONTROLLER_HALF_DUPLEX) {
 		NVT_ERR("Full duplex not supported by master\n");
 		ret = -EIO;
 		goto err_ckeck_full_duplex;
