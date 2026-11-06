@@ -5,9 +5,11 @@
  * Copyright (C) 2022 Google, LLC.
  */
 
+#include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include "edgetpu-domain-pool.h"
 #include "edgetpu-internal.h"
@@ -20,6 +22,11 @@ int edgetpu_domain_pool_init(struct edgetpu_dev *etdev, struct edgetpu_domain_po
 
 	pool->size = size;
 	pool->etdev = etdev;
+	pool->min_pasid = 0;
+	pool->max_pasid = 0;
+#if HAS_IOMMU_PASID
+	ida_init(&pool->pasid_pool);
+#endif
 
 	if (!size)
 		return 0;
@@ -33,27 +40,23 @@ int edgetpu_domain_pool_init(struct edgetpu_dev *etdev, struct edgetpu_domain_po
 		return -ENOMEM;
 	}
 	for (i = 0; i < size; i++) {
-		domain = iommu_domain_alloc(pool->etdev->dev->bus);
-		if (!domain) {
+		domain = iommu_paging_domain_alloc(pool->etdev->dev);
+		if (IS_ERR(domain)) {
 			etdev_err(pool->etdev, "Failed to allocate iommu domain %d of %u\n", i + 1,
 				  size);
 			edgetpu_domain_pool_destroy(pool);
-			return -ENOMEM;
+			return PTR_ERR(domain);
 		}
 		pool->array[i] = domain;
 	}
 
-	pool->min_pasid = 0;
-	pool->max_pasid = 0;
-#if HAS_IOMMU_PASID
-	ida_init(&pool->pasid_pool);
-#elif HAS_AUX_DOMAINS
+#if HAS_AUX_DOMAINS
 	iommu_dev_enable_feature(etdev->dev, IOMMU_DEV_FEAT_AUX);
 	if (!iommu_dev_feature_enabled(etdev->dev, IOMMU_DEV_FEAT_AUX))
 		dev_warn(etdev->dev, "AUX domains not supported\n");
 	else
 		pool->aux_enabled = true;
-#else
+#elif !HAS_IOMMU_PASID
 	dev_warn(etdev->dev, "Attaching additional domains not supported\n");
 #endif
 	return 0;
@@ -63,8 +66,11 @@ struct iommu_domain *edgetpu_domain_pool_alloc(struct edgetpu_domain_pool *pool)
 {
 	int id;
 
-	if (!pool->size)
-		return iommu_domain_alloc(pool->etdev->dev->bus);
+	if (!pool->size) {
+		struct iommu_domain *domain = iommu_paging_domain_alloc(pool->etdev->dev);
+
+		return IS_ERR(domain) ? NULL : domain;
+	}
 
 	id = ida_alloc_max(&pool->idp, pool->size - 1, GFP_KERNEL);
 
@@ -101,6 +107,10 @@ void edgetpu_domain_pool_destroy(struct edgetpu_domain_pool *pool)
 {
 	int i;
 
+#if HAS_IOMMU_PASID
+	ida_destroy(&pool->pasid_pool);
+#endif
+
 	if (!pool->size)
 		return;
 
@@ -113,9 +123,6 @@ void edgetpu_domain_pool_destroy(struct edgetpu_domain_pool *pool)
 
 	ida_destroy(&pool->idp);
 	vfree(pool->array);
-#if HAS_IOMMU_PASID
-	ida_destroy(&pool->pasid_pool);
-#endif
 }
 
 void edgetpu_domain_pool_set_pasid_range(struct edgetpu_domain_pool *pool, ioasid_t min,
@@ -134,7 +141,7 @@ int edgetpu_domain_pool_attach_domain(struct edgetpu_domain_pool *pool, struct i
 	if (pasid < 0)
 		return pasid;
 
-	ret = iommu_attach_device_pasid(domain, pool->etdev->dev, pasid);
+	ret = iommu_attach_device_pasid(domain, pool->etdev->dev, pasid, NULL);
 	if (ret) {
 		ida_free(&pool->pasid_pool, pasid);
 		return ret;
