@@ -26,6 +26,8 @@ static int write_command_reg(struct regmap *regmap, u8 val)
 	return regmap_raw_write(regmap, COMMAND_REGISTER, &val, sizeof(u8));
 }
 
+int enable_ls(struct i2c_client *client);
+
 int enable_ls(struct i2c_client *client)
 {
 	struct regmap *regmap = i2c_get_clientdata(client);
@@ -43,8 +45,7 @@ int enable_ls(struct i2c_client *client)
 }
 EXPORT_SYMBOL_GPL(enable_ls);
 
-static int slg46826_probe(struct i2c_client *client,
-			  const struct i2c_device_id *i2c_id)
+static int slg46826_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 

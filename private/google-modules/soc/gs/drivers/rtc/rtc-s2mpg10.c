@@ -15,7 +15,7 @@
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/samsung/rtc-s2mpg10.h>
-#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg10-gs.h>
 #include <linux/mfd/samsung/s2mpg10-register.h>
 
 /*#define CONFIG_WEEKDAY_ALARM_ENABLE*/

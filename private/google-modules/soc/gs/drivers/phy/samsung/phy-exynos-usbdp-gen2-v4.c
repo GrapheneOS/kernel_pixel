@@ -27,7 +27,7 @@
 #include "phy-exynos-usbdp-gen2-v4-reg.h"
 #include "phy-exynos-usbdp-gen2-v4-reg-pcs.h"
 
-void phy_exynos_usbdp_g2_v2_tune_each(struct exynos_usbphy_info
+static void phy_exynos_usbdp_g2_v2_tune_each(struct exynos_usbphy_info
 		*info, char *name, int val)
 {
 	void __iomem *regs_base = info->pma_base;
@@ -1551,6 +1551,8 @@ phy_exynos_usbdp_g2_v4_pma_lane_mux_sel(struct exynos_usbphy_info
 	}
 }
 
+void phy_exynos_usbdp_g2_v4_tune(struct exynos_usbphy_info *info);
+
 void phy_exynos_usbdp_g2_v4_tune(struct exynos_usbphy_info *info)
 {
 	u32 cnt = 0;
@@ -2356,6 +2358,8 @@ static int phy_exynos_usbdp_g2_v4_pma_bist_result(struct exynos_usbphy_info *inf
 	return 0;
 }
 
+int phy_exynos_usbdp_g2_v4_internal_loopback(struct exynos_usbphy_info *info, u32 cmn_rate);
+
 int phy_exynos_usbdp_g2_v4_internal_loopback(struct exynos_usbphy_info *info, u32 cmn_rate)
 {
 	int ret;
@@ -2406,7 +2410,7 @@ int phy_exynos_usbdp_g2_v4_internal_loopback(struct exynos_usbphy_info *info, u3
 	return ret;
 }
 
-void phy_exynos_usbdp_g2_v4_eom_init(struct exynos_usbphy_info *info, u32 cmn_rate)
+static void phy_exynos_usbdp_g2_v4_eom_init(struct exynos_usbphy_info *info, u32 cmn_rate)
 {
 	void __iomem *regs_base = info->pma_base;
 	u32 reg;
@@ -2912,7 +2916,7 @@ static void phy_exynos_usbdp_g2_v4_eom_deinit(struct exynos_usbphy_info *info)
 }
 
 
-void phy_exynos_usbdp_g2_v4_eom_start(struct exynos_usbphy_info *info, u32 ph_sel, u32 def_vref)
+static void phy_exynos_usbdp_g2_v4_eom_start(struct exynos_usbphy_info *info, u32 ph_sel, u32 def_vref)
 {
 	void __iomem *regs_base = info->pma_base;
 	u32 reg;
@@ -2990,7 +2994,7 @@ void phy_exynos_usbdp_g2_v4_eom_start(struct exynos_usbphy_info *info, u32 ph_se
 }
 
 
-int phy_exynos_usbdp_g2_v4_eom_get_done_status(struct exynos_usbphy_info *info)
+static int phy_exynos_usbdp_g2_v4_eom_get_done_status(struct exynos_usbphy_info *info)
 {
 	void __iomem *regs_base = info->pma_base;
 	u32 reg;
@@ -3018,7 +3022,7 @@ int phy_exynos_usbdp_g2_v4_eom_get_done_status(struct exynos_usbphy_info *info)
 }
 
 
-u64 phy_exynos_usbdp_g2_v4_eom_get_err_cnt(struct exynos_usbphy_info *info, u32 cmn_rate)
+static u64 phy_exynos_usbdp_g2_v4_eom_get_err_cnt(struct exynos_usbphy_info *info, u32 cmn_rate)
 {
 	void __iomem *regs_base = info->pma_base;
 	u32 reg;
@@ -3105,7 +3109,7 @@ u64 phy_exynos_usbdp_g2_v4_eom_get_err_cnt(struct exynos_usbphy_info *info, u32 
 
 }
 
-void phy_exynos_usbdp_g2_v4_eom_stop(struct exynos_usbphy_info *info)
+static void phy_exynos_usbdp_g2_v4_eom_stop(struct exynos_usbphy_info *info)
 {
 	void __iomem *regs_base = info->pma_base;
 	u32 reg;
@@ -3127,6 +3131,9 @@ void phy_exynos_usbdp_g2_v4_eom_stop(struct exynos_usbphy_info *info)
 		writel(reg, regs_base + EXYNOS_USBDP_TRSV_REG06DC);
 	}
 }
+
+void phy_exynos_usbdp_g2_v4_eom(struct exynos_usbphy_info *info,
+					struct usb_eom_result_s *eom_result, u32 cmn_rate);
 
 void phy_exynos_usbdp_g2_v4_eom(struct exynos_usbphy_info *info,
 					struct usb_eom_result_s *eom_result, u32 cmn_rate)
@@ -3184,6 +3191,8 @@ void phy_exynos_usbdp_g2_v4_eom(struct exynos_usbphy_info *info,
 	phy_exynos_usbdp_g2_v4_eom_deinit(info);
 }
 
+int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info);
+
 int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info)
 {
 	int ret = 0;
@@ -3233,6 +3242,8 @@ int phy_exynos_usbdp_g2_v4_enable(struct exynos_usbphy_info *info)
 
 	return 0;
 }
+
+void phy_exynos_usbdp_g2_v4_disable(struct exynos_usbphy_info *info);
 
 void phy_exynos_usbdp_g2_v4_disable(struct exynos_usbphy_info *info)
 {
