@@ -514,7 +514,7 @@ static int tas256x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	p_tas256x->mn_fmt = 1;
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		asi_cfg_1 = 0x00;
 		asi_cfg_2 = 0x00;
 		break;

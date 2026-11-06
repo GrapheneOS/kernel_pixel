@@ -615,7 +615,7 @@ static int cs40l2x_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int asp_fmt;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		dev_err(priv->dev, "This device can be slave only\n");
@@ -838,13 +838,13 @@ static int cs40l2x_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int cs40l2x_remove(struct platform_device *pdev)
+static void cs40l2x_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
 
-	return 0;
+	return;
 }
 
 static struct platform_driver cs40l2x_codec_driver = {
