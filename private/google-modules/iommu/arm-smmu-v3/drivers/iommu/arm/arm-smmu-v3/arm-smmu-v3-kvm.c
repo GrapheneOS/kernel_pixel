@@ -338,9 +338,8 @@ static void kvm_arm_smmu_tlb_inv_context(void *cookie)
 	struct kvm_arm_smmu_domain *kvm_smmu_domain = cookie;
 
 	/*
-	 * This can be called by the io-pgtable core via free_io_pgtable_ops() in case of an error
-	 * in kvm_arm_smmu_domain_finalize() before the domain has been fully setup, so catch that
-	 * case by testing for the smmu pointer field.
+	 * The io-pgtable core also calls this before domain finalization completes
+	 * and after the EL2 domain has been freed. In both cases, smmu is NULL.
 	 *
 	 * iova 0 and size ULONG_MAX translates to a TLB flush for this domain, so none of the
 	 * subsequent parameters are relevant.
@@ -511,9 +510,16 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
 	struct arm_smmu_device *smmu = kvm_smmu_domain->smmu;
 
 	if (smmu && (kvm_smmu_domain->domain.type != IOMMU_DOMAIN_IDENTITY)) {
+		/* Flush while the EL2 domain exists, but keep its page tables on failure. */
+		if (kvm_smmu_domain->pgtbl_ops)
+			kvm_arm_smmu_tlb_inv_context(kvm_smmu_domain);
+
 		ret = kvm_iommu_free_domain(kvm_smmu_domain->id);
 		if (WARN_ON(ret))
 			return;
+
+		/* Prevent the io-pgtable free callback from accessing the freed EL2 domain. */
+		kvm_smmu_domain->smmu = NULL;
 		free_io_pgtable_ops_pixel(kvm_smmu_domain->pgtbl_ops);
 		ida_free(&kvm_arm_smmu_domain_ida, kvm_smmu_domain->id);
 	}
