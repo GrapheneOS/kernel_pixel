@@ -124,7 +124,7 @@ struct dp_rx_thread {
 	struct dp_rx_tm_handle_cmn *rtm_handle_cmn;
 	struct napi_struct napi;
 	qdf_wait_queue_head_t wait_q;
-	struct net_device netdev;
+	struct net_device *netdev;
 };
 
 /**
