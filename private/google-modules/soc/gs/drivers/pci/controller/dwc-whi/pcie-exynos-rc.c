@@ -3361,7 +3361,7 @@ int exynos_pcie_rc_poweron(int ch_num)
 	struct dw_pcie *pci;
 	struct dw_pcie_rp *pp;
 	struct device *dev;
-	u32 val, vendor_id, device_id;
+	u32 val;
 	int ret;
 	unsigned long flags;
 
@@ -3457,22 +3457,9 @@ int exynos_pcie_rc_poweron(int ch_num)
 
 		dev_dbg(dev, "[%s] exynos_pcie->probe_ok : %d\n", __func__, exynos_pcie->probe_ok);
 		if (!exynos_pcie->probe_ok) {
-			exynos_pcie_rc_rd_own_conf(pp, PCI_VENDOR_ID, 4, &val);
-			vendor_id = val & ID_MASK;
-			device_id = (val >> 16) & ID_MASK;
-
-			exynos_pcie->pci_dev = pci_get_device(vendor_id, device_id, NULL);
-			if (!exynos_pcie->pci_dev) {
-				logbuffer_logk(exynos_pcie->log, LOGLEVEL_ERR,
-					       "Failed to get pci device");
-
-				goto poweron_fail;
-			}
-			dev_dbg(dev, "(%s):ep_pci_device:vendor/device id = 0x%x\n", __func__, val);
-			logbuffer_log(exynos_pcie->log, "ep_pci_device:vendor/device id = 0x%x",
-				      val);
-
+			pci_lock_rescan_remove();
 			pci_rescan_bus(exynos_pcie->pci_dev->bus);
+			pci_unlock_rescan_remove();
 			if (exynos_pcie->use_msi) {
 				ret = exynos_pcie_rc_msi_init(pp);
 				if (ret) {
@@ -5200,6 +5187,11 @@ static int setup_s2mpu_mem(struct device *dev, struct exynos_pcie *exynos_pcie)
 }
 #endif
 
+static void exynos_pcie_release_root_port(void *data)
+{
+	pci_dev_put(data);
+}
+
 static int exynos_pcie_rc_probe(struct platform_device *pdev)
 {
 	struct exynos_pcie *exynos_pcie;
@@ -5356,6 +5348,21 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	ret = exynos_pcie_rc_add_port(pdev, pp, ch_num);
 	if (ret)
 		goto probe_fail;
+
+	/* Acquire the root port before the first endpoint power-on. */
+	exynos_pcie->pci_dev = pci_get_slot(pp->bridge->bus, PCI_DEVFN(0, 0));
+	if (!exynos_pcie->pci_dev) {
+		ret = -ENODEV;
+		dw_pcie_host_deinit(pp);
+		goto probe_fail;
+	}
+	ret = devm_add_action_or_reset(&pdev->dev, exynos_pcie_release_root_port,
+				       exynos_pcie->pci_dev);
+	if (ret) {
+		exynos_pcie->pci_dev = NULL;
+		dw_pcie_host_deinit(pp);
+		goto probe_fail;
+	}
 
 	if (exynos_pcie->use_cache_coherency)
 		exynos_pcie_rc_set_iocc(pp, 1);
