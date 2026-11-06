@@ -1325,7 +1325,7 @@ static int spanel_get_brightness(struct thermal_zone_device *tzd, int *temp)
 	if (tzd == NULL)
 		return -EINVAL;
 
-	spanel = tzd->devdata;
+	spanel = thermal_zone_device_priv(tzd);
 
 	if (spanel && spanel->base.bl) {
 		mutex_lock(&spanel->base.bl_state_lock);
@@ -1355,19 +1355,27 @@ static int ana6707_f10_panel_probe(struct mipi_dsi_device *dsi)
 	spanel->auto_mode_vrefresh = 0;
 	spanel->delayed_idle = false;
 	spanel->is_pixel_off = false;
-	spanel->tzd = thermal_zone_device_register("inner-disp",
-				0, 0, spanel, &spanel_tzd_ops, NULL, 0, 0);
-	if (IS_ERR(spanel->tzd))
+	ret = exynos_panel_common_init(dsi, &spanel->base);
+	if (ret)
+		return ret;
+
+	spanel->tzd = thermal_zone_device_register_with_trips("inner-disp",
+				NULL, 0, spanel, &spanel_tzd_ops, NULL, 0, 0);
+	if (IS_ERR(spanel->tzd)) {
 		dev_err(spanel->base.dev, "failed to register inner"
 			" display thermal zone: %ld", PTR_ERR(spanel->tzd));
+		spanel->tzd = NULL;
+		return 0;
+	}
 
 	ret = thermal_zone_device_enable(spanel->tzd);
 	if (ret) {
 		dev_err(spanel->base.dev, "failed to enable inner"
 					" display thermal zone ret=%d", ret);
 		thermal_zone_device_unregister(spanel->tzd);
+		spanel->tzd = NULL;
 	}
-	return exynos_panel_common_init(dsi, &spanel->base);
+	return 0;
 }
 
 static const struct drm_panel_funcs ana6707_f10_drm_funcs = {
