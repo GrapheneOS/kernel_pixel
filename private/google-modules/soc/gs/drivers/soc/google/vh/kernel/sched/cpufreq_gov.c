@@ -420,7 +420,8 @@ void update_uclamp_stats(int cpu, u64 time)
 	struct uclamp_stats *stats = &per_cpu(uclamp_stats, cpu);
 	s64 delta_ns = time - stats->last_update_time;
 	struct rq *rq = cpu_rq(cpu);
-	unsigned long cpu_util = min(arch_scale_cpu_capacity(cpu), cpu_util_cfs(rq) + cpu_util_rt(rq));
+	unsigned long cpu_util = min(arch_scale_cpu_capacity(cpu),
+				     cpu_util_cfs(cpu) + cpu_util_rt(rq));
 	unsigned long cpu_util_max_clamped = min(arch_scale_cpu_capacity(cpu), cpu_util_cfs_group_mod(cpu) +
 						 cpu_util_rt(rq));
 	unsigned int uclamp_min = READ_ONCE(rq->uclamp[UCLAMP_MIN].value);
