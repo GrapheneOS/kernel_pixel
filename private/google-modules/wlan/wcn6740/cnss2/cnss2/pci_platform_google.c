@@ -301,7 +301,6 @@ static struct sscd_platform_data sscd_pdata;
 static bool sscd_registered;
 
 static struct platform_device sscd_dev = {
-	.driver_override = SSCD_NAME,
 	.name            = DEVICE_NAME,
 	.id              = -1,
 	.dev             = {
@@ -317,11 +316,13 @@ void cnss_register_sscd(void)
 	memset(&sscd_pdata, 0, sizeof(struct sscd_platform_data));
 	memset(&sscd_dev, 0, sizeof(struct platform_device));
 	sscd_dev.name = DEVICE_NAME;
-	sscd_dev.driver_override = SSCD_NAME;
 	sscd_dev.id = -1;
 	sscd_dev.dev.platform_data = &sscd_pdata;
 	sscd_dev.dev.release = sscd_release;
-	ret = platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
 	if (ret) {
 		platform_device_put(&sscd_dev);
 		cnss_pr_err("SSCD registration failed: %d\n", ret);
@@ -362,6 +363,8 @@ void sscd_set_coredump(void *buf, int buf_len)
 		}
 	}
 }
+
+void crash_info_handler(u8 *info);
 
 void crash_info_handler(u8 *info)
 {
