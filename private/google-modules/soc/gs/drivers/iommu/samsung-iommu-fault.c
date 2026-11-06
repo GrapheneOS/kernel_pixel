@@ -9,6 +9,8 @@
 #include <linux/arm-smccc.h>
 #include <linux/pm_runtime.h>
 
+#include <linux/samsung-iommu-fault.h>
+
 #include "samsung-iommu.h"
 
 #define MMU_TLB_INFO(n)			(0x2000 + ((n) * 0x20))
@@ -98,15 +100,15 @@ static char *sysmmu_fault_name[SYSMMU_FAULTS_NUM] = {
 };
 
 static unsigned int sysmmu_fault_type[SYSMMU_FAULTS_NUM] = {
-	IOMMU_FAULT_REASON_WALK_EABT,
-	IOMMU_FAULT_REASON_PTE_FETCH,
-	IOMMU_FAULT_REASON_ACCESS,
-	IOMMU_FAULT_REASON_UNKNOWN,
+	SAMSUNG_IOMMU_FAULT_WALK_EABT,
+	SAMSUNG_IOMMU_FAULT_PTE_FETCH,
+	SAMSUNG_IOMMU_FAULT_ACCESS,
+	SAMSUNG_IOMMU_FAULT_UNKNOWN,
 };
 
 struct samsung_sysmmu_fault_info {
 	struct sysmmu_drvdata *drvdata;
-	struct iommu_fault_event event;
+	struct samsung_iommu_fault fault;
 };
 
 static inline u32 __sysmmu_get_intr_status(struct sysmmu_drvdata *data,
@@ -514,7 +516,7 @@ static int samsung_sysmmu_fault_notifier(struct device *dev, void *data)
 
 	for (i = 0; i < client->sysmmu_count; i++) {
 		if (drvdata == client->sysmmus[i]) {
-			ret = iommu_report_device_fault(dev, &fi->event);
+			ret = samsung_iommu_report_fault(dev, &fi->fault);
 			if (ret == -EAGAIN)
 				result = ret;
 			break;
@@ -532,10 +534,9 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 	struct sysmmu_drvdata *drvdata = dev_id;
 	bool is_secure = (irq == drvdata->secure_irq);
 	struct iommu_group *group = drvdata->group;
-	enum iommu_fault_reason reason;
+	enum samsung_iommu_fault_reason reason;
 	struct samsung_sysmmu_fault_info fi = {
 		.drvdata = drvdata,
-		.event.fault.type = IOMMU_FAULT_DMA_UNRECOV,
 	};
 	char fault_msg[128] = "Unspecified SysMMU fault";
 
@@ -545,13 +546,11 @@ irqreturn_t samsung_sysmmu_irq_thread(int irq, void *dev_id)
 	sysmmu_get_interrupt_info(drvdata, &itype, &vid, &addr, is_secure);
 	reason = sysmmu_fault_type[itype];
 
-	fi.event.fault.event.addr = addr;
-	fi.event.fault.event.pasid = vid;
+	fi.fault.addr = addr;
+	fi.fault.pasid = vid;
 	if (vid)
-		fi.event.fault.event.flags |= IOMMU_FAULT_UNRECOV_PASID_VALID;
-	fi.event.fault.event.reason = reason;
-	if (reason == IOMMU_FAULT_REASON_PTE_FETCH)
-		fi.event.fault.type = IOMMU_FAULT_PAGE_REQ;
+		fi.fault.flags |= BIT(0);
+	fi.fault.reason = reason;
 
 	ret = iommu_group_for_each_dev(group, &fi,
 				       samsung_sysmmu_fault_notifier);
