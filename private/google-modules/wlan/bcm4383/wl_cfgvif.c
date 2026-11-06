@@ -6690,7 +6690,7 @@ wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec,
 	cfg80211_ch_switch_notify(dev, &chandef, 0);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) || defined(WL_CH_SWITCH_BKPORT)
 	/* FIXME: need to consider puncturing bitmap */
-	cfg80211_ch_switch_notify(dev, &chandef, link_id, 0);
+	cfg80211_ch_switch_notify(dev, &chandef, link_id);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)) || defined(WL_MLO_BKPORT)
 	cfg80211_ch_switch_notify(dev, &chandef, link_id);
 #else
@@ -9460,7 +9460,7 @@ wl_cfgvif_apply_default_keep_alive(struct net_device *ndev, struct bcm_cfg80211 
 	str = "mkeep_alive";
 	str_len = strlen(str);
 	buf_len = str_len + 1;
-	strlcpy(buf, str, buf_len);
+	strscpy(buf, str, buf_len);
 	pbuf_len -= buf_len;
 
 	if (sizeof(wl_mkeep_alive_pkt_v2_t) + buf_len > WLC_IOCTL_SMLEN) {

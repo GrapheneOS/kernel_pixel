@@ -769,7 +769,7 @@ dhd_dscp_policy_set_vndr_ie(struct bcm_cfg80211 *cfg, struct net_device *ndev, i
 	hdr = (vndr_ie_setbuf_t *) vndr_ie_buf;
 
 	/* Copy the vndr_ie SET command ("add"/"del") to the buffer */
-	strlcpy(hdr->cmd, "add", sizeof(hdr->cmd));
+	strscpy(hdr->cmd, "add", sizeof(hdr->cmd));
 
 	/* Set the IE count - the buffer contains only 1 IE */
 	iecount = htol32(1);

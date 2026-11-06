@@ -1422,7 +1422,7 @@ wl_cfgp2p_vndr_ie(struct bcm_cfg80211 *cfg, u8 *iebuf, s32 pktflag,
 	}
 
 	/* Copy the vndr_ie SET command ("add"/"del") to the buffer */
-	strlcpy(hdr->cmd, add_del_cmd, sizeof(hdr->cmd));
+	strscpy(hdr->cmd, add_del_cmd, sizeof(hdr->cmd));
 
 	/* Set the IE count - the buffer contains only 1 IE */
 	iecount = htod32(1);
@@ -2648,7 +2648,7 @@ wl_cfgp2p_register_ndev(struct bcm_cfg80211 *cfg)
 	}
 #endif /* WL_NEWCFG_PRIVCMD_SUPPORT */
 
-	strlcpy(net->name, "p2p%d", sizeof(net->name));
+	strscpy(net->name, "p2p%d", sizeof(net->name));
 
 	/* Copy the reference to bcm_cfg80211 */
 	memcpy((void *)netdev_priv(net), &cfg, sizeof(struct bcm_cfg80211 *));
@@ -3168,7 +3168,7 @@ wl_cfgp2p_if_add(struct bcm_cfg80211 *cfg, wl_iftype_t wl_iftype,
 		wl_cfgp2p_init_discovery(cfg);
 	}
 
-	strlcpy(cfg->p2p->vir_ifname, name, sizeof(cfg->p2p->vir_ifname));
+	strscpy(cfg->p2p->vir_ifname, name, sizeof(cfg->p2p->vir_ifname));
 	/* In concurrency case, STA may be already associated in a particular channel.
 	 * so retrieve the current channel of primary interface and then start the virtual
 	 * interface on that.
