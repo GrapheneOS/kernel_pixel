@@ -46,7 +46,8 @@ struct p2p_app_set_ps {
 int wlan_hdd_cfg80211_remain_on_channel(struct wiphy *wiphy,
 					struct wireless_dev *wdev,
 					struct ieee80211_channel *chan,
-					unsigned int duration, u64 *cookie);
+					unsigned int duration, u64 *cookie,
+					const u8 *addr);
 
 int wlan_hdd_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 					       struct wireless_dev *wdev,

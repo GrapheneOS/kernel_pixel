@@ -774,20 +774,23 @@ static int dp_rx_tm_thread_napi_poll(struct napi_struct *napi, int budget)
  * dp_rx_tm_thread_napi_init() - Initialize dummy rx_thread NAPI
  * @rx_thread: dp_rx_thread structure containing dummy napi and netdev
  *
- * Return: None
+ * Return: 0 on success or -ENOMEM on allocation failure
  */
-static void dp_rx_tm_thread_napi_init(struct dp_rx_thread *rx_thread)
+static int dp_rx_tm_thread_napi_init(struct dp_rx_thread *rx_thread)
 {
 	/* Todo - optimize to use only one dummy netdev for all thread napis */
-	init_dummy_netdev(&rx_thread->netdev);
+	rx_thread->netdev = alloc_netdev_dummy(0);
+	if (!rx_thread->netdev)
+		return -ENOMEM;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0))
-	netif_napi_add_weight(&rx_thread->netdev, &rx_thread->napi,
+	netif_napi_add_weight(rx_thread->netdev, &rx_thread->napi,
 			      dp_rx_tm_thread_napi_poll, 64);
 #else
-	netif_napi_add(&rx_thread->netdev, &rx_thread->napi,
+	netif_napi_add(rx_thread->netdev, &rx_thread->napi,
 		       dp_rx_tm_thread_napi_poll, 64);
 #endif
 	napi_enable(&rx_thread->napi);
+	return 0;
 }
 
 /**
@@ -798,7 +801,12 @@ static void dp_rx_tm_thread_napi_init(struct dp_rx_thread *rx_thread)
  */
 static void dp_rx_tm_thread_napi_deinit(struct dp_rx_thread *rx_thread)
 {
+	if (!rx_thread->netdev)
+		return;
+	napi_disable(&rx_thread->napi);
 	netif_napi_del(&rx_thread->napi);
+	free_netdev(rx_thread->netdev);
+	rx_thread->netdev = NULL;
 }
 
 /*
@@ -835,8 +843,10 @@ static QDF_STATUS dp_rx_tm_thread_init(struct dp_rx_thread *rx_thread,
 	dp_info("%s %u", thread_name, id);
 
 	if (cdp_cfg_get(dp_rx_tm_get_soc_handle(rx_thread->rtm_handle_cmn),
-			cfg_dp_gro_enable))
-		dp_rx_tm_thread_napi_init(rx_thread);
+			cfg_dp_gro_enable)) {
+		if (dp_rx_tm_thread_napi_init(rx_thread))
+			return QDF_STATUS_E_NOMEM;
+	}
 
 	rx_thread->task = qdf_create_thread(dp_rx_thread_loop,
 					    rx_thread, thread_name);
@@ -972,8 +982,15 @@ QDF_STATUS dp_rx_tm_init(struct dp_rx_tm_handle *rx_tm_hdl,
 				(struct dp_rx_tm_handle_cmn *)rx_tm_hdl;
 		qdf_status =
 			dp_rx_tm_thread_init(rx_tm_hdl->rx_thread[i], i);
-		if (!QDF_IS_STATUS_SUCCESS(qdf_status))
+		if (!QDF_IS_STATUS_SUCCESS(qdf_status)) {
+			/* A failed allocation has no thread to signal on shutdown. */
+			if (!rx_tm_hdl->rx_thread[i]->task) {
+				dp_rx_tm_thread_deinit(rx_tm_hdl->rx_thread[i]);
+				qdf_mem_free(rx_tm_hdl->rx_thread[i]);
+				rx_tm_hdl->rx_thread[i] = NULL;
+			}
 			break;
+		}
 	}
 ret:
 	if (!QDF_IS_STATUS_SUCCESS(qdf_status))

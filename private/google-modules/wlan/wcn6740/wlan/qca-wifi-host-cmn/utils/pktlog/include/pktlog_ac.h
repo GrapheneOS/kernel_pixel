@@ -115,7 +115,7 @@ struct pktlog_dev_t {
 	uint32_t invalid_packets;
 };
 
-#define PKTLOG_SYSCTL_SIZE      14
+#define PKTLOG_SYSCTL_SIZE      9
 #define PKTLOG_MAX_SEND_QUEUE_DEPTH 64
 
 /*

@@ -571,7 +571,7 @@ struct tdls_rx_mgmt_frame {
 	uint32_t vdev_id;
 	uint32_t frm_type;
 	uint32_t rx_rssi;
-	uint8_t buf[1];
+	uint8_t buf[];
 };
 
 /**

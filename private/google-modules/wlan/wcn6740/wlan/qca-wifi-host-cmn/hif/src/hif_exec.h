@@ -136,7 +136,7 @@ struct hif_tasklet_exec_context {
  */
 struct hif_napi_exec_context {
 	struct hif_exec_context exec_ctx;
-	struct net_device    netdev; /* dummy net_dev */
+	struct net_device *netdev; /* dummy net_dev */
 	struct napi_struct   napi;
 };
 

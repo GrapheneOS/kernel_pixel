@@ -463,7 +463,7 @@ wlan_cfg80211_nla_put_u64(struct sk_buff *skb, int attrtype, u64 value)
 static inline ssize_t
 wlan_cfg80211_nla_strscpy(char *dst, const struct nlattr *nla, size_t dstsize)
 {
-	return nla_strlcpy(dst, nla, dstsize);
+	return nla_strscpy(dst, nla, dstsize);
 }
 #else
 static inline ssize_t

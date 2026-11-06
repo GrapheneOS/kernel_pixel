@@ -2825,7 +2825,7 @@ static void wlan_hdd_update_txq_timestamp(struct net_device *dev)
 		 */
 		if (!hdd_netdev_queue_is_locked(txq)) {
 			if (__netif_tx_trylock(txq)) {
-				txq_trans_update(txq);
+				txq_trans_update(dev, txq);
 				__netif_tx_unlock(txq);
 			}
 		}
@@ -3346,7 +3346,7 @@ void hdd_send_rps_ind(struct hdd_adapter *adapter)
 			  i, rps_data.cpu_map_list[i]);
 	}
 
-	strlcpy(rps_data.ifname, adapter->dev->name,
+	strscpy(rps_data.ifname, adapter->dev->name,
 			sizeof(rps_data.ifname));
 	wlan_hdd_send_svc_nlink_msg(hdd_ctxt->radio_index,
 				WLAN_SVC_RPS_ENABLE_IND,
@@ -3392,7 +3392,7 @@ void hdd_send_rps_disable_ind(struct hdd_adapter *adapter)
 
 	qdf_mem_zero(&rps_data.cpu_map_list, sizeof(rps_data.cpu_map_list));
 
-	strlcpy(rps_data.ifname, adapter->dev->name, sizeof(rps_data.ifname));
+	strscpy(rps_data.ifname, adapter->dev->name, sizeof(rps_data.ifname));
 	wlan_hdd_send_svc_nlink_msg(hdd_ctxt->radio_index,
 				    WLAN_SVC_RPS_ENABLE_IND,
 				    &rps_data, sizeof(rps_data));

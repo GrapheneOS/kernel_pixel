@@ -1954,10 +1954,6 @@ static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *s
 				sta_ds->assocId, true,
 				STATUS_UNSPECIFIED_FAILURE,
 				session);
-
-			if (session->parsedAssocReq)
-				assoc_req =
-				    session->parsedAssocReq[sta_ds->assocId];
 			return false;
 		}
 	} else {
@@ -1989,9 +1985,6 @@ static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *s
 
 				/* Restoring the state back. */
 				sta_ds->mlmStaContext.mlmState = mlm_prev_state;
-				if (session->parsedAssocReq)
-					assoc_req = session->parsedAssocReq[
-						sta_ds->assocId];
 				return false;
 			}
 		} else {
@@ -2011,9 +2004,6 @@ static bool lim_update_sta_ctx(struct mac_context *mac_ctx, struct pe_session *s
 
 				/* Restoring the state back. */
 				sta_ds->mlmStaContext.mlmState = mlm_prev_state;
-				if (session->parsedAssocReq)
-					assoc_req = session->parsedAssocReq[
-							sta_ds->assocId];
 				return false;
 			}
 		}

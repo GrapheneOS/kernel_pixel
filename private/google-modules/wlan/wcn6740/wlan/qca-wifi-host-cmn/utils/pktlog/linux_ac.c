@@ -206,6 +206,7 @@ static void pktlog_cleanup(struct ath_pktlog_info *pl_info)
 static int
 qdf_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 {
+	struct ctl_table local = *ctl;
 	int ret, enable;
 	ol_ath_generic_softc_handle scn;
 	struct pktlog_dev_t *pl_dev;
@@ -229,11 +230,12 @@ qdf_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 		return -ENODEV;
 	}
 
-	ctl->data = &enable;
-	ctl->maxlen = sizeof(enable);
+	enable = pl_dev->pl_info->log_state;
+	local.data = &enable;
+	local.maxlen = sizeof(enable);
 
 	if (write) {
-		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(&local, write, filp, buffer,
 					       lenp, ppos);
 		if (ret == 0) {
 			ret = pl_dev->pl_funcs->pktlog_enable(
@@ -245,7 +247,7 @@ qdf_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 				  "Line:%d %s:proc_dointvec failed reason %d",
 				   __LINE__, __func__, ret);
 	} else {
-		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(&local, write, filp, buffer,
 					       lenp, ppos);
 		if (ret)
 			QDF_TRACE(QDF_MODULE_ID_SYS, QDF_TRACE_LEVEL_DEBUG,
@@ -253,8 +255,6 @@ qdf_sysctl_decl(ath_sysctl_pktlog_enable, ctl, write, filp, buffer, lenp, ppos)
 				   __LINE__, __func__, ret);
 	}
 
-	ctl->data = NULL;
-	ctl->maxlen = 0;
 	mutex_unlock(&proc_mutex);
 
 	return ret;
@@ -269,6 +269,7 @@ static int get_pktlog_bufsize(struct pktlog_dev_t *pl_dev)
 static int
 qdf_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 {
+	struct ctl_table local = *ctl;
 	int ret, size;
 	ol_ath_generic_softc_handle scn;
 	struct pktlog_dev_t *pl_dev;
@@ -292,23 +293,21 @@ qdf_sysctl_decl(ath_sysctl_pktlog_size, ctl, write, filp, buffer, lenp, ppos)
 		return -ENODEV;
 	}
 
-	ctl->data = &size;
-	ctl->maxlen = sizeof(size);
+	local.data = &size;
+	local.maxlen = sizeof(size);
 
 	if (write) {
-		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(&local, write, filp, buffer,
 					       lenp, ppos);
 		if (ret == 0)
 			ret = pl_dev->pl_funcs->pktlog_setsize(
 					(struct hif_opaque_softc *)scn, size);
 	} else {
 		size = get_pktlog_bufsize(pl_dev);
-		ret = QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer,
+		ret = QDF_SYSCTL_PROC_DOINTVEC(&local, write, filp, buffer,
 					       lenp, ppos);
 	}
 
-	ctl->data = NULL;
-	ctl->maxlen = 0;
 	mutex_unlock(&proc_mutex);
 
 	return ret;
@@ -320,6 +319,7 @@ static int pktlog_sysctl_register(struct hif_opaque_softc *scn)
 	struct pktlog_dev_t *pl_dev = get_pktlog_handle();
 	struct ath_pktlog_info_lnx *pl_info_lnx;
 	char *proc_name;
+	char *path;
 
 	if (pl_dev) {
 		pl_info_lnx = PL_INFO_LNX(pl_dev->pl_info);
@@ -336,76 +336,66 @@ static int pktlog_sysctl_register(struct hif_opaque_softc *scn)
 	 * /proc/sys/PKTLOG_PROC_DIR/<adapter>/size for changing the buffer size
 	 */
 	memset(pl_info_lnx->sysctls, 0, sizeof(pl_info_lnx->sysctls));
-	pl_info_lnx->sysctls[0].procname = PKTLOG_PROC_DIR;
-	pl_info_lnx->sysctls[0].mode = PKTLOG_PROCSYS_DIR_PERM;
-	pl_info_lnx->sysctls[0].child = &pl_info_lnx->sysctls[2];
+	pl_info_lnx->sysctls[0].procname = "enable";
+	pl_info_lnx->sysctls[0].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[0].proc_handler = ath_sysctl_pktlog_enable;
+	pl_info_lnx->sysctls[0].extra1 = scn;
 
-	/* [1] is NULL terminator */
-	pl_info_lnx->sysctls[2].procname = proc_name;
-	pl_info_lnx->sysctls[2].mode = PKTLOG_PROCSYS_DIR_PERM;
-	pl_info_lnx->sysctls[2].child = &pl_info_lnx->sysctls[4];
+	pl_info_lnx->sysctls[1].procname = "size";
+	pl_info_lnx->sysctls[1].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[1].proc_handler = ath_sysctl_pktlog_size;
+	pl_info_lnx->sysctls[1].extra1 = scn;
 
-	/* [3] is NULL terminator */
-	pl_info_lnx->sysctls[4].procname = "enable";
+	pl_info_lnx->sysctls[2].procname = "options";
+	pl_info_lnx->sysctls[2].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[2].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[2].data = &pl_info_lnx->info.options;
+	pl_info_lnx->sysctls[2].maxlen = sizeof(pl_info_lnx->info.options);
+
+	pl_info_lnx->sysctls[3].procname = "sack_thr";
+	pl_info_lnx->sysctls[3].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[3].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[3].data = &pl_info_lnx->info.sack_thr;
+	pl_info_lnx->sysctls[3].maxlen = sizeof(pl_info_lnx->info.sack_thr);
+
+	pl_info_lnx->sysctls[4].procname = "tail_length";
 	pl_info_lnx->sysctls[4].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[4].proc_handler = ath_sysctl_pktlog_enable;
-	pl_info_lnx->sysctls[4].extra1 = scn;
+	pl_info_lnx->sysctls[4].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[4].data = &pl_info_lnx->info.tail_length;
+	pl_info_lnx->sysctls[4].maxlen = sizeof(pl_info_lnx->info.tail_length);
 
-	pl_info_lnx->sysctls[5].procname = "size";
+	pl_info_lnx->sysctls[5].procname = "thruput_thresh";
 	pl_info_lnx->sysctls[5].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[5].proc_handler = ath_sysctl_pktlog_size;
-	pl_info_lnx->sysctls[5].extra1 = scn;
-
-	pl_info_lnx->sysctls[6].procname = "options";
-	pl_info_lnx->sysctls[6].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[6].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[6].data = &pl_info_lnx->info.options;
-	pl_info_lnx->sysctls[6].maxlen = sizeof(pl_info_lnx->info.options);
-
-	pl_info_lnx->sysctls[7].procname = "sack_thr";
-	pl_info_lnx->sysctls[7].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[7].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[7].data = &pl_info_lnx->info.sack_thr;
-	pl_info_lnx->sysctls[7].maxlen = sizeof(pl_info_lnx->info.sack_thr);
-
-	pl_info_lnx->sysctls[8].procname = "tail_length";
-	pl_info_lnx->sysctls[8].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[8].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[8].data = &pl_info_lnx->info.tail_length;
-	pl_info_lnx->sysctls[8].maxlen = sizeof(pl_info_lnx->info.tail_length);
-
-	pl_info_lnx->sysctls[9].procname = "thruput_thresh";
-	pl_info_lnx->sysctls[9].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[9].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[9].data = &pl_info_lnx->info.thruput_thresh;
-	pl_info_lnx->sysctls[9].maxlen =
+	pl_info_lnx->sysctls[5].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[5].data = &pl_info_lnx->info.thruput_thresh;
+	pl_info_lnx->sysctls[5].maxlen =
 		sizeof(pl_info_lnx->info.thruput_thresh);
 
-	pl_info_lnx->sysctls[10].procname = "phyerr_thresh";
-	pl_info_lnx->sysctls[10].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[10].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[10].data = &pl_info_lnx->info.phyerr_thresh;
-	pl_info_lnx->sysctls[10].maxlen =
+	pl_info_lnx->sysctls[6].procname = "phyerr_thresh";
+	pl_info_lnx->sysctls[6].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[6].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[6].data = &pl_info_lnx->info.phyerr_thresh;
+	pl_info_lnx->sysctls[6].maxlen =
 		sizeof(pl_info_lnx->info.phyerr_thresh);
 
-	pl_info_lnx->sysctls[11].procname = "per_thresh";
-	pl_info_lnx->sysctls[11].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[11].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[11].data = &pl_info_lnx->info.per_thresh;
-	pl_info_lnx->sysctls[11].maxlen = sizeof(pl_info_lnx->info.per_thresh);
+	pl_info_lnx->sysctls[7].procname = "per_thresh";
+	pl_info_lnx->sysctls[7].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[7].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[7].data = &pl_info_lnx->info.per_thresh;
+	pl_info_lnx->sysctls[7].maxlen = sizeof(pl_info_lnx->info.per_thresh);
 
-	pl_info_lnx->sysctls[12].procname = "trigger_interval";
-	pl_info_lnx->sysctls[12].mode = PKTLOG_PROCSYS_PERM;
-	pl_info_lnx->sysctls[12].proc_handler = proc_dointvec;
-	pl_info_lnx->sysctls[12].data = &pl_info_lnx->info.trigger_interval;
-	pl_info_lnx->sysctls[12].maxlen =
+	pl_info_lnx->sysctls[8].procname = "trigger_interval";
+	pl_info_lnx->sysctls[8].mode = PKTLOG_PROCSYS_PERM;
+	pl_info_lnx->sysctls[8].proc_handler = proc_dointvec;
+	pl_info_lnx->sysctls[8].data = &pl_info_lnx->info.trigger_interval;
+	pl_info_lnx->sysctls[8].maxlen =
 		sizeof(pl_info_lnx->info.trigger_interval);
-	/* [13] is NULL terminator */
 
-	/* and register everything */
-	/* register_sysctl_table changed from 2.6.21 onwards */
-	pl_info_lnx->sysctl_header =
-		register_sysctl_table(pl_info_lnx->sysctls);
+	path = kasprintf(GFP_KERNEL, "%s/%s", PKTLOG_PROC_DIR, proc_name);
+	if (!path)
+		return -ENOMEM;
+	pl_info_lnx->sysctl_header = register_sysctl(path, pl_info_lnx->sysctls);
+	kfree(path);
 
 	if (!pl_info_lnx->sysctl_header) {
 		qdf_nofl_info("%s: failed to register sysctls!", proc_name);
