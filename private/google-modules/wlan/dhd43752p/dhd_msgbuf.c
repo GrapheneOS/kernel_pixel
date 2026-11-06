@@ -3589,6 +3589,9 @@ dhd_alloc_host_scbs(dhd_pub_t *dhd)
 }
 
 void
+dhd_set_host_cap(dhd_pub_t *dhd);
+
+void
 dhd_set_host_cap(dhd_pub_t *dhd)
 {
 	uint32 data = 0;
@@ -3909,6 +3912,9 @@ dhd_msgbuf_agg_h2d_db_timer_cancel(dhd_pub_t *dhd)
 	hrtimer_try_to_cancel(&agg_db_info->timer);
 }
 #endif /* AGG_H2D_DB */
+
+void
+dhd_prot_clearcounts(dhd_pub_t *dhd);
 
 void
 dhd_prot_clearcounts(dhd_pub_t *dhd)
@@ -9880,6 +9886,9 @@ void dmaxfer_free_dmaaddr(dhd_pub_t *dhd, dhd_dmaxfer_t *dmaxfer)
 
 /** test / loopback */
 int
+dhd_prepare_schedule_dmaxfer_free(dhd_pub_t *dhdp);
+
+int
 dhd_prepare_schedule_dmaxfer_free(dhd_pub_t *dhdp)
 {
 	dhd_prot_t *prot = dhdp->prot;
@@ -12714,6 +12723,8 @@ dhd_prot_process_d2h_host_ts_complete(dhd_pub_t *dhd, void* buf)
 }
 
 /** called on e.g. flow ring delete */
+void dhd_prot_clean_flow_ring(dhd_pub_t *dhd, void *msgbuf_flow_info);
+
 void dhd_prot_clean_flow_ring(dhd_pub_t *dhd, void *msgbuf_flow_info)
 {
 	msgbuf_ring_t *flow_ring = (msgbuf_ring_t *)msgbuf_flow_info;
@@ -14936,6 +14947,9 @@ dhd_prot_dma_indx_free(dhd_pub_t *dhd)
 	dhd_dma_buf_free(dhd, &prot->h2d_dma_indx_wr_buf);
 	dhd_dma_buf_free(dhd, &prot->d2h_dma_indx_rd_buf);
 }
+
+void
+dhd_msgbuf_delay_post_ts_bufs(dhd_pub_t *dhd);
 
 void
 dhd_msgbuf_delay_post_ts_bufs(dhd_pub_t *dhd)
