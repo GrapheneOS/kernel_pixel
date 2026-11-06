@@ -3951,7 +3951,7 @@ wl_cfgvendor_add_nan_reason_str(nan_status_type_t status, nan_hal_resp_t *nan_re
 	int num = (int)(sizeof(nan_status_reasonstr_map)/sizeof(nan_status_reasonstr_map[0]));
 	for (i = 0; i < num; i++) {
 		if (nan_status_reasonstr_map[i].status == status) {
-			strlcpy(nan_req_resp->nan_reason, nan_status_reasonstr_map[i].nan_reason,
+			strscpy(nan_req_resp->nan_reason, nan_status_reasonstr_map[i].nan_reason,
 				sizeof(nan_status_reasonstr_map[i].nan_reason));
 			break;
 		}
@@ -4212,7 +4212,7 @@ wl_cfgvendor_nan_parse_datapath_args(struct wiphy *wiphy,
 				ret = -EINVAL;
 				goto exit;
 			}
-			strlcpy((char *)cmd_data->ndp_iface, (char *)nla_data(iter),
+			strscpy((char *)cmd_data->ndp_iface, (char *)nla_data(iter),
 				nla_len(iter));
 			break;
 		case NAN_ATTRIBUTE_SECURITY:
@@ -8805,7 +8805,7 @@ static int wl_cfgvendor_dbg_get_ring_data(struct wiphy *wiphy,
 		type = nla_type(iter);
 		switch (type) {
 			case DEBUG_ATTRIBUTE_RING_NAME:
-				strlcpy(ring_name, nla_data(iter), sizeof(ring_name));
+				strscpy(ring_name, nla_data(iter), sizeof(ring_name));
 				break;
 			default:
 				WL_ERR(("Unknown type: %d\n", type));
@@ -11649,7 +11649,7 @@ wl_set_ota_nvram_ext(dhd_pub_t *dhd)
 	info = dhd_find_naming_info_by_chip_rev(dhd, &is_murata_fem);
 	if (info) {
 		WL_INFORM(("Nvram extension prefix is [%s].\n", info->nvram_ext));
-		strlcpy(ota_info->nvram_ext, info->nvram_ext, MAX_EXT_INFO_LEN);
+		strscpy(ota_info->nvram_ext, info->nvram_ext, MAX_EXT_INFO_LEN);
 	}
 	else {
 		WL_ERR(("info is null\n"));

@@ -1110,7 +1110,7 @@
 	#define ENABLE_INSMOD_NO_FW_LOAD
 	#if defined(DRIVER_TYPE) && (DRIVER_TYPE == BCMDHD_BUILTIN)
 		#define USE_LATE_INITCALL_SYNC
-		/* Use kernel strlcpy() implementation instead of one, defined in bcmstdlib_s.c */
+		/* Use kernel strscpy() implementation instead of one, defined in bcmstdlib_s.c */
 		#define BCM_USE_PLATFORM_STRLCPY
 #endif
 

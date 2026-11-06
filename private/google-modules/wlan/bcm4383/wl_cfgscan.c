@@ -21,6 +21,7 @@
  * <<Broadcom-WL-IPTag/Dual:>>
  */
 /* */
+#include <linux/sched/clock.h>
 #include <typedefs.h>
 #include <linuxver.h>
 #include <osl.h>
@@ -652,7 +653,7 @@ wl_cfg80211_add_iw_ie(struct bcm_cfg80211 *cfg, struct net_device *ndev, s32 bss
 		WL_ERR(("Error allocating buffer for IE\n"));
 		return -ENOMEM;
 	}
-	strlcpy(ie_setbuf->cmd, "add", sizeof(ie_setbuf->cmd));
+	strscpy(ie_setbuf->cmd, "add", sizeof(ie_setbuf->cmd));
 
 	/* Buffer contains only 1 IE */
 	ie_setbuf->ie_buffer.iecount = htod32(1);

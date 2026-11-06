@@ -541,7 +541,7 @@ wbrc_init(void)
 		goto err_register;
 	}
 
-	wbrc_data->wbrc_bt_dev_class = class_create(THIS_MODULE, CLASS_NAME);
+	wbrc_data->wbrc_bt_dev_class = class_create(CLASS_NAME);
 	err = PTR_ERR(wbrc_data->wbrc_bt_dev_class);
 	if (IS_ERR(wbrc_data->wbrc_bt_dev_class)) {
 		pr_alert("Failed to register device class\n");

@@ -63,7 +63,7 @@
 #include <linux/rtc.h>
 #include <linux/namei.h>
 #include <asm/uaccess.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
 #include <dhd_linux_priv.h>
 
 #include <epivers.h>
@@ -359,7 +359,9 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 				qdisc = dev_ingress_queue(ifp->net)->qdisc_sleeping;
 				if (qdisc != NULL && (qdisc->flags & TCQ_F_INGRESS)) {
 #ifdef CONFIG_NET_CLS_ACT
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 6, 0))
+					if (ifp->net->tcx_ingress != NULL)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
 					if (ifp->net->miniq_ingress != NULL)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 2, 0))
 					if (ifp->net->ingress_cl_list != NULL)
