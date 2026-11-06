@@ -845,9 +845,6 @@ static int aoc_compr_set_params(struct snd_soc_component *component,
 	uint8_t *temp_data_buf;
 	int buffer_size;
 	unsigned long avail;
-#if !IS_ENABLED(CONFIG_SOC_GS101) && !IS_ENABLED(CONFIG_SOC_GS201)
-	int i;
-#endif
 
 	pr_debug("%s, fragment size = %d, number of fragment = %d\n", __func__,
 		 params->buffer.fragment_size, params->buffer.fragments);
@@ -880,15 +877,17 @@ static int aoc_compr_set_params(struct snd_soc_component *component,
 
 	/* TODO: need to double check on the AoC decoder requirements */
 	alsa_stream->channels  =  params->codec.ch_out;
+	/* The vendor HAL uses the snd_codec layout from before pcm_format. */
 	alsa_stream->compr_offload_codec =
-		snd_audiocodec_to_aoc_decoder(params->codec.id, codec->reserved[0]);
+		snd_audiocodec_to_aoc_decoder(params->codec.id, codec->pcm_format);
 	memset(alsa_stream->compr_offload_codec_options, 0,
 		sizeof(alsa_stream->compr_offload_codec_options));
 #if !IS_ENABLED(CONFIG_SOC_GS101) && !IS_ENABLED(CONFIG_SOC_GS201)
 	if (alsa_stream->compr_offload_codec == AUDIO_OUTPUT_DECODER_PCM) {
-		for(i = 0;i < CODEC_RESERVED_SIZE;i ++)
-			alsa_stream->compr_offload_codec_options[i] =
-				(uint8_t)codec->reserved[i];
+		alsa_stream->compr_offload_codec_options[PCM_OPTION_INDEX_BIT_DEPTH] =
+			(uint8_t)codec->pcm_format;
+		alsa_stream->compr_offload_codec_options[PCM_OPTION_INDEX_FORMAT] =
+			(uint8_t)codec->reserved[0];
 
 		alsa_stream->compr_offload_codec_options[PCM_OPTION_INDEX_BITFIELD_1] =
 			alsa_stream->stream_type == MMAPED ? 1 : 0;
