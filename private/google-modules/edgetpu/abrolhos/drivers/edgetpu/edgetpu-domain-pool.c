@@ -5,9 +5,11 @@
  * Copyright (C) 2022 Google, LLC.
  */
 
+#include <linux/err.h>
 #include <linux/idr.h>
 #include <linux/iommu.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include "edgetpu-domain-pool.h"
 #include "edgetpu-internal.h"
@@ -38,12 +40,12 @@ int edgetpu_domain_pool_init(struct edgetpu_dev *etdev, struct edgetpu_domain_po
 		return -ENOMEM;
 	}
 	for (i = 0; i < size; i++) {
-		domain = iommu_domain_alloc(pool->etdev->dev->bus);
-		if (!domain) {
+		domain = iommu_paging_domain_alloc(pool->etdev->dev);
+		if (IS_ERR(domain)) {
 			etdev_err(pool->etdev, "Failed to allocate iommu domain %d of %u\n", i + 1,
 				  size);
 			edgetpu_domain_pool_destroy(pool);
-			return -ENOMEM;
+			return PTR_ERR(domain);
 		}
 		pool->array[i] = domain;
 	}
@@ -64,8 +66,11 @@ struct iommu_domain *edgetpu_domain_pool_alloc(struct edgetpu_domain_pool *pool)
 {
 	int id;
 
-	if (!pool->size)
-		return iommu_domain_alloc(pool->etdev->dev->bus);
+	if (!pool->size) {
+		struct iommu_domain *domain = iommu_paging_domain_alloc(pool->etdev->dev);
+
+		return IS_ERR(domain) ? NULL : domain;
+	}
 
 	id = ida_alloc_max(&pool->idp, pool->size - 1, GFP_KERNEL);
 
@@ -136,7 +141,7 @@ int edgetpu_domain_pool_attach_domain(struct edgetpu_domain_pool *pool, struct i
 	if (pasid < 0)
 		return pasid;
 
-	ret = iommu_attach_device_pasid(domain, pool->etdev->dev, pasid);
+	ret = iommu_attach_device_pasid(domain, pool->etdev->dev, pasid, NULL);
 	if (ret) {
 		ida_free(&pool->pasid_pool, pasid);
 		return ret;
