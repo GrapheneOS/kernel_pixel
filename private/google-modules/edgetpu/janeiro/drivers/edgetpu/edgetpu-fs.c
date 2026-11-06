@@ -223,7 +223,7 @@ static int edgetpu_ioctl_join_group(struct edgetpu_client *client,
 				    u64 leader_fd)
 {
 	struct fd f = fdget(leader_fd);
-	struct file *file = f.file;
+	struct file *file = fd_file(f);
 	struct edgetpu_client *leader;
 	int ret;
 	struct edgetpu_device_group *group;
@@ -1154,7 +1154,7 @@ static const struct attribute_group edgetpu_attr_group = {
 
 const struct file_operations edgetpu_fops = {
 	.owner = THIS_MODULE,
-	.llseek = no_llseek,
+	.llseek = NULL,
 	.mmap = edgetpu_fs_mmap,
 	.open = edgetpu_fs_open,
 	.release = edgetpu_fs_release,
