@@ -2157,6 +2157,10 @@ create_error:
 		if (ppa->q[i]->manager)
 			cpif_exit_netrx_mng(ppa->q[i]->manager);
 
+		if (ppa->q[i]->napi.dev) {
+			napi_disable(&ppa->q[i]->napi);
+			netif_napi_del(&ppa->q[i]->napi);
+		}
 		kfree(ppa->q[i]->dma_addr);
 		kfree(ppa->q[i]);
 	}
