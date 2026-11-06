@@ -106,14 +106,26 @@ static struct platform_device gxp_sscd_dev = {
 
 static void gxp_common_platform_reg_sscd(void)
 {
-	/* Registers SSCD platform device */
-	if (platform_device_register(&gxp_sscd_dev))
-		pr_err(GXP_NAME " Unable to register SSCD platform device\n");
+	int ret;
+
+	device_initialize(&gxp_sscd_dev.dev);
+	ret = device_set_driver_override(&gxp_sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&gxp_sscd_dev);
+	if (ret) {
+		platform_device_put(&gxp_sscd_dev);
+		pr_err(GXP_NAME " Unable to register SSCD platform device: %d\n", ret);
+		return;
+	}
+	gxp_sscd_registered = true;
 }
 
 static void gxp_common_platform_unreg_sscd(void)
 {
-	platform_device_unregister(&gxp_sscd_dev);
+	if (gxp_sscd_registered) {
+		platform_device_unregister(&gxp_sscd_dev);
+		gxp_sscd_registered = false;
+	}
 }
 
 #else /* CONFIG_SUBSYSTEM_COREDUMP */
