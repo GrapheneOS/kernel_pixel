@@ -6122,9 +6122,10 @@ static int _wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
  * Return: 0 for success, non-zero for failure
  */
 int wlan_hdd_cfg80211_get_station(struct wiphy *wiphy,
-				  struct net_device *dev, const uint8_t *mac,
+				  struct wireless_dev *cfg_wdev, const uint8_t *mac,
 				  struct station_info *sinfo)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -6172,10 +6173,11 @@ static int __wlan_hdd_cfg80211_dump_station(struct wiphy *wiphy,
  * Return: 0 for success, non-zero for failure
  */
 int wlan_hdd_cfg80211_dump_station(struct wiphy *wiphy,
-				struct net_device *dev,
+				struct wireless_dev *cfg_wdev,
 				int idx, u8 *mac,
 				struct station_info *sinfo)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 

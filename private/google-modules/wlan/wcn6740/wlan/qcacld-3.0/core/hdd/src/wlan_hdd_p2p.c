@@ -199,7 +199,8 @@ static int __wlan_hdd_cfg80211_remain_on_channel(struct wiphy *wiphy,
 int wlan_hdd_cfg80211_remain_on_channel(struct wiphy *wiphy,
 					struct wireless_dev *wdev,
 					struct ieee80211_channel *chan,
-					unsigned int duration, u64 *cookie)
+					unsigned int duration, u64 *cookie,
+					const u8 *addr)
 {
 	int errno;
 	struct osif_vdev_sync *vdev_sync;

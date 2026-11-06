@@ -101,7 +101,7 @@ struct dbglog_slot {
 	unsigned int length;
 	unsigned int dropped;
 	/* max ATH6KL_FWLOG_PAYLOAD_SIZE bytes */
-	uint8_t payload[0];
+	uint8_t payload[];
 } __packed;
 
 typedef struct event_report_s {
