@@ -26,6 +26,8 @@
 #endif
 
 /* avoid checking rx elecidle when access DBI */
+void exynos_pcie_rc_phy_check_rx_elecidle(void *phy_pcs_base_regs, int val, int ch_num);
+
 void exynos_pcie_rc_phy_check_rx_elecidle(void *phy_pcs_base_regs, int val, int ch_num)
 {
 	/*
@@ -34,6 +36,8 @@ void exynos_pcie_rc_phy_check_rx_elecidle(void *phy_pcs_base_regs, int val, int 
 }
 
 /* PHY all power down */
+void exynos_pcie_rc_phy_all_pwrdn(struct exynos_pcie *exynos_pcie, int ch_num);
+
 void exynos_pcie_rc_phy_all_pwrdn(struct exynos_pcie *exynos_pcie, int ch_num)
 {
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
@@ -66,6 +70,8 @@ void exynos_pcie_rc_phy_all_pwrdn(struct exynos_pcie *exynos_pcie, int ch_num)
 }
 
 /* PHY all power down clear */
+void exynos_pcie_rc_phy_all_pwrdn_clear(struct exynos_pcie *exynos_pcie, int ch_num);
+
 void exynos_pcie_rc_phy_all_pwrdn_clear(struct exynos_pcie *exynos_pcie, int ch_num)
 {
 	void __iomem *phy_base_regs = exynos_pcie->phy_base;
@@ -102,6 +108,8 @@ void exynos_pcie_rc_pcie_phy_otp_config(void *phy_base_regs, int ch_num)
 #endif
 
 #define LCPLL_REF_CLK_SEL	(0x3 << 4)
+
+void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num);
 
 void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 {
@@ -321,6 +329,8 @@ void exynos_pcie_rc_pcie_phy_config(struct exynos_pcie *exynos_pcie, int ch_num)
 	writel(0x4, phy_base_regs + 0xBF4);
 }
 EXPORT_SYMBOL_GPL(exynos_pcie_rc_pcie_phy_config);
+
+int exynos_pcie_rc_eom(struct device *dev, void *phy_base_regs);
 
 int exynos_pcie_rc_eom(struct device *dev, void *phy_base_regs)
 {
