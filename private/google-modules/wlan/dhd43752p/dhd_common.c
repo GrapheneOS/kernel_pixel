@@ -1046,6 +1046,9 @@ dhd_dump_sssr_reg_info_v1(dhd_pub_t *dhd)
 #endif /* DHD_PCIE_REG_ACCESS */
 
 void
+dhd_dump_sssr_reg_info(dhd_pub_t *dhd);
+
+void
 dhd_dump_sssr_reg_info(dhd_pub_t *dhd)
 {
 #ifdef DHD_PCIE_REG_ACCESS
@@ -1072,6 +1075,9 @@ dhd_dump_sssr_reg_info(dhd_pub_t *dhd)
 void dhdpcie_fill_sssr_reg_info(dhd_pub_t *dhd);
 
 int
+dhd_get_sssr_reg_info(dhd_pub_t *dhd);
+
+int
 dhd_get_sssr_reg_info(dhd_pub_t *dhd)
 {
 	int ret;
@@ -1095,6 +1101,9 @@ done:
 	dhd_dump_sssr_reg_info(dhd);
 	return BCME_OK;
 }
+
+uint32
+dhd_get_sssr_bufsize(dhd_pub_t *dhd);
 
 uint32
 dhd_get_sssr_bufsize(dhd_pub_t *dhd)
@@ -1500,6 +1509,8 @@ static int dhd_append_sssr_tlv(uint8 *buf_dst, int type_idx, int buf_remain)
 }
 
 /* reconstruct dump memory with socram and sssr dump as TLV format */
+int dhd_collect_coredump(dhd_pub_t *dhdp, dhd_dump_t *dump);
+
 int dhd_collect_coredump(dhd_pub_t *dhdp, dhd_dump_t *dump)
 {
 	uint8 *buf_ptr = dhdp->coredump_mem;
@@ -2328,6 +2339,8 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifidx, wl_ioctl_t *ioc, void *buf, int len)
 	return ret;
 }
 
+uint wl_get_port_num(wl_io_pport_t *io_pport);
+
 uint wl_get_port_num(wl_io_pport_t *io_pport)
 {
 	return 0;
@@ -2387,6 +2400,9 @@ int dhd_bus_console_in(dhd_pub_t *dhd, uchar *msg, uint msglen)
 #endif /* DHD_DEBUG && BCMDHDUSB  */
 
 #ifdef DHD_DEBUG
+int
+dhd_mem_debug(dhd_pub_t *dhd, uchar *msg, uint msglen);
+
 int
 dhd_mem_debug(dhd_pub_t *dhd, uchar *msg, uint msglen)
 {
@@ -2504,6 +2520,9 @@ dhd_mw_list_delete(dhd_pub_t *dhd, dll_t *list_head)
 	}
 }
 #ifdef BCMPCIE
+int
+dhd_flow_ring_debug(dhd_pub_t *dhd, char *msg, uint msglen);
+
 int
 dhd_flow_ring_debug(dhd_pub_t *dhd, char *msg, uint msglen)
 {
@@ -5408,6 +5427,9 @@ dhd_print_dongle_hck_id(uint32 id, hck_id_to_str_t *hck)
 }
 
 void
+dhd_parse_hck_common_sw_event(bcm_xtlv_t *wl_hc);
+
+void
 dhd_parse_hck_common_sw_event(bcm_xtlv_t *wl_hc)
 {
 
@@ -5640,11 +5662,18 @@ dngl_host_event_process(dhd_pub_t *dhdp, bcm_dngl_event_t *event,
  */
 #if !defined(NDIS)
 int
+wl_event_process_default(wl_event_msg_t *event, struct wl_evt_pport *evt_pport);
+
+int
 wl_event_process_default(wl_event_msg_t *event, struct wl_evt_pport *evt_pport)
 {
 	return BCME_OK;
 }
 #endif
+
+int
+wl_event_process(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
+	uint pktlen, void **data_ptr, void *raw_event);
 
 int
 wl_event_process(dhd_pub_t *dhd_pub, int *ifidx, void *pktdata,
@@ -6106,6 +6135,9 @@ dhd_print_buf(void *pbuf, int len, int bytes_per_line)
 #if defined(PKT_FILTER_SUPPORT) || defined(DHD_PKT_LOGGING)
 /* Convert user's input in hex pattern to byte-size mask */
 int
+wl_pattern_atoh(char *src, char *dst);
+
+int
 wl_pattern_atoh(char *src, char *dst)
 {
 	int i;
@@ -6128,6 +6160,9 @@ wl_pattern_atoh(char *src, char *dst)
 	}
 	return i;
 }
+
+int
+pattern_atoh_len(char *src, char *dst, int len);
 
 int
 pattern_atoh_len(char *src, char *dst, int len)
@@ -7738,6 +7773,9 @@ int dhd_keep_alive_onoff(dhd_pub_t *dhd)
  *  SSIDs list parsing from cscan tlv list
  */
 int
+wl_parse_ssid_list_tlv(char** list_str, wlc_ssid_ext_t* ssid, int max, int *bytes_left);
+
+int
 wl_parse_ssid_list_tlv(char** list_str, wlc_ssid_ext_t* ssid, int max, int *bytes_left)
 {
 	char* str;
@@ -7815,6 +7853,10 @@ wl_parse_ssid_list_tlv(char** list_str, wlc_ssid_ext_t* ssid, int max, int *byte
 */
 int
 wl_iw_parse_data_tlv(char** list_str, void *dst, int dst_size, const char token,
+                     int input_size, int *bytes_left);
+
+int
+wl_iw_parse_data_tlv(char** list_str, void *dst, int dst_size, const char token,
                      int input_size, int *bytes_left)
 {
 	char* str;
@@ -7863,6 +7905,10 @@ wl_iw_parse_data_tlv(char** list_str, void *dst, int dst_size, const char token,
 /*
  *  channel list parsing from cscan tlv list
 */
+int
+wl_iw_parse_channel_list_tlv(char** list_str, uint16* channel_list,
+                             int channel_num, int *bytes_left);
+
 int
 wl_iw_parse_channel_list_tlv(char** list_str, uint16* channel_list,
                              int channel_num, int *bytes_left)
@@ -7914,6 +7960,9 @@ wl_iw_parse_channel_list_tlv(char** list_str, uint16* channel_list,
  * not been copied.  Returns -1 on empty string, or on ssid too long.
  */
 int
+wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max);
+
+int
 wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max)
 {
 	char* str, *ptr;
@@ -7954,6 +8003,9 @@ wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max)
 /*
  * Parse channel list from iwpriv CSCAN
  */
+int
+wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int channel_num);
+
 int
 wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int channel_num)
 {
@@ -8229,6 +8281,10 @@ err:
 	return ret;
 }
 #endif /* DHD_LINUX_STD_FW_API */
+
+int
+dhd_download_2_dongle(dhd_pub_t	*dhd, char *iovar, uint16 flag, uint16 dload_type,
+	unsigned char *dload_buf, int len);
 
 int
 dhd_download_2_dongle(dhd_pub_t	*dhd, char *iovar, uint16 flag, uint16 dload_type,
@@ -8539,6 +8595,9 @@ dhd_apply_default_txcap(dhd_pub_t  *dhd, char *path)
 {
 	return 0;
 }
+
+int
+dhd_check_current_clm_data(dhd_pub_t *dhd);
 
 int
 dhd_check_current_clm_data(dhd_pub_t *dhd)
@@ -10687,6 +10746,10 @@ static event_ecounters_cfg_t event_ecounters_cfg_tbl[] = {
 };
 
 /* Accepts an argument to -s, -g or -f and creates an XTLV */
+int
+dhd_create_ecounters_params(dhd_pub_t *dhd, uint16 type, uint16 if_slice_idx,
+	uint16 stats_rep, uint8 **xtlv);
+
 int
 dhd_create_ecounters_params(dhd_pub_t *dhd, uint16 type, uint16 if_slice_idx,
 	uint16 stats_rep, uint8 **xtlv)

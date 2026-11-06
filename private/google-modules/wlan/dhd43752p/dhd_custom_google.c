@@ -106,7 +106,6 @@ static struct sscd_platform_data sscd_pdata;
 static bool sscd_registered;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -289,6 +288,9 @@ dhd_set_platform_ext_name(char *hw_rev, char* hw_sku)
 }
 
 void
+dhd_set_platform_ext_name_for_chip_version(char* chip_version);
+
+void
 dhd_set_platform_ext_name_for_chip_version(char* chip_version)
 {
 	if (strncmp(val_revision, "NA", MAX_HW_INFO_LEN) != 0) {
@@ -358,6 +360,9 @@ fail:
 }
 
 int
+dhd_get_platform_naming_for_nvram_clmblob_file(char *file_name);
+
+int
 dhd_get_platform_naming_for_nvram_clmblob_file(char *file_name)
 {
 	int i, error = BCME_OK;
@@ -378,7 +383,7 @@ dhd_get_platform_naming_for_nvram_clmblob_file(char *file_name)
 		error = dhd_check_file_exist(tmp_fname);
 		if (error == BCME_OK) {
 			DHD_LOG_MEM(("%02d path[%s]\n", i, tmp_fname));
-			strlcpy(file_name, tmp_fname, MAX_FILE_LEN);
+			strscpy(file_name, tmp_fname, MAX_FILE_LEN);
 			break;
 		}
 	}
@@ -568,6 +573,9 @@ dhd_wifi_init_gpio(void)
 }
 
 int
+dhd_wlan_power(int onoff);
+
+int
 dhd_wlan_power(int onoff)
 {
 	DHD_INFO(("------------------------------------------------\n"));
@@ -633,6 +641,8 @@ uint32 dhd_plat_get_info_size(void)
 {
 	return sizeof(dhd_plat_info_t);
 }
+
+void plat_pcie_notify_cb(struct exynos_pcie_notify *pcie_notify);
 
 void plat_pcie_notify_cb(struct exynos_pcie_notify *pcie_notify)
 {
@@ -780,12 +790,18 @@ static int dhd_wlan_get_wake_irq(void)
 
 #if defined(CONFIG_BCMDHD_OOB_HOST_WAKE) && defined(CONFIG_BCMDHD_GET_OOB_STATE)
 int
+dhd_get_wlan_oob_gpio(void);
+
+int
 dhd_get_wlan_oob_gpio(void)
 {
 	return gpio_is_valid(wlan_host_wake_up) ?
 		gpio_get_value(wlan_host_wake_up) : -1;
 }
 EXPORT_SYMBOL(dhd_get_wlan_oob_gpio);
+int
+dhd_get_wlan_oob_gpio_number(void);
+
 int
 dhd_get_wlan_oob_gpio_number(void)
 {
@@ -835,6 +851,9 @@ dhd_wlan_set_reg_off(void) {
 }
 
 int
+dhd_wlan_init(void);
+
+int
 dhd_wlan_init(void)
 {
 	int ret;
@@ -842,7 +861,10 @@ dhd_wlan_init(void)
 	DHD_INFO(("%s: START.......\n", __FUNCTION__));
 
 #ifdef DHD_COREDUMP
-	ret = platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
 	if (ret) {
 		platform_device_put(&sscd_dev);
 		return ret;

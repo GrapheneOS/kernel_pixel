@@ -2004,6 +2004,9 @@ int ewpr_diff_serial(ewpr_serial_info_t *info, char *buf,
 int ewpr_single_serial(ewpr_serial_info_t *info, char *buf, int buf_len, void *ptr, char del);
 
 int
+ewpr_serial_basic(char *buf, int buf_len, uint32 data, int format, int display_type, char del);
+
+int
 ewpr_serial_basic(char *buf, int buf_len, uint32 data, int format, int display_type, char del)
 {
 	if (format == EWP_HEX) {
@@ -2216,6 +2219,9 @@ ewpr_debug_dump(ewpr_serial_info_t *tbl, void **ring)
 	}
 }
 #endif /* EWPR_DEBUG */
+
+uint32
+dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, int type);
 
 uint32
 dhd_event_log_filter_serialize(dhd_pub_t *dhdp, char *in_buf, uint32 tot_len, int type)

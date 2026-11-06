@@ -280,7 +280,6 @@ static const struct dev_pm_ops dhdpcie_pm_ops = {
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
 static struct pci_driver dhdpcie_driver = {
-	node:		{&dhdpcie_driver.node, &dhdpcie_driver.node},
 	name:		"pcieh",
 	id_table:	dhdpcie_pci_devid,
 	probe:		dhdpcie_pci_probe,
@@ -1602,6 +1601,9 @@ dhdpcie_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 }
 
 int
+dhdpcie_detach(dhdpcie_info_t *pch);
+
+int
 dhdpcie_detach(dhdpcie_info_t *pch)
 {
 	if (pch) {
@@ -1711,6 +1713,9 @@ dhdpcie_pci_shutdown(struct pci_dev *pdev)
 
 /* Enable Linux Msi */
 int
+dhdpcie_enable_msi(struct pci_dev *pdev, unsigned int min_vecs, unsigned int max_vecs);
+
+int
 dhdpcie_enable_msi(struct pci_dev *pdev, unsigned int min_vecs, unsigned int max_vecs)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 8, 0))
@@ -1723,6 +1728,9 @@ dhdpcie_enable_msi(struct pci_dev *pdev, unsigned int min_vecs, unsigned int max
 }
 
 /* Disable Linux Msi */
+void
+dhdpcie_disable_msi(struct pci_dev *pdev);
+
 void
 dhdpcie_disable_msi(struct pci_dev *pdev)
 {
@@ -1737,6 +1745,9 @@ dhdpcie_disable_msi(struct pci_dev *pdev)
 }
 
 /* Request Linux irq */
+int
+dhdpcie_request_irq(dhdpcie_info_t *dhdpcie_info);
+
 int
 dhdpcie_request_irq(dhdpcie_info_t *dhdpcie_info)
 {
@@ -1824,6 +1835,8 @@ Description:
 Access PCI configuration space, retrieve  PCI allocated resources , updates in resource structure.
 
  */
+int dhdpcie_get_resource(dhdpcie_info_t *dhdpcie_info);
+
 int dhdpcie_get_resource(dhdpcie_info_t *dhdpcie_info)
 {
 	phys_addr_t  bar0_addr, bar1_addr;
@@ -1915,6 +1928,8 @@ err:
 	return -1;  /* FAILURE */
 }
 
+int dhdpcie_scan_resource(dhdpcie_info_t *dhdpcie_info);
+
 int dhdpcie_scan_resource(dhdpcie_info_t *dhdpcie_info)
 {
 
@@ -1971,6 +1986,8 @@ void dhdpcie_dump_resource(dhd_bus_t *bus)
 }
 
 #ifdef SUPPORT_LINKDOWN_RECOVERY
+void dhdpcie_linkdown_cb(struct pci_dev *pdev);
+
 void dhdpcie_linkdown_cb(struct pci_dev *pdev)
 {
 	dhdpcie_info_t *pch = NULL;
