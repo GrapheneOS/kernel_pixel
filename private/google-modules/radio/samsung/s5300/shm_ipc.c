@@ -496,11 +496,6 @@ fail:
 	return ret;
 }
 
-static int cp_shmem_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static const struct of_device_id cp_shmem_dt_match[] = {
 	{ .compatible = "samsung,exynos-cp-shmem", },
 	{},
@@ -509,7 +504,6 @@ MODULE_DEVICE_TABLE(of, cp_shmem_dt_match);
 
 static struct platform_driver cp_shmem_driver = {
 	.probe = cp_shmem_probe,
-	.remove = cp_shmem_remove,
 	.driver = {
 		.name = "cp_shmem",
 		.owner = THIS_MODULE,
