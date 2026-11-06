@@ -202,7 +202,7 @@ void ucfg_wlan_vdev_mgr_get_param_bssid(
  * Return: void
  */
 void ucfg_wlan_vdev_mgr_get_beacon_buffer(struct wlan_objmgr_vdev *vdev,
-					  qdf_nbuf_t buf);
+					  qdf_nbuf_t *buf);
 
 /**
  * ucfg_wlan_vdev_mgr_get_trans_bssid() – ucfg MLME API to
