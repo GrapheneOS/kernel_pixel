@@ -283,7 +283,6 @@ static const struct dev_pm_ops dhd_pcie_pm_ops = {
 #endif /* OEM_ANDROID */
 
 static struct pci_driver dhdpcie_driver = {
-	node:		{&dhdpcie_driver.node, &dhdpcie_driver.node},
 	name:		"pcieh",
 	id_table:	dhdpcie_pci_devid,
 	probe:		dhdpcie_pci_probe,

@@ -5776,7 +5776,7 @@ int dhd_sync_with_dongle(dhd_pub_t *dhd)
 #ifndef OEM_ANDROID
 	/* Get the device MAC address */
 	bzero(buf, sizeof(buf));
-	strlcpy(buf, "cur_etheraddr", sizeof(buf));
+	strscpy(buf, "cur_etheraddr", sizeof(buf));
 	ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0);
 	if (ret < 0) {
 		DHD_ERROR(("%s: GET iovar cur_etheraddr FAILED\n", __FUNCTION__));
@@ -11618,7 +11618,7 @@ dhd_msgbuf_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len,
 
 		if ((len >= strlen("bcmerrorstr")) &&
 			(!strcmp((char *)buf, "bcmerrorstr"))) {
-			strlcpy((char *)buf, bcmerrorstr(dhd->dongle_error), copylen);
+			strscpy((char *)buf, bcmerrorstr(dhd->dongle_error), copylen);
 			goto done;
 		} else if ((len >= strlen("bcmerror")) &&
 			!strcmp((char *)buf, "bcmerror")) {
@@ -12782,7 +12782,7 @@ dhd_prot_ring_attach(dhd_pub_t *dhd, msgbuf_ring_t *ring, const char *name,
 	ASSERT((max_items < 0xFFFF) && (item_len < 0xFFFF) && (ringid < 0xFFFF));
 
 	/* Init name */
-	strlcpy((char *)ring->name, name, sizeof(ring->name));
+	strscpy((char *)ring->name, name, sizeof(ring->name));
 
 	ring->idx = ringid;
 
