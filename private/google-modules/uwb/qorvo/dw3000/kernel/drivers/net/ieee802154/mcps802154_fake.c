@@ -481,7 +481,7 @@ static void __exit fake_exit(void)
 	driver_llhw = NULL;
 	/*Deleting the timer aka the periodic task.*/
 	stop_timer = true;
-	del_timer(&g_timer);
+	timer_delete(&g_timer);
 }
 
 module_init(fake_init);

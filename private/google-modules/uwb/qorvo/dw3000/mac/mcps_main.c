@@ -159,6 +159,8 @@ void mcps802154_unregister_llhw(struct mcps802154_llhw *llhw)
 }
 EXPORT_SYMBOL(mcps802154_unregister_llhw);
 
+__le64 mcps802154_get_extended_addr(struct mcps802154_llhw *llhw);
+
 __le64 mcps802154_get_extended_addr(struct mcps802154_llhw *llhw)
 {
 	struct mcps802154_local *local = llhw_to_local(llhw);
@@ -167,6 +169,8 @@ __le64 mcps802154_get_extended_addr(struct mcps802154_llhw *llhw)
 }
 EXPORT_SYMBOL(mcps802154_get_extended_addr);
 
+__le16 mcps802154_get_pan_id(struct mcps802154_llhw *llhw);
+
 __le16 mcps802154_get_pan_id(struct mcps802154_llhw *llhw)
 {
 	struct mcps802154_local *local = llhw_to_local(llhw);
@@ -174,6 +178,8 @@ __le16 mcps802154_get_pan_id(struct mcps802154_llhw *llhw)
 	return local->pib.mac_pan_id;
 }
 EXPORT_SYMBOL(mcps802154_get_pan_id);
+
+__le16 mcps802154_get_short_addr(struct mcps802154_llhw *llhw);
 
 __le16 mcps802154_get_short_addr(struct mcps802154_llhw *llhw)
 {
@@ -184,6 +190,9 @@ __le16 mcps802154_get_short_addr(struct mcps802154_llhw *llhw)
 EXPORT_SYMBOL(mcps802154_get_short_addr);
 
 const struct mcps802154_channel *
+mcps802154_get_current_channel(struct mcps802154_llhw *llhw);
+
+const struct mcps802154_channel *
 mcps802154_get_current_channel(struct mcps802154_llhw *llhw)
 {
 	struct mcps802154_local *local = llhw_to_local(llhw);
@@ -191,6 +200,9 @@ mcps802154_get_current_channel(struct mcps802154_llhw *llhw)
 	return &local->pib.phy_current_channel;
 }
 EXPORT_SYMBOL(mcps802154_get_current_channel);
+
+int mcps802154_get_current_timestamp_dtu(struct mcps802154_llhw *llhw,
+					 u32 *timestamp_dtu);
 
 int mcps802154_get_current_timestamp_dtu(struct mcps802154_llhw *llhw,
 					 u32 *timestamp_dtu)
@@ -203,6 +215,11 @@ int mcps802154_get_current_timestamp_dtu(struct mcps802154_llhw *llhw,
 	return llhw_get_current_timestamp_dtu(local, timestamp_dtu);
 }
 EXPORT_SYMBOL(mcps802154_get_current_timestamp_dtu);
+
+u64 mcps802154_tx_timestamp_dtu_to_rmarker_rctu(
+	struct mcps802154_llhw *llhw, u32 tx_timestamp_dtu,
+	const struct mcps802154_hrp_uwb_params *hrp_uwb_params,
+	const struct mcps802154_channel *channel_params, int ant_set_id);
 
 u64 mcps802154_tx_timestamp_dtu_to_rmarker_rctu(
 	struct mcps802154_llhw *llhw, u32 tx_timestamp_dtu,
@@ -220,6 +237,10 @@ EXPORT_SYMBOL(mcps802154_tx_timestamp_dtu_to_rmarker_rctu);
 
 s64 mcps802154_difference_timestamp_rctu(struct mcps802154_llhw *llhw,
 					 u64 timestamp_a_rctu,
+					 u64 timestamp_b_rctu);
+
+s64 mcps802154_difference_timestamp_rctu(struct mcps802154_llhw *llhw,
+					 u64 timestamp_a_rctu,
 					 u64 timestamp_b_rctu)
 {
 	struct mcps802154_local *local = llhw_to_local(llhw);
@@ -228,6 +249,9 @@ s64 mcps802154_difference_timestamp_rctu(struct mcps802154_llhw *llhw,
 					      timestamp_b_rctu);
 }
 EXPORT_SYMBOL(mcps802154_difference_timestamp_rctu);
+
+int mcps802154_rx_get_measurement(struct mcps802154_llhw *llhw, void *rx_ctx,
+				  struct mcps802154_rx_measurement_info *info);
 
 int mcps802154_rx_get_measurement(struct mcps802154_llhw *llhw, void *rx_ctx,
 				  struct mcps802154_rx_measurement_info *info)
@@ -239,6 +263,9 @@ int mcps802154_rx_get_measurement(struct mcps802154_llhw *llhw, void *rx_ctx,
 EXPORT_SYMBOL(mcps802154_rx_get_measurement);
 
 int mcps802154_compute_frame_duration_dtu(struct mcps802154_llhw *llhw,
+					  int payload_bytes);
+
+int mcps802154_compute_frame_duration_dtu(struct mcps802154_llhw *llhw,
 					  int payload_bytes)
 {
 	struct mcps802154_local *local = llhw_to_local(llhw);
@@ -248,6 +275,9 @@ int mcps802154_compute_frame_duration_dtu(struct mcps802154_llhw *llhw,
 EXPORT_SYMBOL(mcps802154_compute_frame_duration_dtu);
 
 int mcps802154_vendor_cmd(struct mcps802154_llhw *llhw, u32 vendor_id,
+			  u32 subcmd, void *data, size_t data_len);
+
+int mcps802154_vendor_cmd(struct mcps802154_llhw *llhw, u32 vendor_id,
 			  u32 subcmd, void *data, size_t data_len)
 {
 	struct mcps802154_local *local = llhw_to_local(llhw);
@@ -255,6 +285,10 @@ int mcps802154_vendor_cmd(struct mcps802154_llhw *llhw, u32 vendor_id,
 	return llhw_vendor_cmd(local, vendor_id, subcmd, data, data_len);
 }
 EXPORT_SYMBOL(mcps802154_vendor_cmd);
+
+int mcps802154_check_hrp_uwb_params(
+	struct mcps802154_llhw *llhw,
+	const struct mcps802154_hrp_uwb_params *hrp_uwb_params);
 
 int mcps802154_check_hrp_uwb_params(
 	struct mcps802154_llhw *llhw,
@@ -284,6 +318,8 @@ struct mcps802154_local *mcps802154_get_first_by_idx(int hw_idx)
 	return result;
 }
 
+int __init mcps802154_init(void);
+
 int __init mcps802154_init(void)
 {
 	int r;
@@ -304,6 +340,8 @@ int __init mcps802154_init(void)
 
 	return r;
 }
+
+void __exit mcps802154_exit(void);
 
 void __exit mcps802154_exit(void)
 {

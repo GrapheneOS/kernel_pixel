@@ -107,14 +107,14 @@ static int dw3000_spi_probe(struct spi_device *spi)
 	dw->spi_pid = spi->controller->kworker.task->pid;
 #endif
 #else
-	dw->spi_pid = spi->master->kworker.task->pid;
+	dw->spi_pid = spi->controller->kworker.task->pid;
 #endif
 	dw->auto_sleep_margin_us = DW3000_AUTO_DEEP_SLEEP_MARGIN_US;
 	dw->current_operational_state = DW3000_OP_STATE_OFF;
 	init_waitqueue_head(&dw->operational_state_wq);
 	/* Initialization of the idle timer for wakeup. */
-	hrtimer_init(&dw->idle_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	dw->idle_timer.function = dw3000_idle_timeout;
+	hrtimer_setup(&dw->idle_timer, dw3000_idle_timeout,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	dev_info(dw->dev, "Loading driver uwbm-5.2.0-rc1...");
 	dw3000_sysfs_init(dw);
@@ -123,7 +123,7 @@ static int dw3000_spi_probe(struct spi_device *spi)
 	dev_info(dw->dev, "setup mode: %d, %u bits/w, %u Hz max\n",
 		 (int)(spi->mode & (SPI_CPOL | SPI_CPHA)), spi->bits_per_word,
 		 spi->max_speed_hz);
-	dev_info(dw->dev, "can_dma: %d\n", spi->master->can_dma != NULL);
+	dev_info(dw->dev, "can_dma: %d\n", spi->controller->can_dma != NULL);
 	spi->bits_per_word = 8;
 #if (KERNEL_VERSION(5, 3, 0) <= LINUX_VERSION_CODE)
 	spi->rt = 1;

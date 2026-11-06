@@ -291,10 +291,14 @@ static struct mcps802154_region_ops pctt_region_ops = {
 	/* clang-format on */
 };
 
+int __init pctt_region_init(void);
+
 int __init pctt_region_init(void)
 {
 	return mcps802154_region_register(&pctt_region_ops);
 }
+
+void __exit pctt_region_exit(void);
 
 void __exit pctt_region_exit(void)
 {
