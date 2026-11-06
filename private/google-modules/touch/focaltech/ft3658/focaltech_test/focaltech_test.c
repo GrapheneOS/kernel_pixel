@@ -380,6 +380,8 @@ read_massdata_err:
     return ret;
 }
 
+int read_mass_data_u16(u8 addr, int byte_num, int *buf);
+
 int read_mass_data_u16(u8 addr, int byte_num, int *buf)
 {
     int ret = 0;
@@ -1527,7 +1529,7 @@ void fts_test_save_data(char *name, int code, int *data, int datacnt,
         return ;
     }
 
-    strlcpy(info->name, name, TEST_ITEM_NAME_MAX - 1);
+    strscpy(info->name, name, TEST_ITEM_NAME_MAX - 1);
     info->code = code;
     info->mc_sc = mc_sc;
     info->key_support = key;
@@ -2813,6 +2815,8 @@ static const struct file_operations proc_test_baseline_fops = {
 
 /* Strength test for full size */
 /* Transpose raw */
+void transpose_raw(u8 *src, u8 *dist, int tx, int rx, bool big_endian);
+
 void transpose_raw(u8 *src, u8 *dist, int tx, int rx, bool big_endian) {
     int i = 0;
     int j = 0;

@@ -266,6 +266,8 @@ static int short_test_ch_to_ch(
 /*
  * start_scan - start to scan a frame
  */
+int ft5652_start_scan(int frame_num);
+
 int ft5652_start_scan(int frame_num)
 {
     int ret = 0;
@@ -1724,6 +1726,8 @@ static int fts_test_get_raw_restore_reg(u8 fre, u8 data_sel, u8 data_type) {
     return ret;
 }
 
+int fts_test_get_raw(int *raw, u8 tx, u8 rx);
+
 int fts_test_get_raw(int *raw, u8 tx, u8 rx)
 {
     int ret = 0;
@@ -1847,6 +1851,8 @@ int fts_test_get_raw(int *raw, u8 tx, u8 rx)
     FTS_TEST_INFO("====== Test Item: rawdata test end\n");
     return ret;
 }
+
+int fts_test_get_baseline(int *raw,int *base_raw, u8 tx, u8 rx);
 
 int fts_test_get_baseline(int *raw,int *base_raw, u8 tx, u8 rx)
 {
@@ -2037,6 +2043,8 @@ test_err:
     return ret;
 }
 
+int fts_test_get_strength(u8 *base_raw, u16 base_raw_size);
+
 int fts_test_get_strength(u8 *base_raw, u16 base_raw_size)
 {
     int ret = 0;
@@ -2053,6 +2061,8 @@ int fts_test_get_strength(u8 *base_raw, u16 base_raw_size)
     FTS_TEST_INFO("====== Test Item: strength test end\n");
     return ret;
 }
+
+int fts_test_get_uniformity_data(int *rawdata_linearity, u8 tx, u8 rx);
 
 int fts_test_get_uniformity_data(int *rawdata_linearity, u8 tx, u8 rx)
 {
@@ -2245,6 +2255,8 @@ exit:
     return ret;
 }
 
+int fts_test_get_scap_cb(int *scap_cb, u8 tx, u8 rx, int *fwcheck);
+
 int fts_test_get_scap_cb(int *scap_cb, u8 tx, u8 rx, int *fwcheck)
 {
     int ret = 0;
@@ -2395,6 +2407,8 @@ exit:
     FTS_TEST_INFO("====== Test Item: Scap CB Test end\n");
     return ret;
 }
+
+int fts_test_get_scap_raw(int *scap_raw, u8 tx, u8 rx, int *fwcheck);
 
 int fts_test_get_scap_raw(int *scap_raw, u8 tx, u8 rx, int *fwcheck)
 {
@@ -2559,6 +2573,8 @@ static int fts_test_get_short_restore_reg(u8 res_level) {
     return ret;
 }
 
+int fts_test_get_short(int *short_data, u8 tx, u8 rx);
+
 int fts_test_get_short(int *short_data, u8 tx, u8 rx)
 {
     int ret = 0;
@@ -2621,6 +2637,8 @@ int fts_test_get_short(int *short_data, u8 tx, u8 rx)
     FTS_TEST_INFO("====== Test Item: Short Test end");
     return ret;
 }
+
+int fts_test_get_noise(int *noise, u8 tx, u8 rx);
 
 int fts_test_get_noise(int *noise, u8 tx, u8 rx)
 {
@@ -2760,6 +2778,8 @@ exit:
     FTS_TEST_INFO("====== Test Item: Noise test end");
     return ret;
 }
+
+int fts_test_get_panel_differ(int *panel_differ, u8 tx, u8 rx);
 
 int fts_test_get_panel_differ(int *panel_differ, u8 tx, u8 rx)
 {
