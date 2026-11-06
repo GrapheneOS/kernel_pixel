@@ -42,6 +42,7 @@ def device_build(
         dtbo_outs = [],
         dtbo_additional_outs = [],
         module_outs = [],
+        additional_kmi_symbol_lists = [],
         ext_dtbos = [],
         ext_modules = [],
         ddk_uapi_headers = [],
@@ -87,6 +88,7 @@ def device_build(
         dtbo_additional_outs: The list of dtbos building from dts_srcs but being excluded from
             dtbo.img.
         module_outs: The list of in-tree modules building from kernel sources.
+        additional_kmi_symbol_lists: Additional exported symbols used by this device.
         ext_dtbos: Extra dtbos.
         ext_modules: Out-of-tree modules. Combined with the base device.
         ddk_uapi_headers: DDK uapi headers which will be merged into kernel-uapi-headers.tar.gz.
@@ -244,6 +246,7 @@ def device_build(
         kconfig_ext = target_kconfig_ext,
         make_goals = ["modules", "dtbs"],
         kmi_symbol_list = target_kmi_symbol_list,
+        additional_kmi_symbol_lists = additional_kmi_symbol_lists,
         module_outs = module_outs,
         strip_modules = True,
         visibility = ["//visibility:private"],
