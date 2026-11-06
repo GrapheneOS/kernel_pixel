@@ -745,12 +745,44 @@ static int kvm_arm_smmu_detach_stream(struct host_arm_smmu_device *host_smmu,
 	return kvm_iommu_detach_dev(host_smmu->id, domain->id, sid, pasid);
 }
 
+static void kvm_arm_smmu_forget_dev_pasid(struct kvm_arm_smmu_master *master,
+					  ioasid_t pasid)
+{
+	struct arm_smmu_device *smmu = master->smmu;
+	struct kvm_arm_smmu_domain *domain = xa_load(&master->domains, pasid);
+	unsigned long flags;
+	int i;
+
+	if (!domain)
+		return;
+
+	spin_lock_irqsave(&domain->masters_lock, flags);
+	for (i = 0; i < MAX_MASTER_DEVICES_PER_DOMAIN; i++) {
+		if (domain->masters[i] == master && domain->pasid[i] == pasid) {
+			domain->masters[i] = NULL;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&domain->masters_lock, flags);
+
+	/*
+	 * smmu->streams_mutex is taken to provide synchronization with respect to
+	 * kvm_arm_smmu_handle_event(), since that acquires the same lock. Taking the
+	 * lock makes domain removal atomic with respect to domain usage when reporting
+	 * faults related to a domain to an IOMMU client driver. This makes it so that
+	 * the domain doesn't go away while it is being used in the fault reporting
+	 * logic.
+	 */
+	mutex_lock(&smmu->streams_mutex);
+	xa_erase(&master->domains, pasid);
+	mutex_unlock(&smmu->streams_mutex);
+}
+
 static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
 					 struct kvm_arm_smmu_master *master,
 					 ioasid_t pasid)
 {
 	int i, ret;
-	unsigned long flags;
 	struct arm_smmu_device *smmu = &host_smmu->smmu;
 	struct kvm_arm_smmu_domain *domain = xa_load(&master->domains, pasid);
 	struct hyp_arm_smmu_v3_s1_ctx *s1_ctx = NULL;
@@ -758,6 +790,12 @@ static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
 	if (!domain)
 		return 0;
 
+	if (!pasid) {
+		unsigned long other = 0;
+
+		if (xa_find_after(&master->domains, &other, ULONG_MAX, XA_PRESENT))
+			return -EBUSY;
+	}
 	if (kvm_arm_smmu_is_domain_nested(domain)) {
 		/* EL2 only supports nested attachments at PASID 0. */
 		if (pasid || master->cd_table.used_ssids)
@@ -790,33 +828,9 @@ static int kvm_arm_smmu_detach_dev_pasid(struct host_arm_smmu_device *host_smmu,
 		kvm_arm_smmu_free_hyp_shared_page(s1_ctx);
 	}
 
-	/*
-	 * smmu->streams_mutex is taken to provide synchronization with respect to
-	 * kvm_arm_smmu_handle_event(), since that acquires the same lock. Taking the
-	 * lock makes domain removal atomic with respect to domain usage when reporting
-	 * faults related to a domain to an IOMMU client driver. This makes it so that
-	 * the domain doesn't go away while it is being used in the fault reporting
-	 * logic.
-	 */
-	spin_lock_irqsave(&domain->masters_lock, flags);
-	for (i = 0; i < MAX_MASTER_DEVICES_PER_DOMAIN; i++) {
-		if (domain->masters[i] == master && domain->pasid[i] == pasid) {
-			domain->masters[i] = NULL;
-			break;
-		}
-	}
-	spin_unlock_irqrestore(&domain->masters_lock, flags);
-	mutex_lock(&smmu->streams_mutex);
-	xa_erase(&master->domains, pasid);
-	mutex_unlock(&smmu->streams_mutex);
+	kvm_arm_smmu_forget_dev_pasid(master, pasid);
 
 	return 0;
-}
-
-static int kvm_arm_smmu_detach_dev(struct host_arm_smmu_device *host_smmu,
-				   struct kvm_arm_smmu_master *master)
-{
-	return kvm_arm_smmu_detach_dev_pasid(host_smmu, master, 0);
 }
 
 static int kvm_arm_smmu_blocking_set_dev_pasid(struct iommu_domain *domain,
@@ -845,11 +859,27 @@ static void kvm_arm_smmu_release_device(struct device *dev)
 {
 	struct kvm_arm_smmu_master *master = dev_iommu_priv_get(dev);
 	struct host_arm_smmu_device *host_smmu = smmu_to_host(master->smmu);
+	struct kvm_arm_smmu_domain *domain;
+	unsigned long pasid;
+	bool detached = true;
 
-	kvm_arm_smmu_detach_dev(host_smmu, master);
+	/* EL2 can release PASID 0's context table only after every other PASID. */
+	xa_for_each_start(&master->domains, pasid, domain, 1) {
+		/* Removal cannot retain pointers to the departing master. */
+		if (WARN_ON(kvm_arm_smmu_detach_dev_pasid(host_smmu, master, pasid))) {
+			detached = false;
+			kvm_arm_smmu_forget_dev_pasid(master, pasid);
+		}
+	}
+	/* A failed nonzero detach must keep PASID 0's context table alive. */
+	if (detached && WARN_ON(kvm_arm_smmu_detach_dev_pasid(host_smmu, master, 0)))
+		detached = false;
+	if (!detached)
+		kvm_arm_smmu_forget_dev_pasid(master, 0);
 	xa_destroy(&master->domains);
 	kvm_arm_smmu_remove_master(master);
-	if (arm_smmu_cdtab_allocated(&master->cd_table))
+	/* Retain context tables if EL2 could still be walking them. */
+	if (detached && arm_smmu_cdtab_allocated(&master->cd_table))
 		kvm_arm_smmu_free_cd_tables(master);
 	kfree(master);
 }
