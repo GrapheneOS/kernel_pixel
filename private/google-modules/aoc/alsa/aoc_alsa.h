@@ -147,8 +147,6 @@ enum uc_device_id {
 
 #define NULL_PATH -1
 
-#define CODEC_RESERVED_SIZE 3
-
 #define AOC_CODEC_TAG 0xA0CC
 
 enum aoc_offload_codec {
