@@ -6125,12 +6125,12 @@ wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 #elif ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) && \
 		(LINUX_VERSION_CODE < KERNEL_VERSION(3, 18, 0)))
 s32 wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-	const u8 *peer, u8 action_code, u8 dialog_token, u16 status_code,
+	const u8 *peer, int link_id, u8 action_code, u8 dialog_token, u16 status_code,
 	u32 peer_capability, const u8 *buf, size_t len)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0) &&	\
 	(LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)))
 s32 wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
-       const u8 *peer, u8 action_code, u8 dialog_token, u16 status_code,
+       const u8 *peer, int link_id, u8 action_code, u8 dialog_token, u16 status_code,
        u32 peer_capability, bool initiator, const u8 *buf, size_t len)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0))
 int wl_cfg80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
@@ -6686,7 +6686,7 @@ wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec,
 	cfg80211_ch_switch_notify(dev, &chandef, 0);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) || defined(WL_CH_SWITCH_BKPORT)
 	/* FIXME: need to consider puncturing bitmap */
-	cfg80211_ch_switch_notify(dev, &chandef, link_id, 0);
+	cfg80211_ch_switch_notify(dev, &chandef, link_id);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 2)) || defined(WL_MLO_BKPORT)
 	cfg80211_ch_switch_notify(dev, &chandef, link_id);
 #else
@@ -9456,7 +9456,7 @@ wl_cfgvif_apply_default_keep_alive(struct net_device *ndev, struct bcm_cfg80211 
 	str = "mkeep_alive";
 	str_len = strlen(str);
 	buf_len = str_len + 1;
-	strlcpy(buf, str, buf_len);
+	strscpy(buf, str, buf_len);
 	pbuf_len -= buf_len;
 
 	if (sizeof(wl_mkeep_alive_pkt_v2_t) + buf_len > WLC_IOCTL_SMLEN) {

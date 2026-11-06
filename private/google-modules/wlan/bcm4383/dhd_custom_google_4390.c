@@ -717,7 +717,7 @@ dhd_get_platform_naming_for_nvram_clmblob_file(download_type_t component, char *
 		error = dhd_check_file_exist(tmp_fname);
 		if (error == BCME_OK) {
 			DHD_LOG_MEM(("%02d path[%s]\n", i, tmp_fname));
-			strlcpy(file_name, tmp_fname, MAX_FILE_LEN);
+			strscpy(file_name, tmp_fname, MAX_FILE_LEN);
 			break;
 		}
 	}

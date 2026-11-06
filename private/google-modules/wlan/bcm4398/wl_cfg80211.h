@@ -3981,8 +3981,6 @@ int wl_cfg80211_sroam_config(struct bcm_cfg80211 *cfg, struct net_device *dev, b
 int wl_cfg80211_get_roam_params(struct net_device *dev, uint32 *data, uint16 data_len, uint16 id);
 int wl_cfg80211_set_roam_params(struct net_device *dev, uint32 *data, uint16 data_len, uint16 id);
 
-extern void wl_cfg80211_wdev_lock(struct wireless_dev *wdev);
-extern void wl_cfg80211_wdev_unlock(struct wireless_dev *wdev);
 
 extern u8 *wl_get_up_table_netinfo(struct bcm_cfg80211 *cfg, struct net_device *ndev);
 extern void wl_store_up_table_netinfo(struct bcm_cfg80211 *cfg,

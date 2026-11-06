@@ -5124,8 +5124,7 @@ static int wl_android_get_p2p_dev_addr(struct net_device *ndev, char *command, i
 	int ret;
 	struct ether_addr p2pdev_addr;
 
-#define MAC_ADDR_STR_LEN 18
-	if (total_len < MAC_ADDR_STR_LEN) {
+	if (total_len < MAC_ADDR_STR_LEN + 1) {
 		DHD_ERROR(("wl_android_get_p2p_dev_addr: buflen %d is less than p2p dev addr\n",
 			total_len));
 		return -1;
@@ -5272,7 +5271,7 @@ wl_android_set_mac_address_filter(struct net_device *dev, char* str)
 			ret = -EINVAL;
 			goto exit;
 		}
-		strlcpy(eabuf, token, sizeof(eabuf));
+		strscpy(eabuf, token, sizeof(eabuf));
 		if (!(ret = bcm_ether_atoe(eabuf, &list->ea[i]))) {
 			DHD_ERROR(("wl_android_set_mac_address_filter : mac parsing err index=%d,"
 				" addr=%s\n",
@@ -8729,7 +8728,7 @@ int wl_android_set_ibss_beacon_ouidata(struct net_device *dev, char *command, in
 		return -ENOMEM;
 	}
 	/* Copy the vndr_ie SET command ("add"/"del") to the buffer */
-	strlcpy(vndr_ie->cmd, "add", sizeof(vndr_ie->cmd));
+	strscpy(vndr_ie->cmd, "add", sizeof(vndr_ie->cmd));
 
 	/* Set the IE count - the buffer contains only 1 IE */
 	iecount = htod32(1);
@@ -10322,7 +10321,7 @@ wl_android_get_ap_rps(struct net_device *dev, char *command, int total_len)
 		return -EINVAL;
 	ifname = token;
 
-	strlcpy(name, ifname, sizeof(name));
+	strscpy(name, ifname, sizeof(name));
 	WL_DBG(("ifacename %s\n", name));
 
 	bytes_written = wl_get_ap_rps(dev, command, name, total_len);
@@ -10364,7 +10363,7 @@ wl_android_set_ap_rps(struct net_device *dev, char *command, int total_len)
 		return -EINVAL;
 	ifname = token;
 
-	strlcpy(name, ifname, sizeof(name));
+	strscpy(name, ifname, sizeof(name));
 	WL_DBG(("enable %d, ifacename %s\n", enable, name));
 
 	err = wl_set_ap_rps(dev, enable? TRUE: FALSE, name);
@@ -10422,7 +10421,7 @@ wl_android_set_ap_rps_params(struct net_device *dev, char *command, int total_le
 	if (!token)
 		return -EINVAL;
 	ifname = token;
-	strlcpy(name, ifname, sizeof(name));
+	strscpy(name, ifname, sizeof(name));
 
 	WL_DBG(("pps %d, level %d, quiettime %d, sta_assoc_check %d, "
 		"ifacename %s\n", rps.pps, rps.level, rps.quiet_time,
@@ -11070,7 +11069,7 @@ wl_android_set_ap_suspend(struct net_device *dev, char *command, int total_len)
 	}
 	ifname = token;
 
-	strlcpy(name, ifname, sizeof(name));
+	strscpy(name, ifname, sizeof(name));
 	WL_DBG(("suspend %d, ifacename %s\n", suspend, name));
 
 	err = wl_set_ap_suspend(dev, suspend? TRUE: FALSE, name);
@@ -11117,7 +11116,7 @@ wl_android_set_ap_bw(struct net_device *dev, char *command, int total_len)
 	}
 	ifname = token;
 
-	strlcpy(name, ifname, sizeof(name));
+	strscpy(name, ifname, sizeof(name));
 	WL_DBG(("bw %d, ifacename %s\n", bw, name));
 
 	err = wl_set_ap_bw(dev, bw, name);
@@ -11154,7 +11153,7 @@ wl_android_get_ap_bw(struct net_device *dev, char *command, int total_len)
 	}
 	ifname = token;
 
-	strlcpy(name, ifname, sizeof(name));
+	strscpy(name, ifname, sizeof(name));
 	WL_DBG(("ifacename %s\n", name));
 
 	bytes_written = wl_get_ap_bw(dev, command, name, total_len);

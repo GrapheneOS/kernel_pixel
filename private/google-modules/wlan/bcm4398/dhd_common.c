@@ -8791,7 +8791,7 @@ wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max)
 
 		if (idx < max) {
 			bzero(ssid[idx].SSID, sizeof(ssid[idx].SSID));
-			strlcpy((char*)ssid[idx].SSID, str, sizeof(ssid[idx].SSID));
+			strscpy((char*)ssid[idx].SSID, str, sizeof(ssid[idx].SSID));
 			ssid[idx].SSID_len = sizeof(ssid[idx].SSID);
 		}
 		idx++;
@@ -11451,7 +11451,7 @@ dhd_print_fw_ver_from_file(dhd_pub_t *dhdp, char *fwpath)
 	* core capture logs will contain FW version read from the file
 	*/
 	bzero(fw_version, FW_VER_STR_LEN);
-	strlcpy(fw_version, str, FW_VER_STR_LEN);
+	strscpy(fw_version, str, FW_VER_STR_LEN);
 
 exit:
 	if (file)
@@ -12587,7 +12587,7 @@ dhd_convert_memdump_type_to_str(uint32 type, char *buf, size_t buf_len, int subs
 			break;
 	}
 
-	strlcpy(buf, type_str, buf_len);
+	strscpy(buf, type_str, buf_len);
 }
 #endif /* DHD_DEBUG */
 
@@ -12837,7 +12837,7 @@ dhd_convert_hang_reason_to_str(uint32 reason, char *buf, size_t buf_len)
 			break;
 	}
 
-	strlcpy(buf, type_str, buf_len);
+	strscpy(buf, type_str, buf_len);
 }
 #endif /* DHD_COREDUMP */
 
