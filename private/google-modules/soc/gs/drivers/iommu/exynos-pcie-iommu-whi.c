@@ -52,6 +52,8 @@ static u32 wrong_pf_cnt;
 static struct history_buff pcie_map_history, pcie_unmap_history;
 #endif
 
+void pcie_iommu_tlb_invalidate_all(int hsi_block_num);
+
 void pcie_iommu_tlb_invalidate_all(int hsi_block_num)
 {
 	int pcie_vid = g_sysmmu_drvdata[hsi_block_num]->pcie_vid;
@@ -67,6 +69,8 @@ void pcie_iommu_tlb_invalidate_all(int hsi_block_num)
 	writel(0x1, g_sysmmu_drvdata[hsi_block_num]->sfrbase + REG_MMU_FLUSH_VID(pcie_vid));
 }
 EXPORT_SYMBOL_GPL(pcie_iommu_tlb_invalidate_all);
+
+void pcie_iommu_tlb_invalidate_range(dma_addr_t iova, size_t size, int hsi_block_num);
 
 void pcie_iommu_tlb_invalidate_range(dma_addr_t iova, size_t size, int hsi_block_num)
 {
@@ -325,6 +329,8 @@ static unsigned int dump_tlb_entry_port_type(void __iomem *sfrbase,
 	}
 	return 0;
 }
+
+int pcie_sysmmu_register_fault_handler(struct notifier_block *pcie_sysmmu_nb, int hsi_block_num);
 
 int pcie_sysmmu_register_fault_handler(struct notifier_block *pcie_sysmmu_nb, int hsi_block_num)
 {

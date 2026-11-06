@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 obj-$(CONFIG_SAMSUNG_IOMMU) += samsung_iommu.o
-samsung_iommu-objs += samsung-iommu.o samsung-iommu-fault.o
+samsung_iommu-objs += samsung-iommu.o samsung-iommu-fault.o samsung-iommu-client.o
 obj-$(CONFIG_SAMSUNG_IOMMU_GROUP) += samsung-iommu-group.o
 obj-$(CONFIG_SAMSUNG_SECURE_IOVA) += samsung-secure-iova.o
 obj-$(CONFIG_IOVAD_VENDOR_HOOKS) += iovad-vendor-hooks.o
