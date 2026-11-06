@@ -685,7 +685,7 @@ static ssize_t s2mpg12_pmic_write_show(struct device *dev,
 static DEVICE_ATTR_RW(s2mpg12_pmic_write);
 static DEVICE_ATTR_RW(s2mpg12_pmic_read);
 
-int create_s2mpg12_pmic_sysfs(struct s2mpg12_pmic *s2mpg12)
+static int create_s2mpg12_pmic_sysfs(struct s2mpg12_pmic *s2mpg12)
 {
 	struct device *s2mpg12_pmic = s2mpg12->dev;
 	int err = -ENODEV;
@@ -730,7 +730,7 @@ static irqreturn_t s2mpg12_buck_ocp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void s2mpg12_ocp_detection_config(struct s2mpg12_pmic *s2mpg12,
+static void s2mpg12_ocp_detection_config(struct s2mpg12_pmic *s2mpg12,
 				  struct s2mpg12_platform_data *pdata)
 {
 	int ret;
@@ -762,7 +762,7 @@ void s2mpg12_ocp_detection_config(struct s2mpg12_pmic *s2mpg12,
 
 }
 
-int s2mpg12_smpl_warn(struct s2mpg12_pmic *s2mpg12,
+static int s2mpg12_smpl_warn(struct s2mpg12_pmic *s2mpg12,
 		      struct s2mpg12_platform_data *pdata)
 {
 	u8 val;
@@ -780,7 +780,7 @@ int s2mpg12_smpl_warn(struct s2mpg12_pmic *s2mpg12,
 	return ret;
 }
 
-int s2mpg12_ocp_warn(struct s2mpg12_pmic *s2mpg12,
+static int s2mpg12_ocp_warn(struct s2mpg12_pmic *s2mpg12,
 		     struct s2mpg12_platform_data *pdata)
 {
 	u8 val;
@@ -889,7 +889,7 @@ err:
 	return -1;
 }
 
-int s2mpg12_oi_function(struct s2mpg12_pmic *s2mpg12)
+static int __maybe_unused s2mpg12_oi_function(struct s2mpg12_pmic *s2mpg12)
 {
 	int ret = 0;
 	/* add OI configuration code if necessary */

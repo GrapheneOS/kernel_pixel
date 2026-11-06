@@ -13,7 +13,7 @@
 #if IS_ENABLED(CONFIG_SOC_GS101)
 #include <linux/mfd/samsung/s2mpg10-meter.h>
 #include <linux/mfd/samsung/s2mpg11-meter.h>
-#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg10-gs.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #elif IS_ENABLED(CONFIG_SOC_GS201)
 #include <linux/mfd/samsung/s2mpg12-meter.h>

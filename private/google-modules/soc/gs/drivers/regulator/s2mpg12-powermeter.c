@@ -468,7 +468,7 @@ static DEVICE_ATTR_RO(s2mpg12_lpf_power);
 static DEVICE_ATTR_RO(s2mpg12_acc_current);
 static DEVICE_ATTR_RO(s2mpg12_acc_power);
 
-int create_s2mpg12_meter_sysfs(struct s2mpg12_meter *s2mpg12)
+static int create_s2mpg12_meter_sysfs(struct s2mpg12_meter *s2mpg12)
 {
 	struct device *s2mpg12_meter_dev = s2mpg12->dev;
 	int err = -ENODEV;
