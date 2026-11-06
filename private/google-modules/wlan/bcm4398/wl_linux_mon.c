@@ -326,7 +326,7 @@ int dhd_add_monitor(const char *name, struct net_device **new_ndev)
 	}
 
 	ndev->type = ARPHRD_IEEE80211_RADIOTAP;
-	strlcpy(ndev->name, name, sizeof(ndev->name));
+	strscpy(ndev->name, name, sizeof(ndev->name));
 	ndev->netdev_ops = &dhd_mon_if_ops;
 
 	ret = dhd_register_net(ndev, true);

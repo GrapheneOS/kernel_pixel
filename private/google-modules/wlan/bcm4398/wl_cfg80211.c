@@ -21,6 +21,7 @@
  * <<Broadcom-WL-IPTag/Dual:>>
  */
 /* */
+#include <linux/sched/clock.h>
 #include <typedefs.h>
 #include <linuxver.h>
 #include <linux/kernel.h>
@@ -537,7 +538,7 @@ static int wl_cfg80211_is_wfa_cap_ie(wlcfg_assoc_info_t *info, struct bcm_cfg802
 /*
  * cfg80211_ops api/callback list
  */
-static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed);
+static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx, u32 changed);
 #ifdef WLAIBSS_MCHAN
 static bcm_struct_cfgdev* bcm_cfg80211_add_ibss_if(struct wiphy *wiphy, char *name);
 static s32 bcm_cfg80211_del_ibss_if(struct wiphy *wiphy, bcm_struct_cfgdev *cfgdev);
@@ -548,11 +549,11 @@ static s32 wl_cfg80211_leave_ibss(struct wiphy *wiphy,
 	struct net_device *dev);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 static s32 wl_cfg80211_get_station(struct wiphy *wiphy,
-	struct net_device *dev, const u8 *mac,
+	struct wireless_dev *cfg_wdev, const u8 *mac,
 	struct station_info *sinfo);
 #else
 static s32 wl_cfg80211_get_station(struct wiphy *wiphy,
-	struct net_device *dev, u8 *mac,
+	struct wireless_dev *cfg_wdev, u8 *mac,
 	struct station_info *sinfo);
 #endif
 static s32 wl_cfg80211_set_power_mgmt(struct wiphy *wiphy,
@@ -568,7 +569,7 @@ static s32 wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	u16 reason_code);
 #if defined(WL_CFG80211_P2P_DEV_IF)
 static s32
-wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, int radio_idx,
 	enum nl80211_tx_power_setting type, s32 mbm);
 #else
 static s32
@@ -577,34 +578,34 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 #endif /* WL_CFG80211_P2P_DEV_IF */
 #if defined(WL_CFG80211_P2P_DEV_IF)
 static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy,
-	struct wireless_dev *wdev, s32 *dbm);
+	struct wireless_dev *wdev, int radio_idx, unsigned int link_id, s32 *dbm);
 #else
 static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm);
 #endif /* WL_CFG80211_P2P_DEV_IF */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && defined(BCN_PROT_AP)
 static s32 wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy,
-	struct net_device *dev, u8 key_idx);
+	struct wireless_dev *cfg_wdev, u8 key_idx);
 #endif
 #if defined(WL_SUPPORT_BACKPORTED_KPATCHES) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0))
 static s32 wl_cfg80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	bcm_struct_cfgdev *cfgdev, u64 cookie);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 static s32 wl_cfg80211_del_station(
-		struct wiphy *wiphy, struct net_device *ndev,
+		struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 		struct station_del_parameters *params);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 static s32 wl_cfg80211_del_station(struct wiphy *wiphy,
-	struct net_device *ndev, const u8* mac_addr);
+	struct wireless_dev *cfg_wdev, const u8* mac_addr);
 #else
 static s32 wl_cfg80211_del_station(struct wiphy *wiphy,
-	struct net_device *ndev, u8* mac_addr);
+	struct wireless_dev *cfg_wdev, u8* mac_addr);
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 static s32 wl_cfg80211_change_station(struct wiphy *wiphy,
-	struct net_device *dev, const u8 *mac, struct station_parameters *params);
+	struct wireless_dev *cfg_wdev, const u8 *mac, struct station_parameters *params);
 #else
 static s32 wl_cfg80211_change_station(struct wiphy *wiphy,
-	struct net_device *dev, u8 *mac, struct station_parameters *params);
+	struct wireless_dev *cfg_wdev, u8 *mac, struct station_parameters *params);
 #endif
 #endif /* WL_SUPPORT_BACKPORTED_KPATCHES || KERNEL_VER >= KERNEL_VERSION(3, 2, 0)) */
 static s32 wl_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *dev,
@@ -633,7 +634,7 @@ s32 wl_cfg80211_add_del_bss(struct bcm_cfg80211 *cfg,
 	struct net_device *ndev, s32 bsscfg_idx,
 	wl_iftype_t brcm_iftype, s32 del, u8 *addr);
 #ifdef WL_CFG80211_MONITOR
-int wl_cfg80211_set_monitor_channel(struct wiphy *wiphy,
+int wl_cfg80211_set_monitor_channel(struct wiphy *wiphy, struct net_device *monitor_dev,
 	struct cfg80211_chan_def *chandef);
 #endif /* WL_CFG80211_MONITOR */
 #ifdef GTK_OFFLOAD_SUPPORT
@@ -3153,7 +3154,7 @@ wl_cfg80211_notify_ifadd(struct net_device *dev,
 		if_event_info->ifidx = ifidx;
 		if_event_info->bssidx = bssidx;
 		if_event_info->role = role;
-		strlcpy(if_event_info->name, name, sizeof(if_event_info->name));
+		strscpy(if_event_info->name, name, sizeof(if_event_info->name));
 		if_event_info->name[IFNAMSIZ - 1] = '\0';
 		if (mac)
 			memcpy(if_event_info->mac, mac, ETHER_ADDR_LEN);
@@ -3275,7 +3276,7 @@ static s32 wl_set_retry(struct net_device *dev, u32 retry, bool l)
 	return err;
 }
 
-static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static s32 wl_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx, u32 changed)
 {
 	struct bcm_cfg80211 *cfg = (struct bcm_cfg80211 *)wiphy_priv(wiphy);
 	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
@@ -3360,7 +3361,7 @@ wl_cfg80211_ibss_vsie_delete(struct net_device *dev)
 			goto end;
 		}
 		/* change the command from "add" to "del" */
-		strlcpy(cfg->ibss_vsie->cmd, "del", sizeof(cfg->ibss_vsie->cmd));
+		strscpy(cfg->ibss_vsie->cmd, "del", sizeof(cfg->ibss_vsie->cmd));
 
 		ret = wldev_iovar_setbuf_bsscfg(dev, "vndr_ie",
 				cfg->ibss_vsie, cfg->ibss_vsie_len,
@@ -8287,7 +8288,7 @@ exit:
 
 #if defined(WL_CFG80211_P2P_DEV_IF)
 static s32
-wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
+wl_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev, int radio_idx,
 	enum nl80211_tx_power_setting type, s32 mbm)
 #else
 static s32
@@ -8337,7 +8338,7 @@ wl_cfg80211_set_tx_power(struct wiphy *wiphy,
 
 #if defined(WL_CFG80211_P2P_DEV_IF)
 static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy,
-	struct wireless_dev *wdev, s32 *dbm)
+	struct wireless_dev *wdev, int radio_idx, unsigned int link_id, s32 *dbm)
 #else
 static s32 wl_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
 #endif /* WL_CFG80211_P2P_DEV_IF */
@@ -8596,16 +8597,21 @@ wl_cfg80211_block_arp(struct net_device *dev, int enable)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
 static s32
-wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr,
 	struct key_params *params)
 #else
 static s32
-wl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_add_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	u8 key_idx, bool pairwise, const u8 *mac_addr,
 	struct key_params *params)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0) || WL_MLO_BKPORT */
 {
+	struct net_device *dev = cfg_wdev->netdev;
+
+	if (!cfg_wdev->netdev)
+		return -EOPNOTSUPP;
+
 	struct wl_wsec_key key = {0};
 	s32 val = 0;
 	s32 wsec = 0;
@@ -8835,14 +8841,19 @@ exit:
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
 static s32
-wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr)
 #else
 static s32
-wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_del_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	u8 key_idx, bool pairwise, const u8 *mac_addr)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0) || WL_MLO_BKPORT */
 {
+	struct net_device *dev = cfg_wdev->netdev;
+
+	if (!cfg_wdev->netdev)
+		return -EOPNOTSUPP;
+
 	struct wl_wsec_key key = {0};
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	s32 err = 0;
@@ -8906,16 +8917,21 @@ wl_cfg80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 /* NOTE : this function cannot work as is and is never called */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
 static s32
-wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_get_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	int link_id, u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
 	void (*callback) (void *cookie, struct key_params * params))
 #else
 static s32
-wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_get_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	u8 key_idx, bool pairwise, const u8 *mac_addr, void *cookie,
 	void (*callback) (void *cookie, struct key_params * params))
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0) || WL_MLO_BKPORT */
 {
+	struct net_device *dev = cfg_wdev->netdev;
+
+	if (!cfg_wdev->netdev)
+		return -EOPNOTSUPP;
+
 	struct key_params params;
 	struct wl_wsec_key key;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
@@ -8982,11 +8998,11 @@ wl_cfg80211_get_key(struct wiphy *wiphy, struct net_device *dev,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
 static s32
 wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
-	struct net_device *dev, int link_id, u8 key_idx)
+	struct wireless_dev *cfg_wdev, int link_id, u8 key_idx)
 #else
 static s32
 wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
-	struct net_device *dev, u8 key_idx)
+	struct wireless_dev *cfg_wdev, u8 key_idx)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0) || WL_MLO_BKPORT */
 {
 #ifdef MFP
@@ -9006,11 +9022,11 @@ wl_cfg80211_config_default_mgmt_key(struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0)) && defined(BCN_PROT_AP)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0)) || defined(WL_MLO_BKPORT)
 static s32
-wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	int link_id, u8 key_idx)
 #else
 static s32
-wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy,	struct net_device *dev, u8 key_idx)
+wl_cfg80211_set_default_beacon_key(struct wiphy *wiphy,	struct wireless_dev *cfg_wdev, u8 key_idx)
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 0, 0) || WL_MLO_BKPORT */
 {
 	/* key_idx is updated from the wsec_key plumb context. The iovar primary_key
@@ -9296,14 +9312,19 @@ fail:
 #undef IF_COUNTERS_PARAM_CONTAINER_LEN_MAX
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 static s32
-wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_get_station(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
         const u8 *mac, struct station_info *sinfo)
 #else
 static s32
-wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
+wl_cfg80211_get_station(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
         u8 *mac, struct station_info *sinfo)
 #endif
 {
+	struct net_device *dev = cfg_wdev->netdev;
+
+	if (!cfg_wdev->netdev)
+		return -EOPNOTSUPP;
+
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	s32 rssi = 0;
 #if defined(SUPPORT_RSSI_SUM_REPORT) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
@@ -9674,9 +9695,14 @@ error:
 }
 
 static int
-wl_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
+wl_cfg80211_dump_station(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 	int idx, u8 *mac, struct station_info *sinfo)
 {
+	struct net_device *ndev = cfg_wdev->netdev;
+
+	if (!cfg_wdev->netdev)
+		return -EOPNOTSUPP;
+
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	struct maclist *assoc_maclist = (struct maclist *)&(cfg->assoclist);
 	int err;
@@ -9696,7 +9722,7 @@ wl_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (idx < le32_to_cpu(cfg->assoclist.count)) {
 		(void)memcpy_s(mac, ETH_ALEN, cfg->assoclist.mac[idx], ETH_ALEN);
-		return wl_cfg80211_get_station(wiphy, ndev, mac, sinfo);
+		return wl_cfg80211_get_station(wiphy, ndev->ieee80211_ptr, mac, sinfo);
 	}
 
 	return -ENOENT;
@@ -12083,22 +12109,27 @@ wl_cfg80211_macaddr_sync_reqd(struct net_device *dev)
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
 static s32
 wl_cfg80211_del_station(
-		struct wiphy *wiphy, struct net_device *ndev,
+		struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 		struct station_del_parameters *params)
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 static s32
 wl_cfg80211_del_station(
 	struct wiphy *wiphy,
-	struct net_device *ndev,
+	struct wireless_dev *cfg_wdev,
 	const u8* mac_addr)
 #else
 static s32
 wl_cfg80211_del_station(
 	struct wiphy *wiphy,
-	struct net_device *ndev,
+	struct wireless_dev *cfg_wdev,
 	u8* mac_addr)
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0)) */
 {
+	struct net_device *ndev = cfg_wdev->netdev;
+
+	if (!cfg_wdev->netdev)
+		return -EOPNOTSUPP;
+
 	struct net_device *dev;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	scb_val_t scb_val;
@@ -12234,18 +12265,23 @@ wl_cfg80211_post_scb_auth(struct bcm_cfg80211 *cfg, struct net_device *dev)
 static s32
 wl_cfg80211_change_station(
 	struct wiphy *wiphy,
-	struct net_device *dev,
+	struct wireless_dev *cfg_wdev,
 	const u8 *mac,
 	struct station_parameters *params)
 #else
 static s32
 wl_cfg80211_change_station(
 	struct wiphy *wiphy,
-	struct net_device *dev,
+	struct wireless_dev *cfg_wdev,
 	u8 *mac,
 	struct station_parameters *params)
 #endif
 {
+	struct net_device *dev = cfg_wdev->netdev;
+
+	if (!dev)
+		return -EOPNOTSUPP;
+
 	int err = BCME_OK;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	bool idsup_enabled = FALSE;
@@ -12685,8 +12721,8 @@ wl_is_ccode_change_required(struct net_device *net,
 	}
 	/* If translation table is available, update cspec */
 	cspec.rev = revinfo;
-	strlcpy(cspec.country_abbrev, country_code, WL_CCODE_LEN + 1);
-	strlcpy(cspec.ccode, country_code, WL_CCODE_LEN + 1);
+	strscpy(cspec.country_abbrev, country_code, WL_CCODE_LEN + 1);
+	strscpy(cspec.ccode, country_code, WL_CCODE_LEN + 1);
 	dhd_get_customized_country_code(net, cspec.country_abbrev, &cspec);
 	if ((cur_cspec.rev == cspec.rev) &&
 		(strncmp(cur_cspec.ccode, cspec.ccode, WL_CCODE_LEN) == 0) &&
@@ -12833,7 +12869,7 @@ wl_cfg80211_set_country_code(struct net_device *net, char *country_code,
 	wl_cfg80211_cleanup_connection(net, user_enforced);
 
 	/* Store before applying - so that if event comes earlier that is handled properly */
-	if (strlcpy(cfg->country, country_code, WL_CCODE_LEN) >= WLC_CNTRY_BUF_SZ) {
+	if (strscpy(cfg->country, country_code, WL_CCODE_LEN) >= WLC_CNTRY_BUF_SZ) {
 		WL_ERR(("country code copy failed :%d\n", ret));
 		goto exit;
 	}
@@ -13985,7 +14021,7 @@ int wl_get_bss_info(struct bcm_cfg80211 *cfg, struct net_device *dev, const u8 *
 
 	/* get BSS information */
 
-	strlcpy(cfg->bss_info, "x x x x x x x x x x x x x x x x x", sizeof(cfg->bss_info));
+	strscpy(cfg->bss_info, "x x x x x x x x x x x x x x x x x", sizeof(cfg->bss_info));
 
 	*(u32 *) cfg->extra_buf = htod32(WL_EXTRA_BUF_MAX);
 
@@ -17362,7 +17398,7 @@ wl_stop_wait_next_action_frame(struct bcm_cfg80211 *cfg, struct net_device *ndev
 	s32 err = 0;
 
 	if (wl_get_drv_status_all(cfg, FINDING_COMMON_CHANNEL)) {
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 		if (cfg->afx_hdl != NULL) {
 			if (cfg->afx_hdl->dev != NULL) {
 				wl_clr_drv_status(cfg, SCANNING, cfg->afx_hdl->dev);
@@ -18390,7 +18426,7 @@ static void wl_del_roam_timeout(struct bcm_cfg80211 *cfg)
 
 	/* restore prec_map to ALLPRIO */
 	dhdp->dequeue_prec_map = ALLPRIO;
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
 	for_each_ndev(cfg, iter, next) {
 		GCC_DIAGNOSTIC_POP();
@@ -18989,9 +19025,9 @@ static void wl_deinit_priv(struct bcm_cfg80211 *cfg)
 #ifdef WL_SCHED_SCAN
 	dhd_cancel_delayed_work_sync(&cfg->sched_scan_stop_work);
 #endif /* WL_SCHED_SCAN */
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #endif
 #ifdef WL_CELLULAR_CHAN_AVOID
 	wl_cellavoid_deinit(cfg);
@@ -19332,9 +19368,9 @@ void wl_cfg80211_detach(struct bcm_cfg80211 *cfg)
 	wl_deinit_wps_reauth_sm(cfg);
 #endif /* WL_WPS_SYNC */
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #endif /* DHD_LOSSLESS_ROAMING */
 
 #ifdef WL_STATIC_IF
@@ -20982,7 +21018,7 @@ static s32 __wl_cfg80211_up(struct bcm_cfg80211 *cfg)
 #endif /* WL_RAV_MSCS_NEG_IN_ASSOC */
 
 #ifdef DHD_LOSSLESS_ROAMING
-	del_timer_sync(&cfg->roam_timeout);
+	timer_delete_sync(&cfg->roam_timeout);
 #endif /* DHD_LOSSLESS_ROAMING */
 
 	err = dhd_monitor_init(cfg->pub);
@@ -21196,7 +21232,7 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 	/* Force clear of scan_suppress */
 	if (cfg->scan_suppressed)
 		wl_cfg80211_scan_suppress(ndev, 0);
-	del_timer_sync(&cfg->scan_supp_timer);
+	timer_delete_sync(&cfg->scan_supp_timer);
 	dhd_cancel_work_sync(&cfg->wlan_work);
 #endif /* DHCP_SCAN_SUPPRESS */
 
@@ -21340,11 +21376,11 @@ static s32 __wl_cfg80211_down(struct bcm_cfg80211 *cfg)
 	wl_flush_eq(cfg);
 	wl_link_down(cfg);
 	if (cfg->p2p_supported) {
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 		wl_cfgp2p_down(cfg);
 	}
 
-	del_timer_sync(&cfg->scan_timeout);
+	timer_delete_sync(&cfg->scan_timeout);
 
 	wl_cfg80211_clear_mgmt_vndr_ies(cfg);
 
@@ -22568,7 +22604,7 @@ s32 wl_sd_handle_sd_find(
 	}
 
 	/* Apply the p2p_ie for p2po_find */
-	strlcpy(ie_setbuf->cmd, "add", sizeof(ie_setbuf->cmd));
+	strscpy(ie_setbuf->cmd, "add", sizeof(ie_setbuf->cmd));
 
 	vndriebuf = &ie_setbuf->vndr_ie_buffer;
 	vndriebuf->iecount = htod32(1);
@@ -24841,7 +24877,7 @@ static void wl_deinit_wps_reauth_sm(struct bcm_cfg80211 *cfg)
 	for (i = 0; i < WPS_MAX_SESSIONS; i++) {
 		cfg->wps_session[i].in_use = false;
 		cfg->wps_session[i].state = WPS_STATE_IDLE;
-		del_timer_sync(&cfg->wps_session[i].timer);
+		timer_delete_sync(&cfg->wps_session[i].timer);
 	}
 
 }
@@ -24933,7 +24969,7 @@ wl_wps_session_del(struct net_device *ndev)
 	WL_CFG_WPS_SYNC_UNLOCK(&cfg->wps_sync, flags);
 
 	/* Ensure this API is called from sleepable context. */
-	del_timer_sync(&cfg->wps_session[inst].timer);
+	timer_delete_sync(&cfg->wps_session[inst].timer);
 
 	WL_INFORM_MEM(("[%s][WPS] session deleted\n", ndev->name));
 }
@@ -26759,7 +26795,7 @@ wl_cfg80211_start_mkeep_alive(struct net_device *ndev, struct bcm_cfg80211 *cfg,
 	bzero(pbuf, KA_TEMP_BUF_SIZE);
 	str = "mkeep_alive";
 	str_len = strlen(str);
-	strlcpy(pbuf, str, KA_TEMP_BUF_SIZE);
+	strscpy(pbuf, str, KA_TEMP_BUF_SIZE);
 	buf_len = str_len + 1;
 	pbuf_len -= buf_len;
 
@@ -27251,20 +27287,6 @@ wl_cfg80211_debug_data_dump(struct net_device *dev, u8 *buf, u32 buf_len)
 	return len;
 }
 
-void
-wl_cfg80211_wdev_lock(struct wireless_dev *wdev)
-{
-	mutex_lock(&wdev->mtx);
-	__acquire(wdev->mtx);
-}
-
-void
-wl_cfg80211_wdev_unlock(struct wireless_dev *wdev)
-{
-	__release(wdev->mtx);
-	mutex_unlock(&wdev->mtx);
-}
-
 #ifdef WL_CLIENT_SAE
 static bool
 wl_is_pmkid_available(struct net_device *dev, const u8 *bssid)
@@ -27294,7 +27316,6 @@ wl_notify_start_auth(struct bcm_cfg80211 *cfg,
 	u32 reason = be32_to_cpu(e->reason);
 	wl_auth_start_evt_t *evt_data = (wl_auth_start_evt_t *)data;
 	wl_assoc_mgr_cmd_t cmd;
-	struct wireless_dev *wdev = ndev->ieee80211_ptr;
 	int err = BCME_OK;
 
 	WL_DBG(("Enter \n"));
@@ -27350,9 +27371,7 @@ wl_notify_start_auth(struct bcm_cfg80211 *cfg,
 	WL_INFORM_MEM(("call cfg80211_external_auth_request, BSSID:"MACDBG", AKM Suite:0x%08x\n",
 		MAC2STRDBG(&ext_auth_param.bssid), ext_auth_param.key_mgmt_suite));
 
-	wl_cfg80211_wdev_lock(wdev);
 	err = cfg80211_external_auth_request(ndev, &ext_auth_param, GFP_KERNEL);
-	wl_cfg80211_wdev_unlock(wdev);
 	if (err) {
 		WL_ERR(("Send external auth request failed, ret %d\n", err));
 		err = BCME_ERROR;

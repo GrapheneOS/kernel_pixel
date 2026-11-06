@@ -3031,7 +3031,7 @@ dhd_dbg_monitor_mgmt_str(uint8 subtype, char *buf, uint32 buflen)
 		str = "MGMT NOT EXPECTED";
 		break;
 	}
-	(void)strlcpy(buf, str, buflen);
+	(void)strscpy(buf, str, buflen);
 }
 
 void
@@ -3065,7 +3065,7 @@ dhd_dbg_monitor_eapol_str(msg_eapol_t type, char *buf, uint32 buflen)
 		str = "EAPOL NOT EXPECTED";
 		break;
 	}
-	(void)strlcpy(buf, str, buflen);
+	(void)strscpy(buf, str, buflen);
 }
 #endif /* DBG_PKT_MON */
 

@@ -114,7 +114,7 @@ dhd_dbg_ring_init(dhd_pub_t *dhdp, dhd_dbg_ring_t *ring, uint16 id, uint8 *name,
 
 	DHD_DBG_RING_LOCK(ring->lock, flags);
 	ring->id = id;
-	strlcpy((char *)ring->name, (char *)name, sizeof(ring->name));
+	strscpy((char *)ring->name, (char *)name, sizeof(ring->name));
 	ring->ring_size = ring_sz;
 	ring->wp = ring->rp = 0;
 	ring->ring_buf = buf;
