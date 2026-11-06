@@ -20,6 +20,11 @@ int edgetpu_domain_pool_init(struct edgetpu_dev *etdev, struct edgetpu_domain_po
 
 	pool->size = size;
 	pool->etdev = etdev;
+	pool->min_pasid = 0;
+	pool->max_pasid = 0;
+#if HAS_IOMMU_PASID
+	ida_init(&pool->pasid_pool);
+#endif
 
 	if (!size)
 		return 0;
@@ -43,17 +48,13 @@ int edgetpu_domain_pool_init(struct edgetpu_dev *etdev, struct edgetpu_domain_po
 		pool->array[i] = domain;
 	}
 
-	pool->min_pasid = 0;
-	pool->max_pasid = 0;
-#if HAS_IOMMU_PASID
-	ida_init(&pool->pasid_pool);
-#elif HAS_AUX_DOMAINS
+#if HAS_AUX_DOMAINS
 	iommu_dev_enable_feature(etdev->dev, IOMMU_DEV_FEAT_AUX);
 	if (!iommu_dev_feature_enabled(etdev->dev, IOMMU_DEV_FEAT_AUX))
 		dev_warn(etdev->dev, "AUX domains not supported\n");
 	else
 		pool->aux_enabled = true;
-#else
+#elif !HAS_IOMMU_PASID
 	dev_warn(etdev->dev, "Attaching additional domains not supported\n");
 #endif
 	return 0;
@@ -101,6 +102,10 @@ void edgetpu_domain_pool_destroy(struct edgetpu_domain_pool *pool)
 {
 	int i;
 
+#if HAS_IOMMU_PASID
+	ida_destroy(&pool->pasid_pool);
+#endif
+
 	if (!pool->size)
 		return;
 
@@ -113,9 +118,6 @@ void edgetpu_domain_pool_destroy(struct edgetpu_domain_pool *pool)
 
 	ida_destroy(&pool->idp);
 	vfree(pool->array);
-#if HAS_IOMMU_PASID
-	ida_destroy(&pool->pasid_pool);
-#endif
 }
 
 void edgetpu_domain_pool_set_pasid_range(struct edgetpu_domain_pool *pool, ioasid_t min,
