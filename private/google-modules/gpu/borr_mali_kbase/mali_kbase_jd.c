@@ -1601,7 +1601,7 @@ void kbase_jd_zap_context(struct kbase_context *kctx)
 	 * queued outside the job scheduler.
 	 */
 
-	del_timer_sync(&kctx->soft_job_timeout);
+	timer_delete_sync(&kctx->soft_job_timeout);
 	list_for_each_safe(entry, tmp, &kctx->waiting_soft_jobs) {
 		katom = list_entry(entry, struct kbase_jd_atom, queue);
 		kbase_cancel_soft_job(katom);

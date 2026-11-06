@@ -1270,8 +1270,8 @@ int kbase_reset_gpu_init(struct kbase_device *kbdev)
 
 	INIT_WORK(&kbdev->hwaccess.backend.reset_work, kbasep_reset_timeout_worker);
 
-	hrtimer_init(&kbdev->hwaccess.backend.reset_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	kbdev->hwaccess.backend.reset_timer.function = kbasep_reset_timer_callback;
+	hrtimer_setup(&kbdev->hwaccess.backend.reset_timer, kbasep_reset_timer_callback,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	return 0;
 }

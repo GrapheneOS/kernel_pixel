@@ -581,8 +581,8 @@ int kbase_pm_apc_init(struct kbase_device *kbdev)
 	kthread_init_work(&kbdev->apc.power_off_work, kbase_pm_apc_power_off_worker);
 	kthread_init_work(&kbdev->apc.power_on_work, kbase_pm_apc_power_on_worker);
 
-	hrtimer_init(&kbdev->apc.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	kbdev->apc.timer.function = kbase_pm_apc_timer_callback;
+	hrtimer_setup(&kbdev->apc.timer, kbase_pm_apc_timer_callback,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	mutex_init(&kbdev->apc.lock);
 #else
