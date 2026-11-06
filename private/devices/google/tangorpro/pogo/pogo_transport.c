@@ -5,6 +5,9 @@
  * Pogo management driver
  */
 
+#include <linux/pinctrl/consumer.h>
+#include <linux/gpio/consumer.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <linux/alarmtimer.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
@@ -461,14 +464,10 @@ static void pogo_transport_update_polarity(struct pogo_transport *pogo_transport
 	struct max77759_plat *chip = pogo_transport->chip;
 	int ret;
 
-	if (sync)
-		ret = extcon_set_property_sync(chip->extcon, EXTCON_USB_HOST,
-					       EXTCON_PROP_USB_TYPEC_POLARITY,
-					       prop);
-	else
-		ret = extcon_set_property(chip->extcon, EXTCON_USB_HOST,
-					  EXTCON_PROP_USB_TYPEC_POLARITY,
-					  prop);
+	ret = extcon_set_property(chip->extcon, EXTCON_USB_HOST,
+				  EXTCON_PROP_USB_TYPEC_POLARITY, prop);
+	if (!ret && sync)
+		ret = extcon_sync(chip->extcon, EXTCON_USB_HOST);
 	logbuffer_log(pogo_transport->log, "%sset polarity to %d sync %u", ret ? "failed to " : "",
 		      prop.intval, sync);
 }
@@ -2427,15 +2426,13 @@ static void lc_check_alarm_work_item(struct kthread_work *work)
 	pogo_transport_lc_stage_transition(pogo_transport);
 }
 
-static enum alarmtimer_restart lc_check_alarm_handler(struct alarm *alarm, ktime_t time)
+static void lc_check_alarm_handler(struct alarm *alarm, ktime_t time)
 {
 	struct pogo_transport *pogo_transport = container_of(alarm, struct pogo_transport,
 							     lc_check_alarm);
 
 	pm_wakeup_event(pogo_transport->dev, LC_WAKEUP_TIMEOUT_MS);
 	kthread_queue_work(pogo_transport->wq, &pogo_transport->lc_work);
-
-	return ALARMTIMER_NORESTART;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -2873,7 +2870,8 @@ static int init_acc_gpio(struct pogo_transport *pogo_transport)
 		return pogo_transport->pogo_acc_gpio;
 	}
 
-	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_acc_gpio,
+	ret = devm_gpio_request_one(pogo_transport->dev, pogo_transport->pogo_acc_gpio,
+				GPIOF_IN,
 				"pogo-acc-detect");
 	if (ret) {
 		dev_err(pogo_transport->dev, "failed to request pogo-acc-detect gpio, ret:%d\n",
@@ -2888,7 +2886,8 @@ static int init_acc_gpio(struct pogo_transport *pogo_transport)
 		return ret;
 	}
 
-	ret = gpio_set_debounce(pogo_transport->pogo_acc_gpio, POGO_ACC_GPIO_DEBOUNCE_MS * 1000);
+	ret = gpiod_set_debounce(gpio_to_desc(pogo_transport->pogo_acc_gpio),
+				 POGO_ACC_GPIO_DEBOUNCE_MS * 1000);
 	if (ret < 0) {
 		dev_info(pogo_transport->dev, "failed to set debounce, ret:%d\n", ret);
 		pogo_transport->pogo_acc_gpio_debounce_ms = POGO_ACC_GPIO_DEBOUNCE_MS;
@@ -2938,7 +2937,8 @@ static int init_pogo_gpio(struct pogo_transport *pogo_transport)
 		return pogo_transport->pogo_gpio;
 	}
 
-	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_gpio,
+	ret = devm_gpio_request_one(pogo_transport->dev, pogo_transport->pogo_gpio,
+				GPIOF_IN,
 				"pogo-transport-status");
 	if (ret) {
 		dev_err(pogo_transport->dev,
@@ -2964,7 +2964,8 @@ static int init_pogo_gpio(struct pogo_transport *pogo_transport)
 		return pogo_transport->pogo_data_mux_gpio;
 	}
 
-	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_data_mux_gpio,
+	ret = devm_gpio_request_one(pogo_transport->dev, pogo_transport->pogo_data_mux_gpio,
+				GPIOF_OUT_INIT_LOW,
 				"pogo-transport-sel");
 	if (ret) {
 		dev_err(pogo_transport->dev, "failed to request pogo-transport-sel gpio, ret:%d\n",
@@ -3009,7 +3010,7 @@ static int init_pogo_gpio(struct pogo_transport *pogo_transport)
 
 static int init_pogo_ovp_gpio(struct pogo_transport *pogo_transport)
 {
-	enum of_gpio_flags flags;
+	struct of_phandle_args gpio_args;
 	int ret;
 
 	if (!of_property_read_bool(pogo_transport->dev->of_node, "pogo-ovp-en")) {
@@ -3017,17 +3018,25 @@ static int init_pogo_ovp_gpio(struct pogo_transport *pogo_transport)
 		return 0;
 	}
 
-	pogo_transport->pogo_ovp_en_gpio = of_get_named_gpio_flags(pogo_transport->dev->of_node,
-								   "pogo-ovp-en", 0, &flags);
+	pogo_transport->pogo_ovp_en_gpio = of_get_named_gpio(pogo_transport->dev->of_node, "pogo-ovp-en", 0);
 	if (pogo_transport->pogo_ovp_en_gpio < 0) {
 		dev_err(pogo_transport->dev, "Pogo ovp en gpio not found. ret:%d\n",
 			pogo_transport->pogo_ovp_en_gpio);
 		return pogo_transport->pogo_ovp_en_gpio;
 	}
 
-	pogo_transport->pogo_ovp_en_active_state = (flags & OF_GPIO_ACTIVE_LOW) ? 0 : 1;
+	ret = of_parse_phandle_with_args(pogo_transport->dev->of_node, "pogo-ovp-en",
+					 "#gpio-cells", 0, &gpio_args);
+	if (ret)
+		return ret;
+	of_node_put(gpio_args.np);
+	if (gpio_args.args_count != 2)
+		return -EINVAL;
+	pogo_transport->pogo_ovp_en_active_state = !(gpio_args.args[1] & GPIO_ACTIVE_LOW);
 
-	ret = devm_gpio_request(pogo_transport->dev, pogo_transport->pogo_ovp_en_gpio,
+	ret = devm_gpio_request_one(pogo_transport->dev, pogo_transport->pogo_ovp_en_gpio,
+				pogo_transport->pogo_ovp_en_active_state ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
 				"pogo-ovp-en");
 	if (ret) {
 		dev_err(pogo_transport->dev, "failed to request pogo-ovp-en gpio, ret:%d\n", ret);
@@ -3280,7 +3289,7 @@ free_np:
 	return ret;
 }
 
-static int pogo_transport_remove(struct platform_device *pdev)
+static void pogo_transport_remove(struct platform_device *pdev)
 {
 	struct pogo_transport *pogo_transport = platform_get_drvdata(pdev);
 	struct dentry *dentry;
@@ -3321,8 +3330,6 @@ static int pogo_transport_remove(struct platform_device *pdev)
 	power_supply_put(pogo_transport->pogo_psy);
 	kthread_destroy_worker(pogo_transport->wq);
 	logbuffer_unregister(pogo_transport->log);
-
-	return 0;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -3538,7 +3545,7 @@ static ssize_t acc_detect_debounce_ms_store(struct device *dev, struct device_at
 	if (kstrtouint(buf, 0, &debounce_ms))
 		return -EINVAL;
 
-	ret = gpio_set_debounce(pogo_transport->pogo_acc_gpio, debounce_ms * 1000);
+	ret = gpiod_set_debounce(gpio_to_desc(pogo_transport->pogo_acc_gpio), debounce_ms * 1000);
 	if (ret < 0) {
 		dev_info(pogo_transport->dev, "failed to set debounce, ret:%d\n", ret);
 		pogo_transport->pogo_acc_gpio_debounce_ms = debounce_ms;
