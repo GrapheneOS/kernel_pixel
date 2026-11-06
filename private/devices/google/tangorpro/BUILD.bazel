@@ -12,6 +12,7 @@ package(
 
 device_build(
     name = "tangorpro",
+    additional_kmi_symbol_lists = ["symbols"],
     base_device = "//private/devices/google/gs201:gs201_base",
     build_dtb = True,
     build_dtbo = True,
