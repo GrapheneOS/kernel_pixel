@@ -1,0 +1,9 @@
+[abi_symbol_list]
+# GKI exports used by Tangorpro's PWM, LED and regulator modules.
+  devm_fwnode_pwm_get
+  devm_led_classdev_register_ext
+  devm_pwm_get
+  fwnode_property_read_bool
+  led_init_default_state_get
+  pwm_apply_might_sleep
+  regulator_set_active_discharge_regmap
