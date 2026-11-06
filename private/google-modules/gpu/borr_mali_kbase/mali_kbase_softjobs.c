@@ -289,7 +289,7 @@ void kbasep_complete_triggered_soft_events(struct kbase_context *kctx, u64 evt)
 	}
 
 	if (cancel_timer)
-		del_timer(&kctx->soft_job_timeout);
+		timer_delete(&kctx->soft_job_timeout);
 	spin_unlock_irqrestore(&kctx->waiting_soft_jobs_lock, lflags);
 }
 

@@ -746,7 +746,7 @@ static ssize_t hint_power_on_store(struct device *dev, struct device_attribute *
 	if (!pc)
 		return -ENODEV;
 
-	ret = strtobool(buf, &enabled);
+	ret = kstrtobool(buf, &enabled);
 	if (ret)
 		return -EINVAL;
 
