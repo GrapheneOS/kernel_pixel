@@ -29,6 +29,7 @@
   * generally used by a device driver the driver
   */
 
+#include <linux/pinctrl/consumer.h>
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -100,6 +101,8 @@ static void fts_pinctrl_setup(struct fts_ts_info *info, bool active);
   * Set the value of system_reseted_up flag
   * @param val value to write in the flag
   */
+void set_system_reseted_up(int val);
+
 void set_system_reseted_up(int val)
 {
 	system_reseted_up = val;
@@ -109,6 +112,8 @@ void set_system_reseted_up(int val)
   * Return the value of system_resetted_down.
   * @return the flag value: 0 if not set, 1 if set
   */
+int is_system_resetted_down(void);
+
 int is_system_resetted_down(void)
 {
 	return system_reseted_down;
@@ -118,6 +123,8 @@ int is_system_resetted_down(void)
   * Return the value of system_resetted_up.
   * @return the flag value: 0 if not set, 1 if set
   */
+int is_system_resetted_up(void);
+
 int is_system_resetted_up(void)
 {
 	return system_reseted_up;
@@ -127,6 +134,8 @@ int is_system_resetted_up(void)
   * Set the value of system_reseted_down flag
   * @param val value to write in the flag
   */
+void set_system_reseted_down(int val);
+
 void set_system_reseted_down(int val)
 {
 	system_reseted_down = val;
@@ -1085,7 +1094,7 @@ static int gti_default_handler(void *private_data, enum gti_cmd_type cmd_type,
   * @param type type of MS frame to read
   * @return zero if success or an error code which specify the type of error
   */
-int goog_get_ms_frame(struct fts_ts_info *info, ms_frame_type_t type)
+static int goog_get_ms_frame(struct fts_ts_info *info, ms_frame_type_t type)
 {
 	u16 offset;
 	int res = 0;
@@ -1137,7 +1146,7 @@ int goog_get_ms_frame(struct fts_ts_info *info, ms_frame_type_t type)
   * @param type type of SS frame to read
   * @return zero if success or an error code which specify the type of error
   */
-int goog_get_ss_frame(struct fts_ts_info *info, ss_frame_type_t type)
+static int goog_get_ss_frame(struct fts_ts_info *info, ss_frame_type_t type)
 {
 	u16 self_force_offset = 0;
 	u16 self_sense_offset = 0;
@@ -1641,7 +1650,8 @@ static int fts_gpio_setup(struct fts_ts_info *info, int gpio, bool config, int d
 	if (config) {
 		scnprintf(buf, 16, "fts_gpio_%u\n", gpio);
 
-		ret_val = devm_gpio_request(info->dev, gpio, buf);
+		ret_val = devm_gpio_request_one(info->dev, gpio, dir == 0 ? GPIOF_IN :
+			(state ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW), buf);
 		if (ret_val) {
 			pr_err("%s: Failed to get gpio %d (code: %d)",
 				__func__, gpio, ret_val);
@@ -1834,13 +1844,13 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 		}
 	}
 
-	bdata->irq_gpio = of_get_named_gpio_flags(np, "st,irq-gpio", 0, NULL);
+	bdata->irq_gpio = of_get_named_gpio(np, "st,irq-gpio", 0);
 
 	pr_info("%s: irq_gpio = %d\n", __func__, bdata->irq_gpio);
 
 	if (of_property_read_bool(np, "st,reset-gpio")) {
-		bdata->reset_gpio = of_get_named_gpio_flags(np,
-				"st,reset-gpio", 0, NULL);
+		bdata->reset_gpio = of_get_named_gpio(np,
+				"st,reset-gpio", 0);
 		pr_info("%s: reset_gpio = %d\n", __func__, bdata->reset_gpio);
 	} else
 		bdata->reset_gpio = GPIO_NOT_DEFINED;
@@ -1865,8 +1875,7 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
   *the linux input subsystem etc.
   */
 #ifdef I2C_INTERFACE
-static int fts_probe(struct i2c_client *client, const struct i2c_device_id
-						*idp)
+static int fts_probe(struct i2c_client *client)
 {
 #else
 static int fts_probe(struct spi_device *client)

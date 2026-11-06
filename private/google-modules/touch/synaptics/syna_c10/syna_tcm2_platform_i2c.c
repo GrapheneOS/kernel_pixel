@@ -126,7 +126,8 @@ static int syna_i2c_request_gpio(int gpio, bool config, int dir,
 			return retval;
 		}
 #ifdef DEV_MANAGED_API
-		retval = devm_gpio_request(dev, gpio, label);
+		retval = devm_gpio_request_one(dev, gpio, dir == 0 ? GPIOF_IN :
+				      (state ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW), label);
 #else /* Legacy API */
 		retval = gpio_request(gpio, label);
 #endif
@@ -447,9 +448,20 @@ static int syna_i2c_parse_dt(struct syna_hw_interface *hw_if,
 
 	prop = of_find_property(np, "synaptics,irq-gpio", NULL);
 	if (prop && prop->length) {
-		attn->irq_gpio = of_get_named_gpio_flags(np,
-				"synaptics,irq-gpio", 0,
-				(enum of_gpio_flags *)&attn->irq_flags);
+		struct of_phandle_args args;
+
+		attn->irq_gpio = of_get_named_gpio(np, "synaptics,irq-gpio", 0);
+		/* This legacy binding stores IRQF flags in the GPIO flags cell. */
+		retval = of_parse_phandle_with_args(np, "synaptics,irq-gpio",
+						    "#gpio-cells", 0, &args);
+		if (retval)
+			return retval;
+		if (args.args_count != 2) {
+			of_node_put(args.np);
+			return -EINVAL;
+		}
+		attn->irq_flags = args.args[1];
+		of_node_put(args.np);
 	} else {
 		attn->irq_gpio = -1;
 	}
@@ -474,16 +486,16 @@ static int syna_i2c_parse_dt(struct syna_hw_interface *hw_if,
 
 	prop = of_find_property(np, "synaptics,vdd-gpio", NULL);
 	if (prop && prop->length) {
-		pwr->vdd_gpio = of_get_named_gpio_flags(np,
-				"synaptics,vdd-gpio", 0, NULL);
+		pwr->vdd_gpio = of_get_named_gpio(np,
+				"synaptics,vdd-gpio", 0);
 	} else {
 		pwr->vdd_gpio = -1;
 	}
 
 	prop = of_find_property(np, "synaptics,avdd-gpio", NULL);
 	if (prop && prop->length) {
-		pwr->avdd_gpio = of_get_named_gpio_flags(np,
-				"synaptics,avdd-gpio", 0, NULL);
+		pwr->avdd_gpio = of_get_named_gpio(np,
+				"synaptics,avdd-gpio", 0);
 	} else {
 		pwr->avdd_gpio = -1;
 	}
@@ -520,8 +532,8 @@ static int syna_i2c_parse_dt(struct syna_hw_interface *hw_if,
 
 	prop = of_find_property(np, "synaptics,reset-gpio", NULL);
 	if (prop && prop->length) {
-		rst->reset_gpio = of_get_named_gpio_flags(np,
-				"synaptics,reset-gpio", 0, NULL);
+		rst->reset_gpio = of_get_named_gpio(np,
+				"synaptics,reset-gpio", 0);
 	} else {
 		rst->reset_gpio = -1;
 	}
