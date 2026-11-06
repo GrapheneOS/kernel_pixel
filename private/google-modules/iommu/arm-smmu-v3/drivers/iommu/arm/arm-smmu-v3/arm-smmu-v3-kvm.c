@@ -509,7 +509,7 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
 	struct kvm_arm_smmu_domain *kvm_smmu_domain = to_kvm_smmu_domain(domain);
 	struct arm_smmu_device *smmu = kvm_smmu_domain->smmu;
 
-	if (smmu && (kvm_smmu_domain->domain.type != IOMMU_DOMAIN_IDENTITY)) {
+	if (smmu && kvm_smmu_domain->domain.type != IOMMU_DOMAIN_IDENTITY) {
 		/* Flush while the EL2 domain exists, but keep its page tables on failure. */
 		if (kvm_smmu_domain->pgtbl_ops)
 			kvm_arm_smmu_tlb_inv_context(kvm_smmu_domain);
@@ -517,14 +517,18 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
 		ret = kvm_iommu_free_domain(kvm_smmu_domain->id);
 		if (WARN_ON(ret))
 			return;
+	}
 
+	/* Disconnect telemetry readers before clearing smmu and freeing host state. */
+	arm_smmu_domain_telemetry_free(kvm_smmu_domain, PKVM_MODE_DRIVER);
+
+	if (smmu && kvm_smmu_domain->domain.type != IOMMU_DOMAIN_IDENTITY) {
 		/* Prevent the io-pgtable free callback from accessing the freed EL2 domain. */
 		kvm_smmu_domain->smmu = NULL;
 		free_io_pgtable_ops_pixel(kvm_smmu_domain->pgtbl_ops);
 		ida_free(&kvm_arm_smmu_domain_ida, kvm_smmu_domain->id);
 	}
 
-	arm_smmu_domain_telemetry_free(kvm_smmu_domain, PKVM_MODE_DRIVER);
 	kfree(kvm_smmu_domain);
 }
 
