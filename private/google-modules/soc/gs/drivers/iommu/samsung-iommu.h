@@ -59,6 +59,7 @@ struct sysmmu_drvdata {
 };
 
 struct sysmmu_clientdata {
+	struct iommu_domain *domain;
 	struct sysmmu_drvdata **sysmmus;
 	struct device_link **dev_link;
 	unsigned int sysmmu_count;
