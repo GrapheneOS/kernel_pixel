@@ -29,6 +29,7 @@
   * \brief It is the main file which contains all the most important functions
   * generally used by a device driver the driver
   */
+#include <linux/pinctrl/consumer.h>
 #include <linux/device.h>
 
 #include <linux/init.h>
@@ -130,6 +131,8 @@ static void fts_offload_push_coord_frame(struct fts_ts_info *info);
   * Release all the touches in the linux input subsystem
   * @param info pointer to fts_ts_info which contains info about device/hw setup
   */
+void release_all_touches(struct fts_ts_info *info);
+
 void release_all_touches(struct fts_ts_info *info)
 {
 	unsigned int type = MT_TOOL_FINGER;
@@ -575,6 +578,8 @@ END:
   * @return OK if is possible to enable/disable feature, ERROR_OP_NOT_ALLOW
   * in case of any other conflict
   */
+int check_feature_feasibility(struct fts_ts_info *info, unsigned int feature);
+
 int check_feature_feasibility(struct fts_ts_info *info, unsigned int feature)
 {
 	int res = OK;
@@ -1594,8 +1599,8 @@ static int touchsim_start(struct fts_touchsim *touchsim)
 	release_all_touches(info);
 
 	/* setup and start a hr timer to be fired every 120Hz(~8.333333ms) */
-	hrtimer_init(&touchsim->hr_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	touchsim->hr_timer.function = touchsim_timer_cb;
+	hrtimer_setup(&touchsim->hr_timer, touchsim_timer_cb,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	hrtimer_start(&touchsim->hr_timer,
 			ns_to_ktime(TOUCHSIM_TIMER_INTERVAL_NS),
 			HRTIMER_MODE_ABS);
@@ -1780,7 +1785,7 @@ out:
   * - F1 = Perform a system reset and reenable the sensing and the interrupt
   */
 static ssize_t stm_fts_cmd_write(struct file *fp, struct kobject *kobj,
-				 struct bin_attribute *battr, char *buf,
+				 const struct bin_attribute *battr, char *buf,
 				 loff_t offset, size_t count)
 {
 	u8 result, n = 0;
@@ -1889,7 +1894,7 @@ out:
 }
 
 static ssize_t stm_fts_cmd_read(struct file *fp, struct kobject *kobj,
-				struct bin_attribute *battr, char *buf,
+				const struct bin_attribute *battr, char *buf,
 				loff_t offset, size_t count)
 {
 	int res, j, doClean = 0, index = 0;
@@ -2868,7 +2873,7 @@ static DEVICE_ATTR_RW(default_mf);
 
 static BIN_ATTR_RW(stm_fts_cmd, 0);
 
-static struct bin_attribute *fts_bin_attr_group[] = {
+static const struct bin_attribute *const fts_bin_attr_group[] = {
 	&bin_attr_stm_fts_cmd,
 	NULL,
 };
@@ -2938,6 +2943,8 @@ static struct attribute *fts_attr_group[] = {
   * and its hw setup
   * @param key_code	button value
   */
+void fts_input_report_key(struct fts_ts_info *info, int key_code);
+
 void fts_input_report_key(struct fts_ts_info *info, int key_code)
 {
 	mutex_lock(&info->input_report_mutex);
@@ -4158,7 +4165,7 @@ static int update_motion_filter(struct fts_ts_info *info,
 	return 0;
 }
 
-int fts_enable_grip(struct fts_ts_info *info, bool enable)
+static int fts_enable_grip(struct fts_ts_info *info, bool enable)
 {
 	uint8_t enable_cmd[] = {
 		0xC0, 0x03, 0x10, 0xFF, 0x03, 0x00, 0x00, 0x00, 0x00};
@@ -5198,6 +5205,8 @@ static void fts_fw_update_auto(struct work_struct *work)
  *  Save the golden MS raw data to the touch IC if firmware has separated it
  *  from the PI process.
  */
+int save_golden_ms_raw(struct fts_ts_info *info);
+
 int save_golden_ms_raw(struct fts_ts_info *info)
 {
 	u8 cmd[3] = {0xC0, 0x01, 0x01};
@@ -5941,6 +5950,8 @@ int fts_set_bus_ref(struct fts_ts_info *info, u16 ref, bool enable)
 	return result;
 }
 
+struct drm_connector *get_bridge_connector(struct drm_bridge *bridge);
+
 struct drm_connector *get_bridge_connector(struct drm_bridge *bridge)
 {
 	struct drm_connector *connector;
@@ -6180,22 +6191,15 @@ static int fts_gpio_setup(int gpio, bool config, int dir, int state)
 	if (config) {
 		scnprintf(buf, sizeof(buf), "fts_gpio_%u\n", gpio);
 
-		retval = gpio_request(gpio, buf);
+		retval = gpio_request_one(gpio, dir == 0 ? GPIOF_IN :
+					  (state ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW),
+					  buf);
 		if (retval) {
 			pr_err("%s: Failed to get gpio %d (code: %d)",
 				__func__, gpio, retval);
 			return retval;
 		}
 
-		if (dir == 0)
-			retval = gpio_direction_input(gpio);
-		else
-			retval = gpio_direction_output(gpio, state);
-		if (retval) {
-			pr_err("%s: Failed to set gpio %d direction",
-				__func__, gpio);
-			return retval;
-		}
 	} else
 		gpio_free(gpio);
 
@@ -6417,20 +6421,19 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 	bdata->switch_gpio = of_get_named_gpio(np, "st,switch_gpio", 0);
 	dev_info(dev, "switch_gpio = %d\n", bdata->switch_gpio);
 
-	bdata->irq_gpio = of_get_named_gpio_flags(np, "st,irq-gpio", 0, NULL);
+	bdata->irq_gpio = of_get_named_gpio(np, "st,irq-gpio", 0);
 	dev_info(dev, "irq_gpio = %d\n", bdata->irq_gpio);
 
 	if (of_property_read_bool(np, "st,reset-gpio")) {
-		bdata->reset_gpio = of_get_named_gpio_flags(np,
-							    "st,reset-gpio", 0,
-							    NULL);
+		bdata->reset_gpio = of_get_named_gpio(np,
+							    "st,reset-gpio", 0);
 		dev_info(dev, "reset_gpio = %d\n", bdata->reset_gpio);
 	} else
 		bdata->reset_gpio = GPIO_NOT_DEFINED;
 
 	if (of_property_read_bool(np, "st,disp-rate-gpio")) {
 		bdata->disp_rate_gpio =
-		    of_get_named_gpio_flags(np, "st,disp-rate-gpio", 0, NULL);
+		    of_get_named_gpio(np, "st,disp-rate-gpio", 0);
 		dev_info(dev, "disp_rate_gpio = %d\n", bdata->disp_rate_gpio);
 	} else
 		bdata->disp_rate_gpio = GPIO_NOT_DEFINED;
@@ -6545,7 +6548,7 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
   * to the linux input subsystem etc.
   */
 #ifdef I2C_INTERFACE
-static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
+static int fts_probe(struct i2c_client *client)
 {
 #else
 static int fts_probe(struct spi_device *client)
