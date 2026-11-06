@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 
+int mcps_skb_frags_len(struct sk_buff *skb);
+
 int mcps_skb_frags_len(struct sk_buff *skb)
 {
 	/* No fragmentation on Linux. */

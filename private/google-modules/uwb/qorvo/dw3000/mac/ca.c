@@ -374,6 +374,10 @@ static int mcps802154_ca_next_region(struct mcps802154_local *local,
  */
 struct mcps802154_access *mcps802154_ca_nothing(struct mcps802154_local *local,
 						u32 timestamp_dtu,
+						int duration_dtu);
+
+struct mcps802154_access *mcps802154_ca_nothing(struct mcps802154_local *local,
+						u32 timestamp_dtu,
 						int duration_dtu)
 {
 	struct mcps802154_access *access = &local->ca.idle_access;
