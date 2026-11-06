@@ -10,6 +10,7 @@
 	/* TPU */
 	edgetpu: janeiro@1CE00000 {
 		compatible = "google,darwinn";
+		pasid-num-bits = <3>;
 		#dma-address-cells = <1>;
 		#dma-size-cells = <1>;
 		/* TPU uses regions under 0x18000000 for special purpose */

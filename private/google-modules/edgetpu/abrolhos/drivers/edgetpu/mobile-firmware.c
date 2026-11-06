@@ -5,6 +5,7 @@
  * Copyright (C) 2021 Google, Inc.
  */
 
+#include <linux/vmalloc.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
