@@ -90,14 +90,14 @@ static const struct dw3000_chip_register c0_registers[] = {
 	{ "digi_diag_clr", 0x0f0000, 0x01, 0x2, DW3000_CHIPREG_WP, NULL },
 };
 
-const struct dw3000_chip_register *dw3000_c0_get_registers(struct dw3000 *dw,
+static const struct dw3000_chip_register *dw3000_c0_get_registers(struct dw3000 *dw,
 							   size_t *count)
 {
 	*count = ARRAY_SIZE(c0_registers);
 	return c0_registers;
 }
 
-const u32 *dw3000_c0_get_config_mrxlut_chan(struct dw3000 *dw, u8 channel)
+static const u32 *dw3000_c0_get_config_mrxlut_chan(struct dw3000 *dw, u8 channel)
 {
 	/* Lookup table default values for channel 5 */
 	static const u32 dw3000_c0_configmrxlut_ch5[DW3000_CONFIGMRXLUT_MAX] = {
@@ -208,6 +208,8 @@ static int dw3000_c0_pre_read_sys_time(struct dw3000 *dw)
  *
  * Return: zero on succes, else a negative error code.
  */
+int dw3000_c0_get_dgc_dec(struct dw3000 *dw, u8 *value);
+
 int dw3000_c0_get_dgc_dec(struct dw3000 *dw, u8 *value)
 {
 	int rc;
@@ -254,6 +256,8 @@ static int dw3000_c0_pll_calibration_from_scratch(struct dw3000 *dw)
  *
  * Return: zero on success, else a negative error code.
  */
+int dw3000_c0_prog_pll_coarse_code(struct dw3000 *dw);
+
 int dw3000_c0_prog_pll_coarse_code(struct dw3000 *dw)
 {
 	struct dw3000_otp_data *otp = &dw->otp_data;
@@ -274,6 +278,8 @@ int dw3000_c0_prog_pll_coarse_code(struct dw3000 *dw)
  *
  * Return: zero on success, else a negative error code.
  */
+int dw3000_c0_set_mrxlut(struct dw3000 *dw, const u32 *lut);
+
 int dw3000_c0_set_mrxlut(struct dw3000 *dw, const u32 *lut)
 {
 	int rc;
