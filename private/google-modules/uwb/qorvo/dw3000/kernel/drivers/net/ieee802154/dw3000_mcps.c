@@ -837,6 +837,9 @@ static int do_set_channel(struct dw3000 *dw, const void *in, void *out)
 }
 
 int set_channel(struct mcps802154_llhw *llhw, u8 page, u8 channel,
+		u8 preamble_code);
+
+int set_channel(struct mcps802154_llhw *llhw, u8 page, u8 channel,
 		u8 preamble_code)
 {
 	unsigned long changed = 0;
@@ -976,6 +979,9 @@ static int check_hrp_uwb_params(struct mcps802154_llhw *llhw,
 	}
 	return 0;
 }
+
+int set_hrp_uwb_params(struct mcps802154_llhw *llhw,
+		       const struct mcps802154_hrp_uwb_params *params);
 
 int set_hrp_uwb_params(struct mcps802154_llhw *llhw,
 		       const struct mcps802154_hrp_uwb_params *params)
