@@ -29,6 +29,68 @@
 #include <mali_kbase_mem_migrate.h>
 #include <mmu/mali_kbase_mmu.h>
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0)
+/*
+ * The kernel no longer supports arbitrary non-LRU movable page operations.
+ * Keep the Android default of no GPU page migration, and reject requests to
+ * enable it instead of marking GPU pages as another kernel owner's type.
+ */
+static int kbase_page_migration_enabled;
+
+static int kbase_set_page_migration(const char *val, const struct kernel_param *kp)
+{
+	int enabled, ret;
+
+	ret = kstrtoint(val, 0, &enabled);
+	if (ret)
+		return ret;
+	if (enabled)
+		return -EOPNOTSUPP;
+	return param_set_int(val, kp);
+}
+
+static const struct kernel_param_ops kbase_page_migration_ops = {
+	.set = kbase_set_page_migration,
+	.get = param_get_int,
+};
+module_param_cb(kbase_page_migration_enabled, &kbase_page_migration_ops,
+		&kbase_page_migration_enabled, 0444);
+MODULE_PARM_DESC(kbase_page_migration_enabled, "GPU page migration is unavailable on 6.18");
+
+bool kbase_is_page_migration_enabled(void)
+{
+	return false;
+}
+KBASE_EXPORT_TEST_API(kbase_is_page_migration_enabled);
+
+bool kbase_alloc_page_metadata(struct kbase_device *kbdev, struct page *p, dma_addr_t dma_addr,
+			       u8 group_id)
+{
+	return false;
+}
+
+void kbase_free_page_later(struct kbase_device *kbdev, struct page *p)
+{
+	/* All callers must use the ordinary free path when migration is off. */
+	WARN_ON_ONCE(1);
+}
+
+void kbase_mem_migrate_init(struct kbase_device *kbdev)
+{
+}
+
+void kbase_mem_migrate_term(struct kbase_device *kbdev)
+{
+}
+
+#if MALI_UNIT_TEST
+int kbase_migrate_page_allocated_mapped(struct page *old_page, struct page *new_page)
+{
+	return -EOPNOTSUPP;
+}
+#endif
+
+#else
 /* Static key used to determine if page migration is enabled or not */
 static DEFINE_STATIC_KEY_FALSE(page_migration_static_key);
 
@@ -758,3 +820,5 @@ void kbase_mem_migrate_term(struct kbase_device *kbdev)
 	iput(mem_migrate->inode);
 #endif
 }
+
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0) */
