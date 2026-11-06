@@ -23,6 +23,7 @@
  * $Id$
  */
 
+#include <linux/vmalloc.h>
 #include <typedefs.h>
 #include <osl.h>
 #include <bcmutils.h>
@@ -1305,6 +1306,14 @@ dhd_pktlog_get_dump_length(dhd_pub_t *dhdp)
 
 	return len;
 }
+
+int
+#ifdef DHD_PKT_LOGGING_DBGRING
+dhd_pktlog_dump_write(dhd_pub_t *dhdp, void *file, const void *user_buf,
+	uint32 *written_bytes);
+#else
+dhd_pktlog_dump_write(dhd_pub_t *dhdp, void *file, const void *user_buf, uint32 size);
+#endif /* DHD_PKT_LOGGING_DBGRING */
 
 int
 #ifdef DHD_PKT_LOGGING_DBGRING

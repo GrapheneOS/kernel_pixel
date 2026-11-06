@@ -159,6 +159,8 @@ void wl_cfg80211_cleanup_if(struct net_device *net)
 	dhd_cleanup_if(net);
 }
 
+struct net_device * dhd_cfg80211_netdev_free(struct net_device *ndev);
+
 struct net_device * dhd_cfg80211_netdev_free(struct net_device *ndev)
 {
 	struct bcm_cfg80211 *cfg;
@@ -175,6 +177,8 @@ struct net_device * dhd_cfg80211_netdev_free(struct net_device *ndev)
 
 	return ndev;
 }
+
+void dhd_netdev_free(struct net_device *ndev);
 
 void dhd_netdev_free(struct net_device *ndev)
 {

@@ -773,6 +773,8 @@ static const char pwrstr_cnt[] = "count:";
 static const char pwrstr_dur[] = "duration_usec:";
 static const char pwrstr_ts[] = "last_entry_timestamp_usec:";
 
+ssize_t print_pwrstats_cum(char *buf);
+
 ssize_t print_pwrstats_cum(char *buf)
 {
 	ssize_t ret = 0;
@@ -822,6 +824,8 @@ ssize_t print_pwrstats_cum(char *buf)
 
 	return ret;
 }
+
+void update_pwrstats_cum(uint64 *accum, uint64 *last, uint64 *now, bool force);
 
 void update_pwrstats_cum(uint64 *accum, uint64 *last, uint64 *now, bool force)
 {
@@ -1230,6 +1234,9 @@ static struct dhd_attr dhd_attr_macaddr =
 #endif /* CONFIG_X86 */
 
 uint32
+get_mem_val_from_file(void);
+
+uint32
 get_mem_val_from_file(void)
 {
 	struct file *fp = NULL;
@@ -1365,6 +1372,9 @@ static struct dhd_attr dhd_attr_memdump =
  * New platforms can add their ifdefs accordingly below.
  */
 #define ASSERTINFO PLATFORM_PATH".assert.info"
+
+int
+get_assert_val_from_file(void);
 
 int
 get_assert_val_from_file(void)
@@ -2252,7 +2262,7 @@ set_wl_debug_level(struct dhd_info *dhd, const char *buf, size_t count)
 
 	bzero(tbuf, sizeof(tbuf));
 	bzero(sublog, sizeof(sublog));
-	strlcpy(tbuf, buf, minsize);
+	strscpy(tbuf, buf, minsize);
 
 	DHD_INFO(("current wl_dbg_level %d \n", wl_dbg_level));
 

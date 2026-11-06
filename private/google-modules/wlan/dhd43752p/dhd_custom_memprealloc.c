@@ -148,6 +148,9 @@ static void *wlan_static_dhd_log_dump_buf_ex = NULL;
 void dhd_exit_wlan_mem(void);
 
 void
+*dhd_wlan_mem_prealloc(int section, unsigned long size);
+
+void
 *dhd_wlan_mem_prealloc(int section, unsigned long size)
 {
 	if (section == PREALLOC_WLAN_SEC_NUM) {
@@ -251,6 +254,9 @@ EXPORT_SYMBOL(dhd_wlan_mem_prealloc);
 #define DUMP_BUF_MALLOC(size)   kmalloc(size, GFP_KERNEL)
 #define DUMP_BUF_MFREE(addr)    kfree(addr)
 #endif /* DHD_DUMP_BUF_KVMALLOC */
+
+int
+dhd_init_wlan_mem(void);
 
 int
 dhd_init_wlan_mem(void)

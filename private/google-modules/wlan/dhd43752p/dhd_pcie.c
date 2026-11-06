@@ -900,6 +900,9 @@ _dhd_bus_pcie_pwr_req_pd0123_cmn(struct dhd_bus *bus)
 }
 
 void
+dhd_bus_pcie_pwr_req_reload_war(struct dhd_bus *bus);
+
+void
 dhd_bus_pcie_pwr_req_reload_war(struct dhd_bus *bus)
 {
 	unsigned long flags = 0;
@@ -928,6 +931,9 @@ _dhd_bus_pcie_pwr_req_clear_pd0123_cmn(struct dhd_bus *bus)
 }
 
 void
+dhd_bus_pcie_pwr_req_clear_reload_war(struct dhd_bus *bus);
+
+void
 dhd_bus_pcie_pwr_req_clear_reload_war(struct dhd_bus *bus)
 {
 	unsigned long flags = 0;
@@ -946,6 +952,9 @@ dhd_bus_pcie_pwr_req_nolock(struct dhd_bus *bus)
 {
 	_dhd_bus_pcie_pwr_req_cmn(bus);
 }
+
+bool
+dhdpcie_chip_support_msi(dhd_bus_t *bus);
 
 bool
 dhdpcie_chip_support_msi(dhd_bus_t *bus)
@@ -1264,6 +1273,9 @@ dhd_bus_query_dpc_sched_errors(dhd_pub_t *dhdp)
 
 /** Read and clear intstatus. This should be called with interrupts disabled or inside isr */
 uint32
+dhdpcie_bus_intstatus(dhd_bus_t *bus);
+
+uint32
 dhdpcie_bus_intstatus(dhd_bus_t *bus)
 {
 	uint32 intstatus = 0;
@@ -1407,6 +1419,9 @@ dhdpcie_cto_recovery_handler(dhd_pub_t *dhd)
 	dhd_os_send_hang_message(bus->dhd);
 #endif /* OEM_ANDROID */
 }
+
+void
+dhd_bus_dump_imp_cfg_registers(struct dhd_bus *bus);
 
 void
 dhd_bus_dump_imp_cfg_registers(struct dhd_bus *bus)
@@ -1981,6 +1996,9 @@ is_bmpu_supported(dhd_bus_t *bus)
 #define CHIP_COMMON_SCR_DHD_TO_BL_ADDR(sih) (SI_ENUM_BASE(sih) + CC_SCR_DHD_TO_BL)
 #define CHIP_COMMON_SCR_BL_TO_DHD_ADDR(sih) (SI_ENUM_BASE(sih) + CC_SCR_BL_TO_DHD)
 void
+dhdpcie_bus_mpu_disable(dhd_bus_t *bus);
+
+void
 dhdpcie_bus_mpu_disable(dhd_bus_t *bus)
 {
 	volatile uint32 *cr4_regs;
@@ -2496,6 +2514,9 @@ fail:
 	DHD_TRACE(("%s: EXIT: FAILURE\n", __FUNCTION__));
 	return -1;
 }
+
+int
+dhpcie_bus_unmask_interrupt(dhd_bus_t *bus);
 
 int
 dhpcie_bus_unmask_interrupt(dhd_bus_t *bus)
@@ -5437,6 +5458,8 @@ done2:
 } /* dhdpcie_checkdied */
 
 /* Custom copy of dhdpcie_mem_dump() that can be called at interrupt level */
+void dhdpcie_mem_dump_bugcheck(dhd_bus_t *bus, uint8 *buf);
+
 void dhdpcie_mem_dump_bugcheck(dhd_bus_t *bus, uint8 *buf)
 {
 	int ret = 0;
@@ -6528,6 +6551,10 @@ dhdpcie_bus_rtcm64(dhd_bus_t *bus, ulong offset)
 
 void
 dhdpcie_update_ring_ptrs_in_tcm_with_req_pwr(dhd_bus_t *bus, void *data, uint8 type,
+	uint16 ringid, bool read, bool req_pwr);
+
+void
+dhdpcie_update_ring_ptrs_in_tcm_with_req_pwr(dhd_bus_t *bus, void *data, uint8 type,
 	uint16 ringid, bool read, bool req_pwr)
 {
 	ulong addr;
@@ -6557,6 +6584,10 @@ dhdpcie_update_ring_ptrs_in_tcm_with_req_pwr(dhd_bus_t *bus, void *data, uint8 t
 		dhd_bus_pcie_pwr_req_clear(bus);
 	}
 }
+
+void
+dhdpcie_update_ring_ptrs_in_tcm(dhd_bus_t *bus, void *data, uint8 type,	uint16 ringid,
+	bool read);
 
 void
 dhdpcie_update_ring_ptrs_in_tcm(dhd_bus_t *bus, void *data, uint8 type,	uint16 ringid,
@@ -8063,6 +8094,9 @@ serialized_backplane_access(dhd_bus_t *bus, uint addr, uint size, uint *val, boo
 #ifndef DHD_CAP_CUSTOMER
 #define DHD_CAP_CUSTOMER "brcm "
 #endif
+
+void
+BCMRAMFN(dhd_cap_bcmstrbuf)(dhd_pub_t *dhd, struct bcmstrbuf *b);
 
 void
 BCMRAMFN(dhd_cap_bcmstrbuf)(dhd_pub_t *dhd, struct bcmstrbuf *b)
@@ -9624,6 +9658,9 @@ dhdpcie_bus_clear_intstatus(struct dhd_bus *bus)
 }
 
 #ifdef PWRSTATS_SYSFS
+uint64
+dhdpcie_get_last_suspend_time(dhd_pub_t *dhdp);
+
 uint64
 dhdpcie_get_last_suspend_time(dhd_pub_t *dhdp)
 {
@@ -11439,6 +11476,9 @@ err:
 
 /* loop through the capability list and see if the pcie capabilty exists */
 uint8
+dhdpcie_find_pci_capability(osl_t *osh, uint8 req_cap_id);
+
+uint8
 dhdpcie_find_pci_capability(osl_t *osh, uint8 req_cap_id)
 {
 	uint8 cap_id;
@@ -11607,6 +11647,8 @@ dhdpcie_clkreq(osl_t *osh, uint32 mask, uint32 val)
 		return 0;
 }
 
+void dhd_dump_intr_counters(dhd_pub_t *dhd, struct bcmstrbuf *strbuf);
+
 void dhd_dump_intr_counters(dhd_pub_t *dhd, struct bcmstrbuf *strbuf)
 {
 	dhd_bus_t *bus;
@@ -11691,6 +11733,8 @@ void dhd_dump_intr_counters(dhd_pub_t *dhd, struct bcmstrbuf *strbuf)
 		GET_SEC_USEC(dhd->logtrace_thr_ts.complete_time));
 #endif /* SHOW_LOGTRACE && DHD_USE_KTHREAD_FOR_LOGTRACE */
 }
+
+void dhd_dump_intr_registers(dhd_pub_t *dhd, struct bcmstrbuf *strbuf);
 
 void dhd_dump_intr_registers(dhd_pub_t *dhd, struct bcmstrbuf *strbuf)
 {
@@ -12016,6 +12060,9 @@ void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 }
 
 #ifdef DNGL_AXI_ERROR_LOGGING
+bool
+dhd_axi_sig_match(dhd_pub_t *dhdp);
+
 bool
 dhd_axi_sig_match(dhd_pub_t *dhdp)
 {
@@ -14103,8 +14150,8 @@ dhdpcie_readshared(dhd_bus_t *bus)
 			for (addr = 0; addr < MAX_HP2P_FLOWS; addr++) {
 				hp2p_info_t *hp2p_info = &bus->dhd->hp2p_info[addr];
 				hp2p_info->hrtimer_init = FALSE;
-				hrtimer_init(&hp2p_info->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-				hp2p_info->timer.function = &dhd_hp2p_write;
+				hrtimer_setup(&hp2p_info->timer, &dhd_hp2p_write,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 			}
 		}
 	}
@@ -14987,6 +15034,9 @@ dhd_bus_max_h2d_queues(struct dhd_bus *bus)
 }
 
 /* To be symmetric with SDIO */
+void
+dhd_bus_pktq_flush(dhd_pub_t *dhdp);
+
 void
 dhd_bus_pktq_flush(dhd_pub_t *dhdp)
 {
@@ -17336,6 +17386,9 @@ dhd_bus_intr_count_dump(dhd_pub_t *dhd)
 }
 
 int
+dhd_pcie_dump_wrapper_regs(dhd_pub_t *dhd);
+
+int
 dhd_pcie_dump_wrapper_regs(dhd_pub_t *dhd)
 {
 	uint32 save_idx, val;
@@ -17478,6 +17531,9 @@ dhdpcie_hw_war_regdump(dhd_bus_t *bus)
 	val = PMU_REG_NEW(bus->sih, min_res_mask, 0, 0);
 	DHD_ERROR(("MINRESMASK :0x%x\n", val));
 }
+
+int
+dhd_pcie_dma_info_dump(dhd_pub_t *dhd);
 
 int
 dhd_pcie_dma_info_dump(dhd_pub_t *dhd)
@@ -18012,7 +18068,7 @@ dhdpcie_induce_cbp_hang(dhd_pub_t *dhd)
 }
 
 #ifdef DHD_SSSR_DUMP
-void
+static void
 dhd_fill_sssr_reg_info_4362(dhd_pub_t *dhd)
 {
 	sssr_reg_info_cmn_t *sssr_reg_info_cmn = dhd->sssr_reg_info;
@@ -18082,6 +18138,9 @@ dhd_fill_sssr_reg_info_4362(dhd_pub_t *dhd)
 
 	dhd->sssr_inited = TRUE;
 }
+
+void
+dhdpcie_fill_sssr_reg_info(dhd_pub_t *dhd);
 
 void
 dhdpcie_fill_sssr_reg_info(dhd_pub_t *dhd)

@@ -5624,6 +5624,9 @@ BCMINITFN(si_pmu_ilp_clock)(si_t *sih, osl_t *osh)
  * (older chips) or to chipcontrol regs in PMU core (later chips).
  */
 uint32
+BCMPOSTTRAPFN(si_pmu_chipcontrol)(si_t *sih, uint reg, uint32 mask, uint32 val);
+
+uint32
 BCMPOSTTRAPFN(si_pmu_chipcontrol)(si_t *sih, uint reg, uint32 mask, uint32 val)
 {
 	pmu_corereg(sih, SI_CC_IDX, chipcontrol_addr, ~0, reg);
@@ -5636,6 +5639,9 @@ BCMPOSTTRAPFN(si_pmu_chipcontrol)(si_t *sih, uint reg, uint32 mask, uint32 val)
  * in CC core (older chips) or to regulator regs in PMU core (later chips).
  */
 uint32
+BCMPOSTTRAPFN(si_pmu_vreg_control)(si_t *sih, uint reg, uint32 mask, uint32 val);
+
+uint32
 BCMPOSTTRAPFN(si_pmu_vreg_control)(si_t *sih, uint reg, uint32 mask, uint32 val)
 {
 	pmu_corereg(sih, SI_CC_IDX, regcontrol_addr, ~0, reg);
@@ -5647,6 +5653,9 @@ BCMPOSTTRAPFN(si_pmu_vreg_control)(si_t *sih, uint reg, uint32 mask, uint32 val)
  * original core is restored. Depending on chip type, writes to PLL control regs in CC core (older
  * chips) or to PLL control regs in PMU core (later chips).
  */
+uint32
+BCMPOSTTRAPFN(si_pmu_pllcontrol)(si_t *sih, uint reg, uint32 mask, uint32 val);
+
 uint32
 BCMPOSTTRAPFN(si_pmu_pllcontrol)(si_t *sih, uint reg, uint32 mask, uint32 val)
 {
