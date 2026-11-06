@@ -22,6 +22,7 @@
  * QCA driver framework(QDF) network buffer management APIs
  */
 
+#include <linux/skbuff_ref.h>
 #include <linux/hashtable.h>
 #include <linux/kernel.h>
 #include <linux/version.h>
