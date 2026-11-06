@@ -2711,7 +2711,7 @@ typedef struct dhd_pktid_map {
 	struct bcm_mwbmap *pktid_audit; /* multi word bitmap based audit */
 #endif /* DHD_PKTID_AUDIT_ENABLED */
 	dhd_pktid_key_t	*keys; /* map_items +1 unique pkt ids */
-	dhd_pktid_item_t lockers[0];           /* metadata storage */
+	dhd_pktid_item_t lockers[];           /* metadata storage */
 } dhd_pktid_map_t;
 
 /*

@@ -117,6 +117,7 @@ extern void exynos_pcie_set_skip_config(int ch_num, bool val);
 
 static void sscd_release(struct device *dev);
 static struct sscd_platform_data sscd_pdata;
+static bool sscd_registered;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
 	.driver_override = SSCD_NAME,
@@ -1202,7 +1203,13 @@ dhd_wlan_init(void)
 #endif /* CONFIG_BROADCOM_WIFI_RESERVED_MEM */
 
 #ifdef DHD_COREDUMP
-	platform_device_register(&sscd_dev);
+	ret = platform_device_register(&sscd_dev);
+	if (ret) {
+		platform_device_put(&sscd_dev);
+		DHD_ERROR(("SSCD registration failed: %d\n", ret));
+	} else {
+		sscd_registered = true;
+	}
 #endif /* DHD_COREDUMP */
 
 	ret = dhd_wifi_init_gpio();
@@ -1225,6 +1232,12 @@ dhd_wlan_init(void)
 #endif /* SUPPORT_MULTIPLE_NVRAM || SUPPORT_MULTIPLE_CLMBLOB */
 
 fail:
+#ifdef DHD_COREDUMP
+	if (ret < 0 && sscd_registered) {
+		platform_device_unregister(&sscd_dev);
+		sscd_registered = false;
+	}
+#endif
 	DHD_PRINT(("%s: FINISH.......\n", __FUNCTION__));
 	return ret;
 }
@@ -1240,7 +1253,10 @@ dhd_wlan_deinit(void)
 	}
 
 #ifdef DHD_COREDUMP
-	platform_device_unregister(&sscd_dev);
+	if (sscd_registered) {
+		platform_device_unregister(&sscd_dev);
+		sscd_registered = false;
+	}
 #endif /* DHD_COREDUMP */
 
 	return 0;
