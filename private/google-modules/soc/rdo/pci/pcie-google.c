@@ -4,6 +4,7 @@
  */
 
 #include <linux/pcie_google_if.h>
+#include <linux/irqchip/irq-msi-lib.h>
 #include "pcie-google.h"
 #include "pcie-designware-host-customized.h"
 
@@ -2803,11 +2804,15 @@ static int google_pcie_probe(struct platform_device *pdev)
 	pp = &gpcie->pci->pp;
 	gpcie->domain = pp->bridge->bus->domain_nr;
 	pp->irq_domain->ops = &google_pcie_msi_domain_ops;
+	pp->msi_irq_chip->irq_ack = goog_pci_bottom_ack;
 	pp->msi_irq_chip->irq_set_affinity = google_pci_msi_set_affinity;
 	pp->msi_irq_chip->irq_unmask = goog_pci_bottom_unmask;
 	/* Allow endpoint MSI domains to forward affinity changes to our IRQ chip. */
 	gpcie->msi_parent_ops = *pp->irq_domain->msi_parent_ops;
 	gpcie->msi_parent_ops.required_flags &= ~MSI_FLAG_NO_AFFINITY;
+	/* Our chained handler acknowledges locally instead of redirecting MSIs. */
+	gpcie->msi_parent_ops.chip_flags |= MSI_CHIP_FLAG_SET_ACK;
+	gpcie->msi_parent_ops.init_dev_msi_info = msi_lib_init_dev_msi_info;
 	pp->irq_domain->msi_parent_ops = &gpcie->msi_parent_ops;
 	goog_setup_chained_irq_handler(pp);
 
