@@ -18,7 +18,7 @@
 #include <linux/wait.h>
 #include <linux/rwsem.h>
 #include <linux/uidgid.h>
-#include <linux/pm_wakeup.h>
+#include <linux/device.h>
 #include <linux/version.h>
 #ifdef CONFIG_CNSS_OUT_OF_TREE
 #include "ipc_logging.h"
@@ -2077,7 +2077,7 @@ static const struct proto_ops qrtr_proto_ops = {
 	.shutdown	= sock_no_shutdown,
 	.release	= qrtr_release,
 	.mmap		= sock_no_mmap,
-	.sendpage	= sock_no_sendpage,
+
 };
 
 static struct proto qrtr_proto = {
