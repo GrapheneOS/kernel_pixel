@@ -5,6 +5,7 @@
  * Copyright (c) 2019 Google LLC
  */
 
+#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
@@ -1515,7 +1516,7 @@ static const struct of_device_id ext_clk_match[] = {
 	{},
 };
 
-void gs101_vclk_init(void)
+static void gs101_vclk_init(void)
 {
 	/* Common clock init */
 }
