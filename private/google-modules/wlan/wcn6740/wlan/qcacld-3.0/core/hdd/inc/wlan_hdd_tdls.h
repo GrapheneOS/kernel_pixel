@@ -116,7 +116,8 @@ int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 17, 0))
 int wlan_hdd_cfg80211_tdls_mgmt(struct wiphy *wiphy,
 				struct net_device *dev, const uint8_t *peer,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 189) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0) || \
+	(LINUX_VERSION_CODE >= KERNEL_VERSION(6, 1, 189) && LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
 				int link_id,
 #endif
 				uint8_t action_code, uint8_t dialog_token,

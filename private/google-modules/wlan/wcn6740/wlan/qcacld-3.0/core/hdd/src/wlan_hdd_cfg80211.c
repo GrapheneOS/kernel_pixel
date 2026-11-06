@@ -7003,7 +7003,7 @@ __wlan_hdd_cfg80211_get_wifi_info(struct wiphy *wiphy,
 
 	if (tb_vendor[QCA_WLAN_VENDOR_ATTR_WIFI_INFO_DRIVER_VERSION]) {
 		hdd_debug("Rcvd req for Driver version");
-		strlcpy(driver_version, QWLAN_VERSIONSTR,
+		strscpy(driver_version, QWLAN_VERSIONSTR,
 			sizeof(driver_version));
 		skb_len += strlen(driver_version) + 1;
 		count++;
@@ -19907,16 +19907,17 @@ static int __wlan_hdd_change_station(struct wiphy *wiphy,
  */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0)) || defined(WITH_BACKPORTS)
 static int wlan_hdd_change_station(struct wiphy *wiphy,
-				   struct net_device *dev,
+				   struct wireless_dev *cfg_wdev,
 				   const u8 *mac,
 				   struct station_parameters *params)
 #else
 static int wlan_hdd_change_station(struct wiphy *wiphy,
-				   struct net_device *dev,
+				   struct wireless_dev *cfg_wdev,
 				   u8 *mac,
 				   struct station_parameters *params)
 #endif
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20173,12 +20174,13 @@ static int wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 }
 #elif defined(CFG80211_SET_KEY_WITH_SRC_MAC)
 static int wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
-				     struct net_device *ndev,
+				     struct wireless_dev *cfg_wdev,
 				     u8 key_index, bool pairwise,
 				     const u8 *src_addr,
 				     const u8 *mac_addr,
 				     struct key_params *params)
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20195,11 +20197,12 @@ static int wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 }
 #elif defined(CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
 static int wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
-				     struct net_device *ndev,
+				     struct wireless_dev *cfg_wdev,
 				     int link_id, u8 key_index, bool pairwise,
 				     const u8 *mac_addr,
 				     struct key_params *params)
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20216,11 +20219,12 @@ static int wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
 }
 #else
 static int wlan_hdd_cfg80211_add_key(struct wiphy *wiphy,
-				     struct net_device *ndev,
+				     struct wireless_dev *cfg_wdev,
 				     u8 key_index, bool pairwise,
 				     const u8 *mac_addr,
 				     struct key_params *params)
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20359,13 +20363,14 @@ static int wlan_hdd_cfg80211_get_key(struct wiphy *wiphy,
 }
 #elif defined(CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
 static int wlan_hdd_cfg80211_get_key(struct wiphy *wiphy,
-				     struct net_device *ndev,
+				     struct wireless_dev *cfg_wdev,
 				     int link_id, u8 key_index, bool pairwise,
 				     const u8 *mac_addr, void *cookie,
 				     void (*callback)(void *cookie,
 						      struct key_params *)
 				     )
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20382,13 +20387,14 @@ static int wlan_hdd_cfg80211_get_key(struct wiphy *wiphy,
 }
 #else
 static int wlan_hdd_cfg80211_get_key(struct wiphy *wiphy,
-				     struct net_device *ndev,
+				     struct wireless_dev *cfg_wdev,
 				     u8 key_index, bool pairwise,
 				     const u8 *mac_addr, void *cookie,
 				     void (*callback)(void *cookie,
 						      struct key_params *)
 				     )
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20476,10 +20482,11 @@ static int wlan_hdd_cfg80211_del_key(struct wiphy *wiphy,
 }
 #elif defined(CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
 static int wlan_hdd_cfg80211_del_key(struct wiphy *wiphy,
-				     struct net_device *dev,
+				     struct wireless_dev *cfg_wdev,
 				     int link_id, u8 key_index,
 				     bool pairwise, const u8 *mac_addr)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20496,10 +20503,11 @@ static int wlan_hdd_cfg80211_del_key(struct wiphy *wiphy,
 }
 #else
 static int wlan_hdd_cfg80211_del_key(struct wiphy *wiphy,
-				     struct net_device *dev,
+				     struct wireless_dev *cfg_wdev,
 				     u8 key_index,
 				     bool pairwise, const u8 *mac_addr)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20710,9 +20718,10 @@ static int wlan_hdd_cfg80211_set_default_beacon_key(struct wiphy *wiphy,
 }
 #elif defined(CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
 static int wlan_hdd_cfg80211_set_default_beacon_key(struct wiphy *wiphy,
-						    struct net_device *ndev,
+						    struct wireless_dev *cfg_wdev,
 						    int link_id, u8 key_index)
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20729,9 +20738,10 @@ static int wlan_hdd_cfg80211_set_default_beacon_key(struct wiphy *wiphy,
 }
 #else
 static int wlan_hdd_cfg80211_set_default_beacon_key(struct wiphy *wiphy,
-						    struct net_device *ndev,
+						    struct wireless_dev *cfg_wdev,
 						    u8 key_index)
 {
+	struct net_device *ndev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -20990,7 +21000,7 @@ static int __wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy,
  *
  * Return: 0 for success, non-zero for failure
  */
-static int wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+static int wlan_hdd_cfg80211_set_wiphy_params(struct wiphy *wiphy, int radio_idx, u32 changed)
 {
 	struct osif_psoc_sync *psoc_sync;
 	int errno;
@@ -21058,9 +21068,10 @@ static int wlan_hdd_set_default_mgmt_key(struct wiphy *wiphy,
 }
 #elif defined(CFG80211_SINGLE_NETDEV_MULTI_LINK_SUPPORT)
 static int wlan_hdd_set_default_mgmt_key(struct wiphy *wiphy,
-					 struct net_device *netdev,
+					 struct wireless_dev *cfg_wdev,
 					 int link_id, u8 key_index)
 {
+	struct net_device *netdev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -21076,9 +21087,10 @@ static int wlan_hdd_set_default_mgmt_key(struct wiphy *wiphy,
 }
 #else
 static int wlan_hdd_set_default_mgmt_key(struct wiphy *wiphy,
-					 struct net_device *netdev,
+					 struct wireless_dev *cfg_wdev,
 					 u8 key_index)
 {
+	struct net_device *netdev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -21416,13 +21428,13 @@ int wlan_hdd_del_station(struct hdd_adapter *adapter, const uint8_t *mac)
 	del_sta.reason_code = WLAN_REASON_DEAUTH_LEAVING;
 
 	return wlan_hdd_cfg80211_del_station(adapter->wdev.wiphy,
-					     adapter->dev, &del_sta);
+					     &adapter->wdev, &del_sta);
 }
 #else
 int wlan_hdd_del_station(struct hdd_adapter *adapter, const uint8_t *mac)
 {
 	return wlan_hdd_cfg80211_del_station(adapter->wdev.wiphy,
-					     adapter->dev, mac);
+					     &adapter->wdev, mac);
 }
 #endif
 
@@ -21461,9 +21473,10 @@ static int _wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 
 #ifdef USE_CFG80211_DEL_STA_V2
 int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
-				  struct net_device *dev,
+				  struct wireless_dev *cfg_wdev,
 				  struct station_del_parameters *param)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	if (!param)
 		return -EINVAL;
 
@@ -21472,18 +21485,20 @@ int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
 					      param->subtype);
 }
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
-int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 				  const uint8_t *mac)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	uint16_t reason = REASON_DEAUTH_NETWORK_LEAVING;
 	uint8_t subtype = SIR_MAC_MGMT_DEAUTH >> 4;
 
 	return _wlan_hdd_cfg80211_del_station(wiphy, dev, mac, reason, subtype);
 }
 #else
-int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy, struct wireless_dev *cfg_wdev,
 				  uint8_t *mac)
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	uint16_t reason = REASON_DEAUTH_NETWORK_LEAVING;
 	uint8_t subtype = SIR_MAC_MGMT_DEAUTH >> 4;
 
@@ -21563,15 +21578,16 @@ static int __wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
  */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 static int wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
-					 struct net_device *dev,
+					 struct wireless_dev *cfg_wdev,
 					 const uint8_t *mac,
 					 struct station_parameters *params)
 #else
 static int wlan_hdd_cfg80211_add_station(struct wiphy *wiphy,
-					 struct net_device *dev, uint8_t *mac,
+					 struct wireless_dev *cfg_wdev, uint8_t *mac,
 					 struct station_parameters *params)
 #endif
 {
+	struct net_device *dev = cfg_wdev->netdev;
 	int errno;
 	struct osif_vdev_sync *vdev_sync;
 
@@ -23180,7 +23196,7 @@ static int __wlan_hdd_cfg80211_set_mon_ch(struct wiphy *wiphy,
  *
  * Return: 0 success or error code on failure.
  */
-static int wlan_hdd_cfg80211_set_mon_ch(struct wiphy *wiphy,
+static int wlan_hdd_cfg80211_set_mon_ch(struct wiphy *wiphy, struct net_device *ndev,
 				       struct cfg80211_chan_def *chandef)
 {
 	struct osif_psoc_sync *psoc_sync;
@@ -23879,8 +23895,8 @@ static int __wlan_hdd_cfg80211_set_chainmask(struct wiphy *wiphy,
 	return ret;
 }
 
-static int wlan_hdd_cfg80211_set_chainmask(struct wiphy *wiphy,
-					   uint32_t tx_mask,
+static int wlan_hdd_cfg80211_set_chainmask(struct wiphy *wiphy, int radio_idx,
+				       uint32_t tx_mask,
 					   uint32_t rx_mask)
 {
 	struct osif_psoc_sync *psoc_sync;
@@ -23925,8 +23941,8 @@ static int __wlan_hdd_cfg80211_get_chainmask(struct wiphy *wiphy,
 	return 0;
 }
 
-static int wlan_hdd_cfg80211_get_chainmask(struct wiphy *wiphy,
-					   uint32_t *tx_mask,
+static int wlan_hdd_cfg80211_get_chainmask(struct wiphy *wiphy, int radio_idx,
+				       uint32_t *tx_mask,
 					   uint32_t *rx_mask)
 {
 	struct osif_psoc_sync *psoc_sync;

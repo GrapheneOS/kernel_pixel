@@ -34,20 +34,15 @@ struct qdf_net_if;
 
 /**
  * __qdf_net_if_create_dummy_if() - create dummy interface
- * @nif: interface handle
  *
- * This function will create a dummy network interface
+ * Allocate a dummy network interface; release it with free_netdev().
  *
- * Return: QDF_STATUS_SUCCESS on success
+ * Return: allocated interface or NULL on failure
  */
-static inline QDF_STATUS
-__qdf_net_if_create_dummy_if(struct qdf_net_if *nif)
+static inline struct qdf_net_if *
+__qdf_net_if_create_dummy_if(void)
 {
-	int ret;
-
-	ret = init_dummy_netdev((struct net_device *)nif);
-
-	return qdf_status_from_os_return(ret);
+	return (struct qdf_net_if *)alloc_netdev_dummy(0);
 }
 
 /**
