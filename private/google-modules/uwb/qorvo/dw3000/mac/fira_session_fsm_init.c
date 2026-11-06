@@ -41,6 +41,9 @@ static void fira_session_fsm_init_enter(struct fira_local *local,
 }
 
 void fira_session_fsm_init_parameters_updated(struct fira_local *local,
+					      struct fira_session *session);
+
+void fira_session_fsm_init_parameters_updated(struct fira_local *local,
 					      struct fira_session *session)
 {
 	const struct fira_session_params *params = &session->params;
