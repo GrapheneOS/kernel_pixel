@@ -23,6 +23,7 @@
  * modify it under the terms of the GNU General Public License Version 2
  * as published by the Free Software Foundation.
  */
+#include <linux/pinctrl/consumer.h>
 #include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
@@ -462,7 +463,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 }
 
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
-	const char *label, int *gpio)
+	const char *label, int *gpio, unsigned long flags)
 {
 	struct device *dev = fpc1020->dev;
 	struct device_node *np = dev->of_node;
@@ -474,7 +475,7 @@ static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
 	}
 	*gpio = rc;
 
-	rc = devm_gpio_request(dev, *gpio, label);
+	rc = devm_gpio_request_one(dev, *gpio, flags, label);
 	if (rc) {
 		dev_err(dev, "failed to request gpio %d\n", *gpio);
 		return rc;
@@ -565,11 +566,11 @@ static int fpc1020_probe(struct platform_device *pdev)
 
 	// Request IRQ and Reset pin GPIO
 	rc = fpc1020_request_named_gpio(fpc1020, "fpc,gpio_irq",
-			&fpc1020->irq_gpio);
+			&fpc1020->irq_gpio, GPIOF_IN);
 	if (rc)
 		goto exit;
 	rc = fpc1020_request_named_gpio(fpc1020, "fpc,gpio_rst",
-			&fpc1020->rst_gpio);
+			&fpc1020->rst_gpio, GPIOF_OUT_INIT_HIGH);
 	if (rc)
 		goto exit;
 
@@ -629,7 +630,7 @@ exit:
 	return rc;
 }
 
-static int fpc1020_remove(struct platform_device *pdev)
+static void fpc1020_remove(struct platform_device *pdev)
 {
 	struct fpc1020_data *fpc1020 = platform_get_drvdata(pdev);
 
@@ -641,7 +642,6 @@ static int fpc1020_remove(struct platform_device *pdev)
 	(void)vreg_setup(fpc1020, "vcc_spi", false);
 	dev_info(&pdev->dev, "%s\n", __func__);
 
-	return 0;
 }
 
 static struct of_device_id fpc1020_of_match[] = {
