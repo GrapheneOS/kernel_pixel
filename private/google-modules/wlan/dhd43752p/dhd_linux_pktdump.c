@@ -468,7 +468,7 @@ dhd_dump_mod_pkt_timer(dhd_pub_t *dhdp, uint16 rsn)
 
 	pktcnts = (pkt_cnts_log_t *)(dhdp->pktcnts);
 	if (timer_pending(&pktcnts->pktcnt_timer)) {
-		del_timer_sync(&pktcnts->pktcnt_timer);
+		timer_delete_sync(&pktcnts->pktcnt_timer);
 	}
 
 	bzero(&pktcnts->arp_cnt, sizeof(pkt_cnt_t));
@@ -515,7 +515,7 @@ dhd_dump_pkt_deinit(dhd_pub_t *dhdp)
 
 	pktcnts = (pkt_cnts_log_t *)(dhdp->pktcnts);
 	pktcnts->enabled = FALSE;
-	del_timer_sync(&pktcnts->pktcnt_timer);
+	timer_delete_sync(&pktcnts->pktcnt_timer);
 	MFREE(dhdp->osh, dhdp->pktcnts, sizeof(pkt_cnts_log_t));
 	dhdp->pktcnts = NULL;
 }
@@ -532,11 +532,14 @@ dhd_dump_pkt_clear(dhd_pub_t *dhdp)
 
 	pktcnts = (pkt_cnts_log_t *)(dhdp->pktcnts);
 	pktcnts->enabled = FALSE;
-	del_timer_sync(&pktcnts->pktcnt_timer);
+	timer_delete_sync(&pktcnts->pktcnt_timer);
 	pktcnts->reason = 0;
 	bzero(&pktcnts->arp_cnt, sizeof(pkt_cnt_t));
 	bzero(&pktcnts->dns_cnt, sizeof(pkt_cnt_t));
 }
+
+bool
+dhd_dump_pkt_enabled(dhd_pub_t *dhdp);
 
 bool
 dhd_dump_pkt_enabled(dhd_pub_t *dhdp)
@@ -1357,7 +1360,7 @@ uint32 *pkthash, uint16 *pktfate)
 	return;
 }
 
-char*
+static char*
 icmpv6_types(uint8 type) {
 	switch(type) {
 		case ICMPV6_PKT_TYPE_ECHO_REQ:
