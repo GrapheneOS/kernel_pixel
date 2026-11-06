@@ -380,7 +380,7 @@ static int wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	return wifi_plat_dev_probe_ret;
 }
 
-static int wifi_plat_dev_drv_remove(struct platform_device *pdev)
+static void wifi_plat_dev_drv_remove(struct platform_device *pdev)
 {
 	wifi_adapter_info_t *adapter;
 
@@ -403,7 +403,6 @@ static int wifi_plat_dev_drv_remove(struct platform_device *pdev)
 #ifdef CONFIG_DTS
 	regulator_put(wifi_regulator);
 #endif /* CONFIG_DTS */
-	return 0;
 }
 
 static int wifi_plat_dev_drv_suspend(struct platform_device *pdev, pm_message_t state)
@@ -631,7 +630,7 @@ static int bcmdhd_wifi_plat_dev_drv_probe(struct platform_device *pdev)
 	return dhd_wifi_platform_load();
 }
 
-static int bcmdhd_wifi_plat_dev_drv_remove(struct platform_device *pdev)
+static void bcmdhd_wifi_plat_dev_drv_remove(struct platform_device *pdev)
 {
 	int i;
 	wifi_adapter_info_t *adapter;
@@ -643,7 +642,6 @@ static int bcmdhd_wifi_plat_dev_drv_remove(struct platform_device *pdev)
 		wifi_platform_set_power(adapter, FALSE, WIFI_TURNOFF_DELAY);
 		wifi_platform_bus_enumerate(adapter, FALSE);
 	}
-	return 0;
 }
 
 static struct platform_driver dhd_wifi_platform_dev_driver = {

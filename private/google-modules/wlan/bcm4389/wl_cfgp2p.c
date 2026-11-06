@@ -1369,7 +1369,7 @@ wl_cfgp2p_vndr_ie(struct bcm_cfg80211 *cfg, u8 *iebuf, s32 pktflag,
 	}
 
 	/* Copy the vndr_ie SET command ("add"/"del") to the buffer */
-	strlcpy(hdr.cmd, add_del_cmd, sizeof(hdr.cmd));
+	strscpy(hdr.cmd, add_del_cmd, sizeof(hdr.cmd));
 
 	/* Set the IE count - the buffer contains only 1 IE */
 	iecount = htod32(1);
@@ -1507,7 +1507,7 @@ wl_cfgp2p_listen_complete(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 
 	if (wl_get_p2p_status(cfg, LISTEN_EXPIRED) == 0) {
 		wl_set_p2p_status(cfg, LISTEN_EXPIRED);
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 
 		if (cfg->afx_hdl->is_listen == TRUE &&
 			wl_get_drv_status_all(cfg, FINDING_COMMON_CHANNEL)) {
@@ -1616,7 +1616,7 @@ wl_cfgp2p_cancel_listen(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		wl_to_p2p_bss_bssidx(cfg, P2PAPI_BSSCFG_DEVICE));
 #endif /* NOT_YET */
 	if (timer_pending(&cfg->p2p->listen_timer)) {
-		del_timer_sync(&cfg->p2p->listen_timer);
+		timer_delete_sync(&cfg->p2p->listen_timer);
 		if (notify) {
 #if defined(WL_CFG80211_P2P_DEV_IF)
 			if (bcmcfg_to_p2p_wdev(cfg))
@@ -2554,7 +2554,7 @@ wl_cfgp2p_register_ndev(struct bcm_cfg80211 *cfg)
 	}
 #endif /* WL_NEWCFG_PRIVCMD_SUPPORT */
 
-	strlcpy(net->name, "p2p%d", sizeof(net->name));
+	strscpy(net->name, "p2p%d", sizeof(net->name));
 
 	/* Copy the reference to bcm_cfg80211 */
 	memcpy((void *)netdev_priv(net), &cfg, sizeof(struct bcm_cfg80211 *));
@@ -2978,7 +2978,7 @@ wl_cfgp2p_if_add(struct bcm_cfg80211 *cfg, wl_iftype_t wl_iftype,
 		wl_cfgp2p_init_discovery(cfg);
 	}
 
-	strlcpy(cfg->p2p->vir_ifname, name, sizeof(cfg->p2p->vir_ifname));
+	strscpy(cfg->p2p->vir_ifname, name, sizeof(cfg->p2p->vir_ifname));
 	/* In concurrency case, STA may be already associated in a particular channel.
 	 * so retrieve the current channel of primary interface and then start the virtual
 	 * interface on that.

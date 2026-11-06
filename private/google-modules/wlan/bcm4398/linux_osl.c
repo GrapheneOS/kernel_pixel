@@ -23,6 +23,7 @@
 
 #define LINUX_PORT
 
+#include <linux/sched/clock.h>
 #include <typedefs.h>
 #include <bcmendian.h>
 #include <linuxver.h>
@@ -882,7 +883,7 @@ osl_debug_malloc(osl_t *osh, uint size, int line, const char* file)
 	if (!basename)
 		basename = file;
 
-	strlcpy(p->file, basename, sizeof(p->file));
+	strscpy(p->file, basename, sizeof(p->file));
 
 	/* link this block */
 	if (osh) {
@@ -1002,7 +1003,7 @@ osl_debug_vmalloc(osl_t *osh, uint size, int line, const char* file)
 	if (!basename)
 		basename = file;
 
-	strlcpy(p->file, basename, sizeof(p->file));
+	strscpy(p->file, basename, sizeof(p->file));
 
 	/* link this block */
 	if (osh) {
@@ -1114,7 +1115,7 @@ osl_debug_kvmalloc(osl_t *osh, uint size, int line, const char* file)
 	if (!basename)
 		basename = file;
 
-	strlcpy(p->file, basename, sizeof(p->file));
+	strscpy(p->file, basename, sizeof(p->file));
 
 	/* link this block */
 	if (osh) {
@@ -2075,7 +2076,7 @@ osl_timer_del(osl_t *osh, osl_timer_t *t)
 	if (t->set) {
 		t->set = FALSE;
 		if (t->timer) {
-			del_timer(t->timer);
+			timer_delete(t->timer);
 			MFREE(NULL, t->timer, sizeof(timer_list_compat_t));
 		}
 #ifdef BCMDBG

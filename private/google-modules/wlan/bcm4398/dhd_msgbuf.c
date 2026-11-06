@@ -2711,7 +2711,7 @@ typedef struct dhd_pktid_map {
 	struct bcm_mwbmap *pktid_audit; /* multi word bitmap based audit */
 #endif /* DHD_PKTID_AUDIT_ENABLED */
 	dhd_pktid_key_t	*keys; /* map_items +1 unique pkt ids */
-	dhd_pktid_item_t lockers[0];           /* metadata storage */
+	dhd_pktid_item_t lockers[];           /* metadata storage */
 } dhd_pktid_map_t;
 
 /*
@@ -4538,9 +4538,9 @@ dhd_msgbuf_agg_h2d_db_timer_init(dhd_pub_t *dhd)
 	agg_h2d_db_info_t *agg_db_info = &prot->agg_h2d_db_info;
 
 	agg_db_info->dhd = dhd;
-	hrtimer_init(&agg_db_info->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	/* The timer function will run from ISR context, ensure no spin_lock_bh are used */
-	agg_db_info->timer.function = &dhd_msgbuf_agg_h2d_db_timer_fn;
+	hrtimer_setup(&agg_db_info->timer, dhd_msgbuf_agg_h2d_db_timer_fn,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	agg_db_info->init = TRUE;
 	agg_db_info->timer_db_cnt = 0;
 	agg_db_info->direct_db_cnt = 0;
@@ -6169,7 +6169,7 @@ int dhd_sync_with_dongle(dhd_pub_t *dhd)
 #ifndef OEM_ANDROID
 	/* Get the device MAC address */
 	bzero(buf, sizeof(buf));
-	strlcpy(buf, "cur_etheraddr", sizeof(buf));
+	strscpy(buf, "cur_etheraddr", sizeof(buf));
 	ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf), FALSE, 0);
 	if (ret < 0) {
 		DHD_ERROR(("%s: GET iovar cur_etheraddr FAILED\n", __FUNCTION__));
@@ -11672,7 +11672,7 @@ dhd_msgbuf_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len,
 
 		if ((len >= strlen("bcmerrorstr")) &&
 			(!strcmp((char *)buf, "bcmerrorstr"))) {
-			strlcpy((char *)buf, bcmerrorstr(dhd->dongle_error), copylen);
+			strscpy((char *)buf, bcmerrorstr(dhd->dongle_error), copylen);
 			goto done;
 		} else if ((len >= strlen("bcmerror")) &&
 			!strcmp((char *)buf, "bcmerror")) {
@@ -12731,7 +12731,7 @@ dhd_prot_ring_attach(dhd_pub_t *dhd, msgbuf_ring_t *ring, const char *name,
 	ASSERT((max_items < 0xFFFF) && (item_len < 0xFFFF) && (ringid < 0xFFFF));
 
 	/* Init name */
-	strlcpy((char *)ring->name, name, sizeof(ring->name));
+	strscpy((char *)ring->name, name, sizeof(ring->name));
 
 	ring->idx = ringid;
 

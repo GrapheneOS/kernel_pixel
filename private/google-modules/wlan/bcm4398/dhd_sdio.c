@@ -10462,7 +10462,7 @@ extract_hex_field(char * line, uint16 start_pos, uint16 num_chars, uint16 * valu
 {
 	char field [8];
 
-	strlcpy(field, line + start_pos, sizeof(field));
+	strscpy(field, line + start_pos, sizeof(field));
 
 	return (sscanf (field, "%hX", value) == 1);
 }

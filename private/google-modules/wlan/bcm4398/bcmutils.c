@@ -3713,7 +3713,7 @@ FREED_ENTRY_FOUND:
 
 		bcm_object_rm_list(&dbgobj_freehead, &dbgobj_freetail, dbgobj);
 		dbgobj->obj = obj;
-		strlcpy(dbgobj->caller, caller, sizeof(dbgobj->caller));
+		strscpy(dbgobj->caller, caller, sizeof(dbgobj->caller));
 		dbgobj->line = line;
 		dbgobj->flag = 0;
 		if (opt == BCM_OBJDBG_ADD_PKT) {
@@ -3740,7 +3740,7 @@ FREED_ENTRY_FOUND:
 				}
 				bcm_object_rm_list(&dbgobj_objhead, &dbgobj_objtail, dbgobj);
 				bzero(dbgobj->caller, sizeof(dbgobj->caller));
-				strlcpy(dbgobj->caller, caller, sizeof(dbgobj->caller));
+				strscpy(dbgobj->caller, caller, sizeof(dbgobj->caller));
 				dbgobj->line = line;
 				bcm_object_add_list(&dbgobj_freehead, &dbgobj_freetail, dbgobj,
 					BCM_OBJDBG_ADDTOTAIL);
@@ -5207,7 +5207,7 @@ bcm_mkiovar(const char *name, const char *data, uint datalen, char *buf, uint bu
 	if ((len + datalen) > buflen)
 		return 0;
 
-	strlcpy(buf, name, buflen);
+	strscpy(buf, name, buflen);
 
 	/* append data onto the end of the name string */
 	if (data && datalen != 0) {

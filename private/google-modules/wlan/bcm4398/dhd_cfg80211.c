@@ -416,7 +416,7 @@ static s32 wl_dongle_filter(struct net_device *ndev, u32 filter_mode)
 	/* add a default packet filter pattern */
 	str = "pkt_filter_add";
 	str_len = strlen(str);
-	strlcpy(buf, str, sizeof(buf));
+	strscpy(buf, str, sizeof(buf));
 	buf_len = str_len + 1;
 
 	pkt_filterp = (struct wl_pkt_filter *)(buf + str_len + 1);
