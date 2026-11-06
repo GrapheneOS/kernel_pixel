@@ -582,7 +582,6 @@ static int gcip_pin_user_pages(struct device *dev, struct page **pages, unsigned
 			       struct mutex *pin_user_pages_lock)
 {
 	int ret, i;
-	struct vm_area_struct **vmas = NULL;
 
 	ret = gcip_pin_user_pages_fast(pages, start_addr, num_pages, gup_flags,
 				       pin_user_pages_lock);
@@ -592,21 +591,16 @@ static int gcip_pin_user_pages(struct device *dev, struct page **pages, unsigned
 	dev_dbg(dev, "Failed to pin user pages in fast mode (ret=%d, addr=%lu, num_pages=%d)", ret,
 		start_addr, num_pages);
 
-	/* Allocate our own vmas array non-contiguous. */
-	vmas = kvmalloc((num_pages * sizeof(*vmas)), GFP_KERNEL | __GFP_NOWARN);
-	if (!vmas)
-		return -ENOMEM;
 	if (pin_user_pages_lock)
 		mutex_lock(pin_user_pages_lock);
 	mmap_read_lock(current->mm);
 
-	ret = pin_user_pages(start_addr, num_pages, gup_flags, pages, vmas);
+	ret = pin_user_pages(start_addr, num_pages, gup_flags, pages);
 
 	mmap_read_unlock(current->mm);
 	if (pin_user_pages_lock)
 		mutex_unlock(pin_user_pages_lock);
 
-	kvfree(vmas);
 	if (ret < num_pages) {
 		if (ret > 0) {
 			dev_err(dev, "Can only lock %u of %u pages requested", ret, num_pages);
@@ -758,7 +752,7 @@ static int _gcip_iommu_domain_pool_attach_domain(struct gcip_iommu_domain_pool *
 	if (pasid < 0)
 		return pasid;
 
-	ret = iommu_attach_device_pasid(domain->domain, pool->dev, pasid);
+	ret = iommu_attach_device_pasid(domain->domain, pool->dev, pasid, NULL);
 	if (ret) {
 		ida_free(&pool->pasid_pool, pasid);
 		return ret;
