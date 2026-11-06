@@ -122,7 +122,7 @@ int wm_adsp_compr_trigger_v1(struct snd_soc_component *component,
 int wm_adsp_compr_handle_irq_v1(struct wm_adsp *dsp);
 int wm_adsp_compr_pointer_v1(struct snd_soc_component *component,
 			  struct snd_compr_stream *stream,
-			  struct snd_compr_tstamp *tstamp);
+			  struct snd_compr_tstamp64 *tstamp);
 int wm_adsp_compr_copy_v1(struct snd_soc_component *component,
 		       struct snd_compr_stream *stream,
 		       char __user *buf, size_t count);

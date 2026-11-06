@@ -275,18 +275,7 @@ void cs40l2x_set_state(struct cs40l2x_private *cs40l2x, bool state)
 }
 EXPORT_SYMBOL(cs40l2x_set_state);
 
-ssize_t strscpy_pad(char *dest, const char *src, size_t count)
-{
-	ssize_t written;
 
-	written = strscpy(dest, src, count);
-	if (written < 0 || written == count - 1)
-		return written;
-
-	memset(dest + written + 1, 0, count - written - 1);
-
-	return written;
-}
 
 static void cs40l2x_set_gpio_event(struct cs40l2x_private *cs40l2x, bool value)
 {
@@ -11502,8 +11491,7 @@ static const struct mfd_cell cs40l2x_devs[] = {
 	},
 };
 
-static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
-				const struct i2c_device_id *id)
+static int cs40l2x_i2c_probe(struct i2c_client *i2c_client)
 {
 	int ret, i;
 	struct cs40l2x_private *cs40l2x;
@@ -11523,11 +11511,11 @@ static int cs40l2x_i2c_probe(struct i2c_client *i2c_client,
 
 	mutex_init(&cs40l2x->lock);
 
-	hrtimer_init(&cs40l2x->pbq_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	cs40l2x->pbq_timer.function = cs40l2x_pbq_timer;
+	hrtimer_setup(&cs40l2x->pbq_timer, cs40l2x_pbq_timer,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
-	hrtimer_init(&cs40l2x->asp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	cs40l2x->asp_timer.function = cs40l2x_asp_timer;
+	hrtimer_setup(&cs40l2x->asp_timer, cs40l2x_asp_timer,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 
 	cs40l2x->vibe_workqueue =
 		alloc_ordered_workqueue("vibe_workqueue", WQ_HIGHPRI);
