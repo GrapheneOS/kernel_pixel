@@ -327,8 +327,8 @@ int kbase_backend_timer_init(struct kbase_device *kbdev)
 {
 	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
 
-	hrtimer_init(&backend->scheduling_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	backend->scheduling_timer.function = timer_callback;
+	hrtimer_setup(&backend->scheduling_timer, timer_callback,
+		      CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	backend->timer_running = false;
 
 	return 0;
