@@ -96,9 +96,9 @@ static int cnss_genl_send_data(u8 type, char *file_name, u32 total_size,
 		    type, file_name, total_size, seg_id, end, data_len);
 
 	if (!file_name)
-		strlcpy(filename, "default", sizeof(filename));
+		strscpy(filename, "default", sizeof(filename));
 	else
-		strlcpy(filename, file_name, sizeof(filename));
+		strscpy(filename, file_name, sizeof(filename));
 
 	skb = genlmsg_new(NLMSG_HDRLEN +
 			  nla_total_size(sizeof(type)) +
@@ -154,6 +154,8 @@ fail:
 	return ret;
 }
 
+int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size);
+
 int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 {
 	int ret = 0;
@@ -196,6 +198,8 @@ int cnss_genl_send_msg(void *buff, u8 type, char *file_name, u32 total_size)
 	return ret;
 }
 
+int cnss_genl_init(void);
+
 int cnss_genl_init(void)
 {
 	int ret = 0;
@@ -206,6 +210,8 @@ int cnss_genl_init(void)
 
 	return ret;
 }
+
+void cnss_genl_exit(void);
 
 void cnss_genl_exit(void)
 {
