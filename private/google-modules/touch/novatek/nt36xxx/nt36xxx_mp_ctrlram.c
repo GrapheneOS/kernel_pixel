@@ -1628,7 +1628,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-void print_selftest_data(uint8_t ker_pf, struct seq_file *m, int32_t rawdata[],
+static void print_selftest_data(uint8_t ker_pf, struct seq_file *m, int32_t rawdata[],
 	uint8_t x_len, uint8_t y_len)
 {
 	int32_t i, j, iArrayIndex;
@@ -1666,7 +1666,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-void print_selftest_result(uint8_t ker_pf, struct seq_file *m, int32_t TestResult,
+static void print_selftest_result(uint8_t ker_pf, struct seq_file *m, int32_t TestResult,
 			   uint8_t RecordResult[], int32_t rawdata[], uint8_t x_len, uint8_t y_len)
 {
 	int32_t i = 0;
@@ -1743,7 +1743,7 @@ static void nvt_check_defect_line(uint8_t result[], uint8_t x_ch, uint8_t y_ch)
 	}
 }
 
-void show_selftest(uint8_t ker_pf_data, uint8_t ker_pf_result, struct seq_file *m)
+static void show_selftest(uint8_t ker_pf_data, uint8_t ker_pf_result, struct seq_file *m)
 {
 	show_print(ker_pf_data, m, "\n***** Selftest Data *****\n");
 
@@ -2490,7 +2490,7 @@ failed_out:
  * return:
  *	Executive outcomes. 0---succeed. negative---failed.
  ******************************************************/
-int32_t nvt_selftest_open(struct inode *inode, struct file *file)
+static int32_t nvt_selftest_open(struct inode *inode, struct file *file)
 {
 	int32_t ret = 0;
 
@@ -2527,7 +2527,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-int32_t nvt_mp_parse_ain(struct device_node *np, const char *name,
+static int32_t nvt_mp_parse_ain(struct device_node *np, const char *name,
 			 uint8_t *array, int32_t size)
 {
 	struct property *data;
@@ -2568,7 +2568,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-int32_t nvt_mp_parse_u32(struct device_node *np, const char *name,
+static int32_t nvt_mp_parse_u32(struct device_node *np, const char *name,
 			 int32_t *para)
 {
 	int32_t ret;
@@ -2591,7 +2591,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-int32_t nvt_mp_parse_array(struct device_node *np, const char *name,
+static int32_t nvt_mp_parse_array(struct device_node *np, const char *name,
 			   int32_t *array,
 			   int32_t size)
 {
@@ -2637,7 +2637,7 @@ Description:
 return:
 	n.a.
 *******************************************************/
-int32_t nvt_mp_parse_pen_array(struct device_node *np, const char *name,
+static int32_t nvt_mp_parse_pen_array(struct device_node *np, const char *name,
 			       int32_t *array,
 			       uint32_t x_num, uint32_t y_num)
 {
@@ -2935,6 +2935,8 @@ Description:
 return:
 	Executive outcomes. 0---succeed. -1---failed.
 *******************************************************/
+int32_t nvt_mp_proc_init(void);
+
 int32_t nvt_mp_proc_init(void)
 {
 	NVT_proc_selftest_entry = proc_create("nvt_selftest", 0444, NULL,
@@ -2961,6 +2963,8 @@ Description:
 return:
 	n.a.
 *******************************************************/
+void nvt_mp_proc_deinit(void);
+
 void nvt_mp_proc_deinit(void)
 {
 	nvt_mp_buffer_deinit();
