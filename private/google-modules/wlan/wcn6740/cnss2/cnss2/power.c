@@ -986,7 +986,7 @@ int cnss_get_input_gpio_value(struct cnss_plat_data *plat_priv, int gpio_num)
 #ifdef CONFIG_WCN_GOOGLE
 #define WLAN_BUCK			"wlan_buck"
 static int wlan_buck_gpio=0;
-int wlan_buck_enable(struct cnss_plat_data *plat_priv)
+static int wlan_buck_enable(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
 	struct device *dev;
@@ -1421,7 +1421,7 @@ int cnss_aop_ol_cpr_cfg_setup(struct cnss_plat_data *plat_priv,
 			u32 wake_volt = 0, sleep_volt = 0;
 
 			if (plat_vreg_param[j].vreg[0] == '\0')
-				strlcpy(plat_vreg_param[j].vreg, vreg,
+				strscpy(plat_vreg_param[j].vreg, vreg,
 					sizeof(plat_vreg_param[j].vreg));
 			else if (!strnstr(plat_vreg_param[j].vreg, vreg,
 					  strlen(plat_vreg_param[j].vreg)))
