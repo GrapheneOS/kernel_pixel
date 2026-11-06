@@ -93,7 +93,7 @@ void nvt_change_mode(uint8_t mode)
 	}
 }
 
-int32_t nvt_set_pen_inband_mode_1(uint8_t freq_idx, uint8_t x_term)
+static int32_t nvt_set_pen_inband_mode_1(uint8_t freq_idx, uint8_t x_term)
 {
 	uint8_t buf[8] = {0};
 	int32_t i = 0;
@@ -129,7 +129,7 @@ int32_t nvt_set_pen_inband_mode_1(uint8_t freq_idx, uint8_t x_term)
 	}
 }
 
-int32_t nvt_set_pen_normal_mode(void)
+static int32_t nvt_set_pen_normal_mode(void)
 {
 	uint8_t buf[8] = {0};
 	int32_t i = 0;
@@ -289,6 +289,8 @@ Description:
 return:
     n.a.
 *******************************************************/
+void nvt_get_mdata(int32_t *buf, uint8_t *m_x_num, uint8_t *m_y_num);
+
 void nvt_get_mdata(int32_t *buf, uint8_t *m_x_num, uint8_t *m_y_num)
 {
 	*m_x_num = ts->x_num;
@@ -304,6 +306,9 @@ Description:
 return:
 	n.a.
 *******************************************************/
+void nvt_read_get_num_mdata(uint32_t xdata_addr, int32_t *buffer,
+			    uint32_t num);
+
 void nvt_read_get_num_mdata(uint32_t xdata_addr, int32_t *buffer,
 			    uint32_t num)
 {
@@ -1166,6 +1171,8 @@ Description:
 return:
 	Executive outcomes. 0---succeed. -12---failed.
 *******************************************************/
+int32_t nvt_extra_proc_init(void);
+
 int32_t nvt_extra_proc_init(void)
 {
 	NVT_proc_fw_version_entry = proc_create(NVT_FW_VERSION, 0444, NULL,
@@ -1257,6 +1264,8 @@ Description:
 return:
 	n.a.
 *******************************************************/
+void nvt_extra_proc_deinit(void);
+
 void nvt_extra_proc_deinit(void)
 {
 	if (NVT_proc_fw_version_entry != NULL) {

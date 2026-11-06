@@ -10,6 +10,10 @@
 
 void nvt_heatmap_decode(
 		const uint8_t *in, const uint32_t in_sz,
+		const uint8_t *out, const uint32_t out_sz);
+
+void nvt_heatmap_decode(
+		const uint8_t *in, const uint32_t in_sz,
 		const uint8_t *out, const uint32_t out_sz)
 {
 	const u16 ESCAPE_MASK = 0xF000;
@@ -149,7 +153,7 @@ int nvt_get_channel_data(void *private_data,
 	return ret;
 }
 
-int nvt_test_mode_read(struct nvt_ts_data *ts, struct gti_sensor_data_cmd *cmd)
+static int nvt_test_mode_read(struct nvt_ts_data *ts, struct gti_sensor_data_cmd *cmd)
 {
 	char trace_tag[128];
 	int ret = 0;
