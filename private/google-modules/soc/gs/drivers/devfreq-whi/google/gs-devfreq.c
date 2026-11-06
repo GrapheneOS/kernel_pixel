@@ -1445,7 +1445,7 @@ static int exynos_devfreq_parse_dt(struct device_node *np,
 	}
 
 	if (of_property_read_u32(np, "dfs_id", &data->dfs_id) &&
-	    of_property_match_string(np, "clock-names", buf))
+	    of_property_match_string(np, "clock-names", "DEVFREQ") < 0)
 		return -ENODEV;
 
 	if (!of_property_read_string(np, "use_get_dev", &use_get_dev)) {
