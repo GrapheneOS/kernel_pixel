@@ -179,10 +179,14 @@ static struct mcps802154_region_ops nfcc_coex_region_ops = {
 	/* clang-format on */
 };
 
+int __init nfcc_coex_region_init(void);
+
 int __init nfcc_coex_region_init(void)
 {
 	return mcps802154_region_register(&nfcc_coex_region_ops);
 }
+
+void __exit nfcc_coex_region_exit(void);
 
 void __exit nfcc_coex_region_exit(void)
 {
