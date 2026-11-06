@@ -5,6 +5,7 @@
  * Copyright (c) 2019-2021 Google LLC
  */
 
+#include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
