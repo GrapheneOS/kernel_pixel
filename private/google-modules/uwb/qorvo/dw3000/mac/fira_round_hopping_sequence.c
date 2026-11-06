@@ -23,7 +23,9 @@
 
 #include "fira_session.h"
 #include <linux/string.h>
-#include <asm/unaligned.h>
+#include <linux/unaligned.h>
+
+int fira_round_hopping_sequence_init(struct fira_session *session);
 
 int fira_round_hopping_sequence_init(struct fira_session *session)
 {
@@ -36,6 +38,8 @@ int fira_round_hopping_sequence_init(struct fira_session *session)
 	return fira_round_hopping_crypto_init(round_hopping_sequence);
 }
 
+void fira_round_hopping_sequence_destroy(struct fira_session *session);
+
 void fira_round_hopping_sequence_destroy(struct fira_session *session)
 {
 	struct fira_round_hopping_sequence *round_hopping_sequence =
@@ -43,6 +47,9 @@ void fira_round_hopping_sequence_destroy(struct fira_session *session)
 
 	fira_round_hopping_crypto_destroy(round_hopping_sequence);
 }
+
+int fira_round_hopping_sequence_get(const struct fira_session *session,
+				    int block_index);
 
 int fira_round_hopping_sequence_get(const struct fira_session *session,
 				    int block_index)

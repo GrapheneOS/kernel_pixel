@@ -132,6 +132,9 @@ static int fira_session_fsm_idle_start(struct fira_local *local,
 
 /* not static: shared with init state */
 int fira_session_fsm_idle_check_parameters(const struct fira_session *session,
+					   struct nlattr **attrs);
+
+int fira_session_fsm_idle_check_parameters(const struct fira_session *session,
 					   struct nlattr **attrs)
 {
 	enum fira_session_param_attrs i;

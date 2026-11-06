@@ -25,6 +25,8 @@
 #include "mcps802154_i.h"
 #include "llhw-ops.h"
 
+bool mcps802154_fproc_is_non_recoverable_error(struct mcps802154_access *access);
+
 bool mcps802154_fproc_is_non_recoverable_error(struct mcps802154_access *access)
 {
 	bool rc = false;

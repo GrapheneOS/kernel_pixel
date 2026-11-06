@@ -95,13 +95,16 @@ static const struct dw3000_chip_register d0_registers[] = {
 };
 
 const struct dw3000_chip_register *dw3000_d0_get_registers(struct dw3000 *dw,
+							   size_t *count);
+
+const struct dw3000_chip_register *dw3000_d0_get_registers(struct dw3000 *dw,
 							   size_t *count)
 {
 	*count = ARRAY_SIZE(d0_registers);
 	return d0_registers;
 }
 
-const u32 *dw3000_d0_get_config_mrxlut_chan(struct dw3000 *dw, u8 channel)
+static const u32 *dw3000_d0_get_config_mrxlut_chan(struct dw3000 *dw, u8 channel)
 {
 	/* Lookup table default values for channel 5 */
 	static const u32 dw3000_d0_configmrxlut_ch5[DW3000_CONFIGMRXLUT_MAX] = {
@@ -129,6 +132,8 @@ const u32 *dw3000_d0_get_config_mrxlut_chan(struct dw3000 *dw, u8 channel)
  *
  * Return: zero on success, else a negative error code.
  */
+int dw3000_d0_softreset(struct dw3000 *dw);
+
 int dw3000_d0_softreset(struct dw3000 *dw)
 {
 	/* D0 require a FAST command to start soft-reset */
@@ -143,6 +148,8 @@ int dw3000_d0_softreset(struct dw3000 *dw)
  *
  * Return: zero on success, else a negative error code.
  */
+int dw3000_d0_init(struct dw3000 *dw);
+
 int dw3000_d0_init(struct dw3000 *dw)
 {
 	int rc = 0;
@@ -163,6 +170,8 @@ int dw3000_d0_init(struct dw3000 *dw)
  *
  * Return: zero on success, else a negative error code.
  */
+int dw3000_d0_coex_init(struct dw3000 *dw);
+
 int dw3000_d0_coex_init(struct dw3000 *dw)
 {
 	u32 modemask;
@@ -221,7 +230,7 @@ static int dw3000_d0_check_tx_ok(struct dw3000 *dw)
  *
  * Return: zero on success, else a negative error code.
  */
-int dw3000_d0_prog_ldo_and_bias_tune(struct dw3000 *dw)
+static int dw3000_d0_prog_ldo_and_bias_tune(struct dw3000 *dw)
 {
 	struct dw3000_local_data *local = &dw->data;
 	struct dw3000_otp_data *otp = &dw->otp_data;
@@ -272,6 +281,9 @@ static int dw3000_d0_pll_calibration_from_scratch(struct dw3000 *dw)
  * Return: 0 on error, else the RSSI in absolute value and as an integer.
  * expressed in dBm, Q32.0.
  */
+u32 dw3000_d0_compute_rssi(struct dw3000 *dw, struct dw3000_rssi *rssi,
+			   bool rx_tune, u8 sts);
+
 u32 dw3000_d0_compute_rssi(struct dw3000 *dw, struct dw3000_rssi *rssi,
 			   bool rx_tune, u8 sts)
 {
