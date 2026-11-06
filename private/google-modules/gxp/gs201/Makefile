@@ -75,11 +75,14 @@ endif
 
 ifeq ($(CONFIG_$(GXP_CHIP)),m)
 
-gxp-objs += $(GCIP_DIR)/gcip.o
+include $(CURRENT_DIR)/$(GCIP_DIR)/objects.mk
+gxp-objs += $(addprefix $(GCIP_DIR)/,$(gcip-objects))
 
 endif
 
 KERNEL_SRC ?= /lib/modules/$(shell uname -r)/build
+ROOT_DIR ?= $(KERNEL_SRC)/..
+COMMON_OUT_DIR ?= $(OUT_DIR)/..
 # TODO(b/368532067): Remove once tpu-ext.h is properly landed
 -include $(ROOT_DIR)/private/google-modules/soc/gs/Makefile.include
 M ?= $(shell pwd)
@@ -157,9 +160,7 @@ EXTRA_SYMBOLS += $(GMODULE_OUT_PATH)/perf/google_pm_qos_Module.symvers
 endif
 
 modules modules_install compile_commands.json:
-	$(MAKE) -C $(KERNEL_SRC) M=$(M)/$(GCIP_DIR) gcip.o
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) W=1 $(KBUILD_OPTIONS) \
 	EXTRA_CFLAGS="$(EXTRA_CFLAGS)" KBUILD_EXTRA_SYMBOLS="$(EXTRA_SYMBOLS)" $(@)
 clean:
-	$(MAKE) -C $(KERNEL_SRC) M=$(M)/$(GCIP_DIR) $(@)
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) W=1 $(KBUILD_OPTIONS) $(@)
