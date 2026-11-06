@@ -546,13 +546,14 @@ static void kvm_arm_smmu_domain_free(struct iommu_domain *domain)
 	struct kvm_arm_smmu_domain *kvm_smmu_domain = to_kvm_smmu_domain(domain);
 	struct arm_smmu_device *smmu = kvm_smmu_domain->smmu;
 
+	arm_smmu_domain_telemetry_free(kvm_smmu_domain, PKVM_MODE_DRIVER);
+
 	if (smmu && (kvm_smmu_domain->domain.type != IOMMU_DOMAIN_IDENTITY)) {
 		free_io_pgtable_ops_pixel(kvm_smmu_domain->pgtbl_ops);
 		ret = kvm_iommu_free_domain(kvm_smmu_domain->id);
 		ida_free(&kvm_arm_smmu_domain_ida, kvm_smmu_domain->id);
 	}
 
-	arm_smmu_domain_telemetry_free(kvm_smmu_domain, PKVM_MODE_DRIVER);
 	kfree(kvm_smmu_domain);
 }
 
