@@ -133,7 +133,7 @@ static int gsc_tpm_datagram(struct gsc_data *gsc,
 	int gsc_fell_over = 0;
 
 	/* Lock the SPI bus until we're completely done */
-	spi_bus_lock(spi->master);
+	spi_bus_lock(spi->controller);
 
 	/* Check whether GSC is awake (b/142475097) */
 	ret = gsc_is_awake(gsc);
@@ -213,7 +213,7 @@ static int gsc_tpm_datagram(struct gsc_data *gsc,
 		ret = -EFAULT;
 
 exit:
-	spi_bus_unlock(spi->master);
+	spi_bus_unlock(spi->controller);
 
 	return ret;
 }
@@ -223,7 +223,7 @@ static int gsc_reset(struct gsc_data *gsc)
 	/* Synchronize with the datagrams by locking the SPI bus */
 	struct spi_device *spi = gsc->spi;
 
-	spi_bus_lock(spi->master);
+	spi_bus_lock(spi->controller);
 
 	/* Assert reset for at least 3ms after VDDIOM is stable; 10ms is safe */
 	gpio_set_value(gsc->ctdl_rst, 1);
@@ -233,7 +233,7 @@ static int gsc_reset(struct gsc_data *gsc)
 	gpio_set_value(gsc->ctdl_rst, 0);
 	msleep(100);
 
-	spi_bus_unlock(spi->master);
+	spi_bus_unlock(spi->controller);
 	return 0;
 }
 
@@ -356,7 +356,7 @@ static const struct file_operations gsc_fops = {
 	.poll =			gsc_poll,
 	.release =		gsc_release,
 	.unlocked_ioctl =	gsc_ioctl,
-	.llseek =		no_llseek,
+	.llseek =		NULL,
 };
 
 #ifdef CONFIG_OF
@@ -377,7 +377,7 @@ static irqreturn_t gsc_irq_handler(int irq, void *handle)
 }
 
 static int gsc_request_named_gpio(struct gsc_data *gsc,
-				  const char *label, int *gpio)
+				  const char *label, int *gpio, unsigned long flags)
 {
 	struct device *dev = &gsc->spi->dev;
 	struct device_node *np = dev->of_node;
@@ -389,7 +389,7 @@ static int gsc_request_named_gpio(struct gsc_data *gsc,
 	}
 	*gpio = rc;
 
-	rc = devm_gpio_request(dev, *gpio, label);
+	rc = devm_gpio_request_one(dev, *gpio, flags, label);
 	if (rc) {
 		dev_err(dev, "failed to request gpio %d\n", *gpio);
 		return rc;
@@ -408,7 +408,7 @@ static int gsc_probe(struct spi_device *spi)
 	u32 minor;
 
 	/* use chip select as minor */
-	minor = (u32)spi->chip_select;
+	minor = spi_get_chipselect(spi, 0);
 	if (minor >= GSC_MAX_DEVICES) {
 		dev_err(&spi->dev, "minor %u out of boundaries\n", minor);
 		return -ENXIO;
@@ -436,7 +436,7 @@ static int gsc_probe(struct spi_device *spi)
 
 	/* setup ctdl_ap_irq  */
 	ret = gsc_request_named_gpio(gsc, "gsc,ctdl_ap_irq",
-				     &gsc->ctdl_ap_irq);
+				     &gsc->ctdl_ap_irq, GPIOF_IN);
 	if (ret) {
 		dev_err(&spi->dev,
 			"gsc_request_named_gpio gsc,ctdl_ap_irq failed.\n");
@@ -456,7 +456,7 @@ static int gsc_probe(struct spi_device *spi)
 
 	/* setup ctdl_rst */
 	ret = gsc_request_named_gpio(gsc, "gsc,ctdl_rst",
-				     &gsc->ctdl_rst);
+				     &gsc->ctdl_rst, GPIOF_OUT_INIT_LOW);
 	if (ret) {
 		dev_err(&spi->dev,
 			"gsc_request_named_gpio gsc,ctdl_rst failed.\n");

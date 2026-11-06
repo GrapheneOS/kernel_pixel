@@ -93,6 +93,8 @@ int asv_get_ids_info(unsigned int id)
  * OTP bits are specified in
  * https://docs.google.com/spreadsheets/d/1EDGj2ZcTytrgBnCfwXxX3ChpMrVmtKuq5sjbs8e_jdw/edit?resourcekey=0-JkGfpJv2U7d7qsoNNKtskA#gid=916237836
  */
+void asv_init(void);
+
 void asv_init(void)
 {
 	unsigned int uBits;

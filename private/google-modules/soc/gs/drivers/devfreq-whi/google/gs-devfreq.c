@@ -71,6 +71,8 @@ static u32 exynos_devfreq_opp_round_freq(
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
 static struct srcu_notifier_head exynos_alt_notifier;
 
+void exynos_alt_call_chain(void);
+
 void exynos_alt_call_chain(void)
 {
 	srcu_notifier_call_chain(&exynos_alt_notifier, 0, NULL);
@@ -2059,6 +2061,9 @@ static int exynos_devfreq_resume(struct device *dev)
 }
 
 ssize_t
+user_vote_show(struct device *dev, struct device_attribute *attr, char *buf);
+
+ssize_t
 user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct thermal_cooling_device *cdev = to_cooling_device(dev);
@@ -2069,6 +2074,9 @@ user_vote_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	return sprintf(buf, "%lu\n", devfreq_cdev->sysfs_req);
 }
+
+ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
+			const char *buf, size_t count);
 
 ssize_t user_vote_store(struct device *dev, struct device_attribute *attr,
 			const char *buf, size_t count)

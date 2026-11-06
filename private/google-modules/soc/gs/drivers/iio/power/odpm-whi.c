@@ -285,6 +285,8 @@ static int odpm_io_write_lpf_reg(struct odpm_info *info,
 	return s2mpg1x_meter_set_lpf_coefficient(info->chip.hw_id, info->i2c, ch, data);
 }
 
+int odpm_configure_chip(struct odpm_info *info);
+
 int odpm_configure_chip(struct odpm_info *info)
 {
 	int ch;
@@ -321,6 +323,8 @@ int odpm_configure_chip(struct odpm_info *info)
 }
 
 #if IS_ENABLED(CONFIG_SOC_GS201)
+int odpm_meter_sw_reset(struct odpm_info *info);
+
 int odpm_meter_sw_reset(struct odpm_info *info) {
 	u8 mt_trim_reg = '\0';
 
@@ -335,6 +339,8 @@ int odpm_meter_sw_reset(struct odpm_info *info) {
 				      mt_trim_reg);
 }
 #endif
+
+int odpm_configure_start_measurement(struct odpm_info *info);
 
 int odpm_configure_start_measurement(struct odpm_info *info)
 {

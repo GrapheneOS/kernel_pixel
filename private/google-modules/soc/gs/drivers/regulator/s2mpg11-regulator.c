@@ -532,7 +532,7 @@ static ssize_t s2mpg11_pmic_write_show(struct device *dev,
 static DEVICE_ATTR_RW(s2mpg11_pmic_write);
 static DEVICE_ATTR_RW(s2mpg11_pmic_read);
 
-int create_s2mpg11_pmic_sysfs(struct s2mpg11_pmic *s2mpg11)
+static int create_s2mpg11_pmic_sysfs(struct s2mpg11_pmic *s2mpg11)
 {
 	struct device *s2mpg11_pmic = s2mpg11->dev;
 	int err = -ENODEV;
@@ -577,7 +577,7 @@ static irqreturn_t s2mpg11_buck_ocp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void s2mpg11_ocp_detection_config(struct s2mpg11_pmic *s2mpg11,
+static void s2mpg11_ocp_detection_config(struct s2mpg11_pmic *s2mpg11,
 				  struct s2mpg11_platform_data *pdata)
 {
 	int ret;
@@ -611,7 +611,7 @@ void s2mpg11_ocp_detection_config(struct s2mpg11_pmic *s2mpg11,
 		pr_err("i2c write error setting BUCK_OCP_CTRL7: %d\n", ret);
 }
 
-void s2mpg11_ocp_warn(struct s2mpg11_pmic *s2mpg11,
+static void s2mpg11_ocp_warn(struct s2mpg11_pmic *s2mpg11,
 		      struct s2mpg11_platform_data *pdata)
 {
 	u8 val;
@@ -640,7 +640,7 @@ void s2mpg11_ocp_warn(struct s2mpg11_pmic *s2mpg11,
 		pr_err("i2c write error setting b2s_soft_ocp_warn\n");
 }
 
-void s2mpg11_oi_function(struct s2mpg11_pmic *s2mpg11)
+static void s2mpg11_oi_function(struct s2mpg11_pmic *s2mpg11)
 {
 	/* add OI configuration code if necessary */
 

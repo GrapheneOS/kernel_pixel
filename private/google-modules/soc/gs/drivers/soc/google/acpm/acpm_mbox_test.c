@@ -30,7 +30,7 @@
 #include "../../../soc/google/cal-if/acpm_dvfs.h"
 #if defined(CONFIG_SOC_GS101)
 #include <dt-bindings/clock/gs101.h>
-#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg10-gs.h>
 #include <linux/mfd/samsung/s2mpg11.h>
 #include <linux/mfd/samsung/rtc-s2mpg10.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>

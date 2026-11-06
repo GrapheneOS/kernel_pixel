@@ -19,7 +19,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg10-gs.h>
 #include <linux/mfd/samsung/s2mpg10-register.h>
 #include <linux/mfd/samsung/s2mpg1x-meter.h>
 #include <linux/io.h>
@@ -498,7 +498,7 @@ static DEVICE_ATTR_RO(s2mpg10_lpf_power);
 static DEVICE_ATTR_RO(s2mpg10_acc_current);
 static DEVICE_ATTR_RO(s2mpg10_acc_power);
 
-int create_s2mpg10_meter_sysfs(struct s2mpg10_meter *s2mpg10)
+static int create_s2mpg10_meter_sysfs(struct s2mpg10_meter *s2mpg10)
 {
 	struct device *s2mpg10_meter_dev = s2mpg10->dev;
 	int err = -ENODEV;

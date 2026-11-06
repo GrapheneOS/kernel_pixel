@@ -782,7 +782,7 @@ static u16 phy_exynos_usb_v3p1_ssp_cr_access(struct exynos_usbphy_info *info,
 			    (G2PHY_CRPARCON0_CR_PARA_ADDR(addr) |
 			     (G2PHY_CRPARCON0_CR_PARA_CLK));
 
-			if (cr_op == USBCON_CR_WRITE) {
+			if (cr_op == USBCON_CR_SSP_WRITE) {
 				g2phy_crparcon2 =
 				    readl(base + EXYNOS_USBCON_G2PHY_CRPARCON2);
 				g2phy_crparcon2 |=
@@ -814,7 +814,7 @@ static u16 phy_exynos_usb_v3p1_ssp_cr_access(struct exynos_usbphy_info *info,
 			    ~(0x1 << phy_exynos_usb_v3p1_ssp_cr_clk_down(info));
 
 		} else if (loop_cnt == 2) {
-			if (cr_op == USBCON_CR_WRITE) {
+			if (cr_op == USBCON_CR_SSP_WRITE) {
 				/* Do nothing */
 			} else {
 				/* cr_op==USBCON_CR_READ */
@@ -869,21 +869,21 @@ u16 phy_exynos_usb_v3p1_cal_cr_read(struct exynos_usbphy_info *info, u16 addr)
 	return phy_exynos_usb_v3p1_cr_access(info, USBCON_CR_READ, 0);
 }
 
-void phy_exynos_usb_v3p1_ssp_cal_cr_write(struct exynos_usbphy_info *info,
+static void phy_exynos_usb_v3p1_ssp_cal_cr_write(struct exynos_usbphy_info *info,
 					  u16 addr, u16 data)
 {
 	phy_exynos_usb_v3p1_ssp_cr_access(info,
 					  USBCON_CR_SSP_WRITE, addr, data);
 }
 
-u16 phy_exynos_usb_v3p1_ssp_cal_cr_read(struct exynos_usbphy_info *info,
+static __maybe_unused u16 phy_exynos_usb_v3p1_ssp_cal_cr_read(struct exynos_usbphy_info *info,
 					u16 addr)
 {
 	return phy_exynos_usb_v3p1_ssp_cr_access(info,
 						 USBCON_CR_SSP_READ, addr, 0);
 }
 
-void phy_exynos_usb_v3p1_cal_usb3phy_tune_fix_rxeq(struct exynos_usbphy_info
+static void phy_exynos_usb_v3p1_cal_usb3phy_tune_fix_rxeq(struct exynos_usbphy_info
 						   *info)
 {
 	u16 reg;
@@ -968,7 +968,7 @@ static void set_ss_tx_impedance(struct exynos_usbphy_info *info)
 	phy_exynos_usb_v3p1_cal_cr_write(info, 0x1001, tx_ovrd_in_hi);
 }
 
-void phy_exynos_usb_v3p1_cal_usb3phy_tune_adaptive_eq(struct exynos_usbphy_info
+static __maybe_unused void phy_exynos_usb_v3p1_cal_usb3phy_tune_adaptive_eq(struct exynos_usbphy_info
 						      *info, u8 eq_fix)
 {
 	u16 reg;
@@ -984,7 +984,7 @@ void phy_exynos_usb_v3p1_cal_usb3phy_tune_adaptive_eq(struct exynos_usbphy_info
 	phy_exynos_usb_v3p1_cal_cr_write(info, 0x1006, reg);
 }
 
-void phy_exynos_usb_v3p1_usb3phy_tune_chg_rxeq(struct exynos_usbphy_info *info,
+static __maybe_unused void phy_exynos_usb_v3p1_usb3phy_tune_chg_rxeq(struct exynos_usbphy_info *info,
 					       u8 eq_val)
 {
 	u16 reg;
@@ -1182,7 +1182,7 @@ u64 phy_exynos_usb3p1_get_logic_trace(struct exynos_usbphy_info *info)
 	return ret;
 }
 
-u8 phy_exynos_usb3p1_get_phyclkcnt(struct exynos_usbphy_info *info)
+static __maybe_unused u8 phy_exynos_usb3p1_get_phyclkcnt(struct exynos_usbphy_info *info)
 {
 	u32 hsp_test;
 	u8 phyclkcnt;
@@ -1198,7 +1198,7 @@ u8 phy_exynos_usb3p1_get_phyclkcnt(struct exynos_usbphy_info *info)
 	return phyclkcnt;
 }
 
-u8 phy_exynos_usb3p1_get_linestate(struct exynos_usbphy_info *info)
+static __maybe_unused u8 phy_exynos_usb3p1_get_linestate(struct exynos_usbphy_info *info)
 {
 	u32 hsp_test;
 	u8 linestate;
@@ -1957,7 +1957,7 @@ void phy_exynos_usb3p1_u3_rewa_disable(struct exynos_usbphy_info *info)
 	writel(reg, regs_base + EXYNOS_USBCON_U3REWA_CTRL);
 }
 
-void phy_exynos_usb3p1_usb3phy_dp_altmode_set_ss_disable(struct exynos_usbphy_info
+static __maybe_unused void phy_exynos_usb3p1_usb3phy_dp_altmode_set_ss_disable(struct exynos_usbphy_info
 							 *usbphy_info,
 							 int dp_phy_port)
 {
@@ -1982,7 +1982,7 @@ void phy_exynos_usb3p1_usb3phy_dp_altmode_set_ss_disable(struct exynos_usbphy_in
 	usleep_range(100, 120);
 }
 
-void phy_exynos_usb3p1_usb3phy_dp_altmode_clear_ss_disable(struct exynos_usbphy_info
+static __maybe_unused void phy_exynos_usb3p1_usb3phy_dp_altmode_clear_ss_disable(struct exynos_usbphy_info
 							   *usbphy_info,
 							   int dp_phy_port)
 {
@@ -2031,7 +2031,7 @@ void phy_exynos_usb3p1_set_fs_vplus_vminus(struct exynos_usbphy_info
 	}
 }
 
-u8 phy_exynos_usb3p1_get_fs_vplus_vminus(struct exynos_usbphy_info *info)
+static __maybe_unused u8 phy_exynos_usb3p1_get_fs_vplus_vminus(struct exynos_usbphy_info *info)
 {
 	void __iomem *regs_base = info->regs_base;
 	u32 hsp_ctrl;
@@ -2044,7 +2044,7 @@ u8 phy_exynos_usb3p1_get_fs_vplus_vminus(struct exynos_usbphy_info *info)
 	return ((fsvminus & 0x1) << 1) | (fsvplus & 0x1);
 }
 
-void phy_exynos_usb3p1_set_fsv_out_en(struct exynos_usbphy_info *usbphy_info,
+static __maybe_unused void phy_exynos_usb3p1_set_fsv_out_en(struct exynos_usbphy_info *usbphy_info,
 				      u32 fsv_out_en)
 {
 	void __iomem *regs_base = usbphy_info->regs_base;
@@ -2126,7 +2126,7 @@ u8 phy_exynos_usb3p1_bc_data_contact_detect(struct exynos_usbphy_info
 	return ret;
 }
 
-enum exynos_usb_bc
+static __maybe_unused enum exynos_usb_bc
 phy_exynos_usb3p1_bc_battery_charger_detection(struct exynos_usbphy_info
 			*usbphy_info)
 {
