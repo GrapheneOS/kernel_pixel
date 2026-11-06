@@ -103,6 +103,7 @@ extern void exynos_pin_dbg_show(unsigned int pin, const char* str);
 
 static void sscd_release(struct device *dev);
 static struct sscd_platform_data sscd_pdata;
+static bool sscd_registered;
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
 	.driver_override = SSCD_NAME,
@@ -841,7 +842,12 @@ dhd_wlan_init(void)
 	DHD_INFO(("%s: START.......\n", __FUNCTION__));
 
 #ifdef DHD_COREDUMP
-	platform_device_register(&sscd_dev);
+	ret = platform_device_register(&sscd_dev);
+	if (ret) {
+		platform_device_put(&sscd_dev);
+		return ret;
+	}
+	sscd_registered = true;
 #endif /* DHD_COREDUMP */
 
 	ret = dhd_wifi_init_gpio();
@@ -876,11 +882,18 @@ fail:
 	if (ret < 0) {
 		/* wlan init failed, turn off WL_REG_ON */
 		dhd_wlan_set_reg_off();
+#ifdef DHD_COREDUMP
+		platform_device_unregister(&sscd_dev);
+		sscd_registered = false;
+#endif
 	}
 
 	DHD_ERROR(("%s: FINISH.......\n", __FUNCTION__));
 	return ret;
 }
+
+int
+dhd_wlan_deinit(void);
 
 int
 dhd_wlan_deinit(void)
@@ -894,7 +907,10 @@ dhd_wlan_deinit(void)
 	}
 
 #ifdef DHD_COREDUMP
-	platform_device_unregister(&sscd_dev);
+	if (sscd_registered) {
+		platform_device_unregister(&sscd_dev);
+		sscd_registered = false;
+	}
 #endif /* DHD_COREDUMP */
 
 	return 0;
