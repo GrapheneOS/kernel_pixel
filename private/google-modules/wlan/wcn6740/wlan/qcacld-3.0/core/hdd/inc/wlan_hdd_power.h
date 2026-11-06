@@ -387,6 +387,7 @@ void hdd_ipv6_notifier_work_queue(struct work_struct *work);
  */
 int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
+				  int radio_idx, unsigned int link_id,
 				  int *dbm);
 
 /**
@@ -400,6 +401,7 @@ int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
  */
 int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
+				  int radio_idx,
 				  enum nl80211_tx_power_setting type,
 				  int dbm);
 
