@@ -113,6 +113,8 @@ static const struct dev_pm_ops fts_pm_ops;
   * Clear touch flags
   * @param info pointer to fts_ts_info which contains info about device/hw setup
   */
+void clear_touch_flags(struct fts_ts_info *info);
+
 void clear_touch_flags(struct fts_ts_info *info)
 {
 	info->touch_id = 0;
@@ -540,6 +542,8 @@ END:
   * @return OK if is possible to enable/disable feature, ERROR_OP_NOT_ALLOW
   * in case of any other conflict
   */
+int check_feature_feasibility(struct fts_ts_info *info, unsigned int feature);
+
 int check_feature_feasibility(struct fts_ts_info *info, unsigned int feature)
 {
 	int res = OK;
@@ -1413,7 +1417,7 @@ static ssize_t gesture_coordinates_show(struct device *dev,
   * - F1 = Perform a system reset and reenable the sensing and the interrupt
   */
 static ssize_t stm_fts_cmd_write(struct file *fp, struct kobject *kobj,
-				 struct bin_attribute *battr, char *buf,
+				 const struct bin_attribute *battr, char *buf,
 				 loff_t offset, size_t count)
 {
 	u8 result, n = 0;
@@ -1522,7 +1526,7 @@ out:
 }
 
 static ssize_t stm_fts_cmd_read(struct file *fp, struct kobject *kobj,
-				struct bin_attribute *battr, char *buf,
+				const struct bin_attribute *battr, char *buf,
 				loff_t offset, size_t count)
 {
 	int res, j, doClean = 0, index = 0;
@@ -2439,7 +2443,7 @@ static DEVICE_ATTR_RW(autotune);
 
 static BIN_ATTR_RW(stm_fts_cmd, 0);
 
-static struct bin_attribute *fts_bin_attr_group[] = {
+static const struct bin_attribute *const fts_bin_attr_group[] = {
 	&bin_attr_stm_fts_cmd,
 	NULL,
 };
@@ -3035,6 +3039,8 @@ static int selftest(void *private_data, struct gti_selftest_cmd *cmd)
   * and its hw setup
   * @param key_code	button value
   */
+void fts_input_report_key(struct fts_ts_info *info, int key_code);
+
 void fts_input_report_key(struct fts_ts_info *info, int key_code)
 {
 	input_report_key(info->input_dev, key_code, 1);
@@ -4627,6 +4633,8 @@ static void fts_fw_update_auto(struct work_struct *work)
  *  Save the golden MS raw data to the touch IC if firmware has separated it
  *  from the PI process.
  */
+int save_golden_ms_raw(struct fts_ts_info *info);
+
 int save_golden_ms_raw(struct fts_ts_info *info)
 {
 	u8 cmd[3] = {0xC0, 0x01, 0x01};
@@ -5349,7 +5357,8 @@ static int fts_gpio_setup(int gpio, bool config, int dir, int state)
 	if (config) {
 		scnprintf(buf, sizeof(buf), "fts_gpio_%u\n", gpio);
 
-		retval = gpio_request(gpio, buf);
+		retval = gpio_request_one(gpio, dir == 0 ? GPIOF_IN :
+			(state ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW), buf);
 		if (retval) {
 			pr_err("%s: Failed to get gpio %d (code: %d)",
 				__func__, gpio, retval);
@@ -5558,13 +5567,12 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
 		}
 	}
 
-	bdata->irq_gpio = of_get_named_gpio_flags(np, "st,irq-gpio", 0, NULL);
+	bdata->irq_gpio = of_get_named_gpio(np, "st,irq-gpio", 0);
 	dev_info(dev, "irq_gpio = %d\n", bdata->irq_gpio);
 
 	if (of_property_read_bool(np, "st,reset-gpio")) {
-		bdata->reset_gpio = of_get_named_gpio_flags(np,
-							    "st,reset-gpio", 0,
-							    NULL);
+		bdata->reset_gpio = of_get_named_gpio(np,
+							    "st,reset-gpio", 0);
 		dev_info(dev, "reset_gpio = %d\n", bdata->reset_gpio);
 	} else
 		bdata->reset_gpio = GPIO_NOT_DEFINED;
@@ -5642,7 +5650,7 @@ static int parse_dt(struct device *dev, struct fts_hw_platform_data *bdata)
   * to the linux input subsystem etc.
   */
 #ifdef I2C_INTERFACE
-static int fts_probe(struct i2c_client *client, const struct i2c_device_id *idp)
+static int fts_probe(struct i2c_client *client)
 {
 #else
 static int fts_probe(struct spi_device *client)
