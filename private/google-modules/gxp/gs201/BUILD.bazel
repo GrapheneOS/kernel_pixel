@@ -15,6 +15,7 @@ kernel_module(
     ]) + [
         "Makefile",
         "gcip-kernel-driver/drivers/gcip/Makefile",
+        "gcip-kernel-driver/drivers/gcip/objects.mk",
         "//private/google-modules/soc/gs:gs_soc_headers",
     ],
     outs = [
