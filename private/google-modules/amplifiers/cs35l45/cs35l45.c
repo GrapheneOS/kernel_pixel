@@ -2022,6 +2022,10 @@ static const struct snd_soc_dai_ops cs35l45_dai_ops = {
 		       SNDRV_PCM_RATE_88200 | \
 		       SNDRV_PCM_RATE_96000)
 
+static const struct snd_soc_dai_ops cs35l45_compress_dai_ops = {
+	.compress_new = snd_soc_new_compress,
+};
+
 static struct snd_soc_dai_driver cs35l45_dai[] = {
 	{
 		.name = "cs35l45",
@@ -2050,7 +2054,7 @@ static struct snd_soc_dai_driver cs35l45_dai[] = {
 			.rates = CS35L45_RATES,
 			.formats = CS35L45_FORMATS,
 		},
-		.compress_new = &snd_soc_new_compress,
+		.ops = &cs35l45_compress_dai_ops,
 	},
 	{
 		.name = "cs35l45-dsp-dsplog",
@@ -2213,8 +2217,6 @@ static int cs35l45_compr_free(struct snd_soc_component *component,
 	struct cs35l45_compr *compr = stream->runtime->private_data;
 	struct wm_adsp *dsp = compr->dsp;
 
-	flush_scheduled_work();
-
 	cancel_work_sync(&compr->start_work);
 	cancel_work_sync(&compr->stop_work);
 
@@ -2331,7 +2333,7 @@ static int cs35l45_buffer_update_avail(struct cs35l45_private *cs35l45)
 
 static int cs35l45_compr_pointer(struct snd_soc_component *component,
 				 struct snd_compr_stream *stream,
-				 struct snd_compr_tstamp *tstamp)
+				 struct snd_compr_tstamp64 *tstamp)
 {
 	struct cs35l45_compr *compr = stream->runtime->private_data;
 	struct wm_adsp *dsp = compr->dsp;
