@@ -352,6 +352,9 @@ static const struct ieee_80211_mcs_rate_info wl_mcs_info[] = {
  *     'mcs' : a *single* spatial stream MCS (11n or 11ac)
  */
 uint
+rate_mcs2rate(uint mcs, uint nss, uint bw, int sgi);
+
+uint
 rate_mcs2rate(uint mcs, uint nss, uint bw, int sgi)
 {
 	const int ksps = 250; /* kilo symbols per sec, 4 us sym */
@@ -468,6 +471,9 @@ ftm_intvl2nsec(const wl_proxd_intvl_t *intvl)
 	}
 	return ret;
 }
+uint64
+ftm_intvl2usec(const wl_proxd_intvl_t *intvl);
+
 uint64
 ftm_intvl2usec(const wl_proxd_intvl_t *intvl)
 {
@@ -1650,6 +1656,9 @@ dhd_rtt_set_next_target_idx(dhd_pub_t *dhd, int start_idx)
 }
 
 void
+dhd_rtt_set_target_list_mode(dhd_pub_t *dhd);
+
+void
 dhd_rtt_set_target_list_mode(dhd_pub_t *dhd)
 {
 	int8 idx;
@@ -2294,6 +2303,9 @@ dhd_rtt_set_geofence_setup_status(dhd_pub_t *dhd, bool inprog,
 		rng_setup_status->rng_inst = NULL;
 	}
 }
+
+int
+dhd_rtt_sched_geofencing_target(dhd_pub_t *dhd);
 
 int
 dhd_rtt_sched_geofencing_target(dhd_pub_t *dhd)
