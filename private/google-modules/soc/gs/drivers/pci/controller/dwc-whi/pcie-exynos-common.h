@@ -233,6 +233,8 @@ struct exynos_pcie_ops {
 };
 
 struct exynos_pcie {
+	struct msi_parent_ops msi_parent_ops;
+	struct irq_chip msi_irq_chip;
 	struct dw_pcie		*pci;
 #if IS_ENABLED(CONFIG_GS_S2MPU)
 	struct list_head	phys_mem_list;
