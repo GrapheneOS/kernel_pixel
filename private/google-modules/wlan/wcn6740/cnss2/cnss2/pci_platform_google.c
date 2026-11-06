@@ -298,10 +298,10 @@ int cnss_pci_of_reserved_mem_device_init(struct cnss_pci_data *pci_priv)
 #define DEVICE_NAME "wlan"
 
 static struct sscd_platform_data sscd_pdata;
+static bool sscd_registered;
 
 static struct platform_device sscd_dev = {
 	.name            = DEVICE_NAME,
-	.driver_override = SSCD_NAME,
 	.id              = -1,
 	.dev             = {
 		.platform_data = &sscd_pdata,
@@ -311,19 +311,32 @@ static struct platform_device sscd_dev = {
 
 void cnss_register_sscd(void)
 {
+	int ret;
+
 	memset(&sscd_pdata, 0, sizeof(struct sscd_platform_data));
 	memset(&sscd_dev, 0, sizeof(struct platform_device));
 	sscd_dev.name = DEVICE_NAME;
-	sscd_dev.driver_override = SSCD_NAME;
 	sscd_dev.id = -1;
 	sscd_dev.dev.platform_data = &sscd_pdata;
 	sscd_dev.dev.release = sscd_release;
-	platform_device_register(&sscd_dev);
+	device_initialize(&sscd_dev.dev);
+	ret = device_set_driver_override(&sscd_dev.dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(&sscd_dev);
+	if (ret) {
+		platform_device_put(&sscd_dev);
+		cnss_pr_err("SSCD registration failed: %d\n", ret);
+	} else {
+		sscd_registered = true;
+	}
 }
 
 void cnss_unregister_sscd(void)
 {
-	platform_device_unregister(&sscd_dev);
+	if (sscd_registered) {
+		platform_device_unregister(&sscd_dev);
+		sscd_registered = false;
+	}
 }
 
 void sscd_release(struct device *dev)
@@ -350,6 +363,8 @@ void sscd_set_coredump(void *buf, int buf_len)
 		}
 	}
 }
+
+void crash_info_handler(u8 *info);
 
 void crash_info_handler(u8 *info)
 {
