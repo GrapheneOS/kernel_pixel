@@ -144,8 +144,7 @@ static inline void  __qdf_hrtimer_init(__qdf_hrtimer_data_t *timer,
 	timer->ctx = ctx;
 
 	if (timer->ctx == QDF_CONTEXT_HARDWARE) {
-		hrtimer_init(hrtimer, clock, hrt_mode);
-		hrtimer->function = cback;
+		hrtimer_setup(hrtimer, cback, clock, hrt_mode);
 	} else if (timer->ctx == QDF_CONTEXT_TASKLET) {
 		QDF_BUG(0);
 	}
@@ -164,8 +163,7 @@ static inline void  __qdf_hrtimer_init(__qdf_hrtimer_data_t *timer,
 	timer->ctx = ctx;
 
 	if (timer->ctx == QDF_CONTEXT_HARDWARE) {
-		hrtimer_init(hrtimer, clock, hrt_mode);
-		hrtimer->function = cback;
+		hrtimer_setup(hrtimer, cback, clock, hrt_mode);
 	} else if (timer->ctx == QDF_CONTEXT_TASKLET) {
 		tasklet_hrtimer_init(tasklet_hrtimer, cback, clock, hrt_mode);
 	}

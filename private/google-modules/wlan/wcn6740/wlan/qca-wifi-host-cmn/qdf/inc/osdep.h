@@ -70,7 +70,7 @@
  * fall back to using the immediate work queue.
  */
 #define qdf_sysctl_decl(f, ctl, write, filp, buffer, lenp, ppos) \
-	f(struct ctl_table *ctl, int32_t write, void *buffer, \
+	f(const struct ctl_table *ctl, int32_t write, void *buffer, \
 	size_t *lenp, loff_t *ppos)
 
 #define QDF_SYSCTL_PROC_DOINTVEC(ctl, write, filp, buffer, lenp, ppos) \

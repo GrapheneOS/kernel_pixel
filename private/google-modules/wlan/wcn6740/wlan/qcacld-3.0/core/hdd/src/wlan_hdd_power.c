@@ -3024,6 +3024,7 @@ static int __wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
 
 int wlan_hdd_cfg80211_set_txpower(struct wiphy *wiphy,
 				  struct wireless_dev *wdev,
+				  int radio_idx,
 				  enum nl80211_tx_power_setting type,
 				  int mbm)
 {
@@ -3245,7 +3246,8 @@ static int __wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 
 int wlan_hdd_cfg80211_get_txpower(struct wiphy *wiphy,
 					 struct wireless_dev *wdev,
-					 int *dbm)
+				  int radio_idx, unsigned int link_id,
+				  int *dbm)
 {
 	struct osif_psoc_sync *psoc_sync;
 	int errno;

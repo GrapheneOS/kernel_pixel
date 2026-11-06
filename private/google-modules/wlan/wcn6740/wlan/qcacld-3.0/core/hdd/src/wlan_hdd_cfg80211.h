@@ -454,16 +454,16 @@ int wlan_hdd_del_station(struct hdd_adapter *adapter, const uint8_t *mac);
 
 #if defined(USE_CFG80211_DEL_STA_V2)
 int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
-				  struct net_device *dev,
+				  struct wireless_dev *cfg_wdev,
 				  struct station_del_parameters *param);
 #else
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 16, 0))
 int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
-				  struct net_device *dev,
+				  struct wireless_dev *cfg_wdev,
 				  const uint8_t *mac);
 #else
 int wlan_hdd_cfg80211_del_station(struct wiphy *wiphy,
-				  struct net_device *dev,
+				  struct wireless_dev *cfg_wdev,
 				  uint8_t *mac);
 #endif
 #endif /* USE_CFG80211_DEL_STA_V2 */
