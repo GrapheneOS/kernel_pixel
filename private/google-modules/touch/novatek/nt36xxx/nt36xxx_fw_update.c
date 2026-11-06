@@ -176,6 +176,8 @@ Description:
 return:
 	n.a.
 *******************************************************/
+void Boot_Update_Firmware(struct work_struct *work);
+
 void Boot_Update_Firmware(struct work_struct *work)
 {
 	int32_t ret = 0;
@@ -1282,6 +1284,8 @@ Description:
 return:
 	n.a.
 *******************************************************/
+void Boot_Update_Firmware(struct work_struct *work);
+
 void Boot_Update_Firmware(struct work_struct *work)
 {
 	mutex_lock(&ts->lock);

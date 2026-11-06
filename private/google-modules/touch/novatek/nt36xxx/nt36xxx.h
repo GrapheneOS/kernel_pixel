@@ -290,9 +290,7 @@ struct nvt_ts_data {
 	uint8_t pen_freq_index;
 	uint32_t int_trigger_type;
 	int32_t irq_gpio;
-	uint32_t irq_flags;
 	int32_t reset_gpio;
-	uint32_t reset_flags;
 	struct mutex lock;
 #if defined(CONFIG_SOC_GOOGLE)
 	const struct nvt_ts_trim_id_table *trim_table;

@@ -76,7 +76,7 @@ uint32_t playback_addr;
 uint8_t  playback_enabled;
 uint8_t  grip_level;
 
-ssize_t nvt_check_api_cmd_result(uint16_t cmd_test_bit, uint16_t pattern)
+static ssize_t nvt_check_api_cmd_result(uint16_t cmd_test_bit, uint16_t pattern)
 {
 	uint8_t spi_buf[3] = {0}, shift = 0;
 	uint16_t result;
@@ -94,7 +94,7 @@ ssize_t nvt_check_api_cmd_result(uint16_t cmd_test_bit, uint16_t pattern)
 	return 0;
 }
 
-ssize_t nvt_get_api_status(uint16_t cmd_get_bit)
+static ssize_t nvt_get_api_status(uint16_t cmd_get_bit)
 {
 	uint8_t spi_buf[3] = {0}, shift = 0;
 	uint16_t status;
@@ -997,7 +997,7 @@ static ssize_t nvt_sync_freq_show(struct device *dev,
 	return ret;
 }
 
-void cal_uniformity(uint8_t *arr, uint32_t size)
+static void cal_uniformity(uint8_t *arr, uint32_t size)
 {
 	uint8_t is_right_most, is_bottom;
 	uint16_t res, i;
@@ -2182,7 +2182,7 @@ static struct attribute *nvt_api_attrs[] = {
 };
 
 static ssize_t nvt_playback_write_buf(struct file *data_file,
-		struct kobject *kobj, struct bin_attribute *attributes,
+		struct kobject *kobj, const struct bin_attribute *attributes,
 		char *buf, loff_t pos, size_t count)
 {
 	uint8_t spi_buf[2] = {0};
@@ -2238,7 +2238,7 @@ static struct bin_attribute bin_attr_nvt_playback_write_buf = {
 	.write = nvt_playback_write_buf,
 };
 
-static struct bin_attribute *nvt_api_bin_attrs[] = {
+static const struct bin_attribute *const nvt_api_bin_attrs[] = {
 	&bin_attr_nvt_playback_write_buf,
 	NULL,
 };
@@ -2434,7 +2434,7 @@ int32_t nvt_extra_api_init(void)
 		goto exit_nvt_touch_sysfs_init;
 	}
 
-	ret = devm_device_add_group(&ts->input_dev->dev, &nvt_api_attribute_group);
+	ret = device_add_group(&ts->input_dev->dev, &nvt_api_attribute_group);
 	if (ret)
 		NVT_ERR("create sysfs nvt_api_attribute_group failed: %d\n", ret);
 
@@ -2457,7 +2457,7 @@ exit_nvt_touch_sysfs_init:
 void nvt_extra_api_deinit(void)
 {
 	NVT_LOGD("++\n");
-	devm_device_remove_group(&ts->input_dev->dev, &nvt_api_attribute_group);
+	device_remove_group(&ts->input_dev->dev, &nvt_api_attribute_group);
 	sysfs_remove_link(ts->input_dev->dev.kobj.parent, NVT_TOUCH_SYSFS_LINK);
 	devm_kfree(&ts->client->dev, ts->heatmap_spi_buf);
 	ts->heatmap_spi_buf = NULL;
