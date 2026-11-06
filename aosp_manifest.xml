@@ -139,7 +139,7 @@
   <project name="kernel/build" path="build/kernel" revision="38e2a76ecb0257fe1f27b0078cd9169191601ec7" upstream="main-kernel-2026" dest-branch="main-kernel-2026" groups="dependencies,ddk">
     <linkfile dest="MODULE.bazel" src="kleaf/bzlmod/bazel.MODULE.bazel"/>
   </project>
-  <project name="kernel_common-6.18" path="common" remote="grapheneos" groups="dependencies" revision="8299417b96c4fa27da852719bb60560a99dbd57b" upstream="refs/heads/17-muzel" dest-branch="refs/heads/17-muzel">
+  <project name="kernel_common-6.18" path="common" remote="grapheneos" groups="dependencies" revision="ad9b16438f074e627ea045093362e87121128b20" upstream="refs/heads/17-muzel" dest-branch="refs/heads/17-muzel">
     <linkfile dest=".clang-format" src=".clang-format"/>
     <linkfile dest="aosp" src="."/>
   </project>
