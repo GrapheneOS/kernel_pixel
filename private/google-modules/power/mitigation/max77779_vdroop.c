@@ -21,6 +21,8 @@ struct max77779_sample_data {
 	int16_t i_val;
 } __packed;
 
+int max77779_adjust_bat_open_to(struct bcl_device *bcl_dev, bool enable);
+
 int max77779_adjust_bat_open_to(struct bcl_device *bcl_dev, bool enable)
 {
 	int ret;
@@ -38,6 +40,9 @@ int max77779_adjust_bat_open_to(struct bcl_device *bcl_dev, bool enable)
 					      MAX77779_BAT_OILO1_CNFG_3, val);
 	return ret;
 }
+
+int max77779_adjust_batoilo_lvl(struct bcl_device *bcl_dev, u8 lower_enable, u8 set_batoilo1_lvl,
+                                u8 set_batoilo2_lvl);
 
 int max77779_adjust_batoilo_lvl(struct bcl_device *bcl_dev, u8 lower_enable, u8 set_batoilo1_lvl,
                                 u8 set_batoilo2_lvl)

@@ -17,6 +17,8 @@ struct tzprot_dev_state {
 	struct gsa_tz_chan_ctx prot_srv;
 };
 
+int trusty_protect_ip(struct device *dev, uint32_t prot_id, bool enable);
+
 int trusty_protect_ip(struct device *dev, uint32_t prot_id, bool enable)
 {
 	int rc;

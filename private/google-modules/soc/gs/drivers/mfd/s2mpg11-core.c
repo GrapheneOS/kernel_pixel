@@ -139,7 +139,7 @@ int s2mpg11_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 }
 EXPORT_SYMBOL_GPL(s2mpg11_update_reg);
 
-struct i2c_client *s2mpg11_get_i2c_client(struct s2mpg11_dev *dev,
+static struct i2c_client *s2mpg11_get_i2c_client(struct s2mpg11_dev *dev,
 					  unsigned int reg)
 {
 	struct i2c_client *client = NULL;
@@ -154,7 +154,7 @@ struct i2c_client *s2mpg11_get_i2c_client(struct s2mpg11_dev *dev,
 	return client;
 }
 
-int s2mpg11_regmap_read_reg(void *context, unsigned int reg,
+static int s2mpg11_regmap_read_reg(void *context, unsigned int reg,
 			    unsigned int *dest)
 {
 	u8 ureg = reg;
@@ -169,7 +169,7 @@ int s2mpg11_regmap_read_reg(void *context, unsigned int reg,
 	return s2mpg11_read_reg(client, ureg, udest);
 }
 
-int s2mpg11_regmap_write_reg(void *context, unsigned int reg,
+static int s2mpg11_regmap_write_reg(void *context, unsigned int reg,
 			     unsigned int value)
 {
 	u8 ureg = reg;
@@ -270,8 +270,7 @@ static void s2mpg11_get_rev_id(struct s2mpg11_dev *s2mpg11, int id)
 		s2mpg11->pmic_rev = S2MPG11_EVT1;
 }
 
-static int s2mpg11_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *dev_id)
+static int s2mpg11_i2c_probe(struct i2c_client *i2c)
 {
 	struct s2mpg11_dev *s2mpg11;
 	struct s2mpg11_platform_data *pdata = i2c->dev.platform_data;

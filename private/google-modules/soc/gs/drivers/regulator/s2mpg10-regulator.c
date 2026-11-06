@@ -19,7 +19,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/mfd/samsung/s2mpg10.h>
+#include <linux/mfd/samsung/s2mpg10-gs.h>
 #include <linux/mfd/samsung/s2mpg10-register.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
@@ -645,7 +645,7 @@ static ssize_t s2mpg10_pmic_write_show(struct device *dev,
 static DEVICE_ATTR_RW(s2mpg10_pmic_write);
 static DEVICE_ATTR_RW(s2mpg10_pmic_read);
 
-int create_s2mpg10_pmic_sysfs(struct s2mpg10_pmic *s2mpg10)
+static int create_s2mpg10_pmic_sysfs(struct s2mpg10_pmic *s2mpg10)
 {
 	struct device *s2mpg10_pmic = s2mpg10->dev;
 	int err = -ENODEV;
@@ -690,7 +690,7 @@ static irqreturn_t s2mpg10_buck_ocp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void s2mpg10_ocp_detection_config(struct s2mpg10_pmic *s2mpg10,
+static void s2mpg10_ocp_detection_config(struct s2mpg10_pmic *s2mpg10,
 				  struct s2mpg10_platform_data *pdata)
 {
 	int ret;
@@ -722,7 +722,7 @@ void s2mpg10_ocp_detection_config(struct s2mpg10_pmic *s2mpg10,
 
 }
 
-int s2mpg10_smpl_warn(struct s2mpg10_pmic *s2mpg10,
+static int s2mpg10_smpl_warn(struct s2mpg10_pmic *s2mpg10,
 		      struct s2mpg10_platform_data *pdata)
 {
 	u8 val;
@@ -740,7 +740,7 @@ int s2mpg10_smpl_warn(struct s2mpg10_pmic *s2mpg10,
 	return ret;
 }
 
-void s2mpg10_ocp_warn(struct s2mpg10_pmic *s2mpg10,
+static void s2mpg10_ocp_warn(struct s2mpg10_pmic *s2mpg10,
 		      struct s2mpg10_platform_data *pdata)
 {
 	u8 val;
@@ -814,7 +814,7 @@ void s2mpg10_ocp_warn(struct s2mpg10_pmic *s2mpg10,
 		pr_err("i2c write error setting b10m_soft_ocp_warn\n");
 }
 
-void s2mpg10_oi_function(struct s2mpg10_pmic *s2mpg10)
+static void s2mpg10_oi_function(struct s2mpg10_pmic *s2mpg10)
 {
 	/* add OI configuration code if necessary */
 

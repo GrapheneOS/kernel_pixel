@@ -347,6 +347,8 @@ static void bdu_etr_disable(void)
 
 static void exynos_etm_smp_enable(void *ununsed);
 void exynos_etm_trace_start(void);
+int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size);
+
 int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 {
 	struct etr_info *etr = &ee_info->etr;
@@ -388,6 +390,8 @@ int gs_coresight_etm_external_etr_on(u64 buf_addr, u32 buf_size)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gs_coresight_etm_external_etr_on);
+
+int gs_coresight_etm_external_etr_off(void);
 
 int gs_coresight_etm_external_etr_off(void)
 {
@@ -868,7 +872,7 @@ static DEVICE_ATTR_RO(port_status);
 #ifdef CONFIG_EXYNOS_CORESIGHT_ETR
 static ssize_t etr_dump_read(struct file *filp,
 			     struct kobject *kobj,
-			     struct bin_attribute *attr,
+			     const struct bin_attribute *attr,
 			     char *buffer,
 			     loff_t pos,
 			     size_t size)
@@ -886,7 +890,7 @@ static ssize_t etr_dump_read(struct file *filp,
 
 static BIN_ATTR_RO(etr_dump, 0);
 
-static struct bin_attribute *exynos_etr_sysfs_attrs[] = {
+static const struct bin_attribute *exynos_etr_sysfs_attrs[] = {
 	&bin_attr_etr_dump,
 	NULL,
 };
