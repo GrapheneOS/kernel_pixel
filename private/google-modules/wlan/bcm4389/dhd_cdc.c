@@ -246,7 +246,7 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uin
 	{
 		if (!strcmp((char *)buf, "bcmerrorstr"))
 		{
-			strlcpy((char *)buf, bcmerrorstr(dhd->dongle_error), len);
+			strscpy((char *)buf, bcmerrorstr(dhd->dongle_error), len);
 			goto done;
 		}
 		else if (!strcmp((char *)buf, "bcmerror"))
