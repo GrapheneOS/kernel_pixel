@@ -529,13 +529,13 @@ static inline bool do_preempt_short(struct cfs_rq *cfs_rq,
 
 static inline bool protect_slice(struct sched_entity *se)
 {
-	return se->vlag == se->deadline;
+	return (s64)(se->vruntime - se->vprot) < 0;
 }
 
 static inline void cancel_protect_slice(struct sched_entity *se)
 {
 	if (protect_slice(se))
-		se->vlag = se->deadline + 1;
+		se->vprot = se->vruntime;
 }
 
 /*****************************************************************************/
