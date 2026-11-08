@@ -14,6 +14,7 @@
 #include <linux/completion.h>
 #include <linux/dev_printk.h>
 #include <linux/pm_domain.h>
+#include <linux/pm_wakeup.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
@@ -481,11 +482,34 @@ static int power_off(struct generic_pm_domain *domain)
 	return ret;
 }
 
+/* Keep this definition in sync with drivers/pmdomain/core.c. */
+struct genpd_lock_ops {
+	void (*lock)(struct generic_pm_domain *genpd);
+	void (*lock_nested)(struct generic_pm_domain *genpd, int depth);
+	int (*lock_interruptible)(struct generic_pm_domain *genpd);
+	void (*unlock)(struct generic_pm_domain *genpd);
+};
+
 static int noop_resume_noirq_overwrite(struct device *dev)
 {
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	struct generic_pm_domain *genpd;
+
+	if (IS_ERR_OR_NULL(dev->pm_domain))
+		return -EINVAL;
+
+	genpd = pd_to_genpd(dev->pm_domain);
 
 	dev_dbg(dev, "Skipping power_domain resume_noirq call for the device.");
+
+	/* Balance genpd_finish_suspend() without powering the domain back on. */
+	if (!(device_awake_path(dev) &&
+	      (genpd->flags & GENPD_FLAG_ACTIVE_WAKEUP) &&
+	      !device_out_band_wakeup(dev))) {
+		genpd->lock_ops->lock(genpd);
+		genpd->suspended_count--;
+		genpd->lock_ops->unlock(genpd);
+	}
 
 	return pm && pm->resume_noirq ? pm->resume_noirq(dev) : 0;
 }
