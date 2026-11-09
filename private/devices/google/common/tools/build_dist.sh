@@ -20,6 +20,7 @@ fi
 
 "${WORKSPACE_DIR}/tools/bazel" run \
   --config=stamp \
+  --extra_git_project=private \
   --config="${DEVICE}" \
   "//private/devices/google/${DEVICE}:${DEVICE}/dist" \
   "$@" || exit 1
