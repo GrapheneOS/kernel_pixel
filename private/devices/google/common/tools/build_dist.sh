@@ -32,12 +32,14 @@ done
 echo "=== Base Kernel Info ==="
 echo "Sources: $("${WORKSPACE_DIR}/tools/bazel" --quiet cquery \
   --config=stamp \
+  --extra_git_project=private \
   --config="${DEVICE}" \
   "filter(:kernel_.*_sources$, deps(${DEVICE_TARGET}/kernel_sources))" \
   "${BAZEL_FLAGS[@]}" | tail -n 1 | cut -d ' ' -f 1
 )"
 echo "Build: $("${WORKSPACE_DIR}/tools/bazel" --quiet cquery \
   --config=stamp \
+  --extra_git_project=private \
   --config="${DEVICE}" \
   "kind(\"(_kernel_build|kernel_filegroup) rule\", deps(${DEVICE_TARGET}/kernel))" \
   "${BAZEL_FLAGS[@]}" | tail -n 1 | cut -d ' ' -f 1
@@ -46,6 +48,7 @@ echo "========================"
 
 "${WORKSPACE_DIR}/tools/bazel" run \
   --config=stamp \
+  --extra_git_project=private \
   --config="${DEVICE}" \
   "${DEVICE_TARGET}/dist" \
   "${BAZEL_FLAGS[@]}" "$@"
