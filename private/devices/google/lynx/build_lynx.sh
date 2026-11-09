@@ -1,4 +1,4 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0-only
 
-exec tools/build_dist.sh lynx --disable_randstruct "$@"
+exec tools/build_dist.sh lynx "$@"
