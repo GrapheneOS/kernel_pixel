@@ -1845,8 +1845,8 @@ static int exynos_pcie_rc_parse_dt(struct device *dev, struct exynos_pcie *exyno
 	 * from the end point device tree.
 	 * The PCIe RC on detecting this write will generate an interrupt that is
 	 * routed to exynos_pcie_rc_irq_handler().
-	 * If it's an MSI interrupt, it will be sent to the core pcie driver
-	 * dw_handle_msi_irq().
+	 * If it's an MSI interrupt, it will be sent to
+	 * exynos_pcie_handle_msi_irq().
 	 * This in turn will route it to the appropriate handler registered by the
 	 * EP driver.
 	 */
@@ -2891,6 +2891,27 @@ void exynos_pcie_rc_force_linkdown_work(int ch_num) {
 }
 EXPORT_SYMBOL(exynos_pcie_rc_force_linkdown_work);
 
+/* Affinity is handled by the parent hardware IRQ, without software redirection. */
+static void exynos_pcie_handle_msi_irq(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	unsigned int i, num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+
+	for (i = 0; i < num_ctrls; i++) {
+		unsigned long status, pos;
+
+		status = dw_pcie_readl_dbi(pci, PCIE_MSI_INTR0_STATUS +
+					  i * MSI_REG_CTRL_BLOCK_SIZE);
+		/* Root-port IRQs retain DesignWare's no-op acknowledgement. */
+		for_each_set_bit(pos, &status, MAX_MSI_IRQS_PER_CTRL) {
+			dw_pcie_writel_dbi(pci, PCIE_MSI_INTR0_STATUS +
+					  i * MSI_REG_CTRL_BLOCK_SIZE, BIT(pos));
+			generic_handle_domain_irq(pp->irq_domain,
+						  i * MAX_MSI_IRQS_PER_CTRL + pos);
+		}
+	}
+}
+
 static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 {
 	struct dw_pcie_rp *pp = arg;
@@ -2968,7 +2989,7 @@ static irqreturn_t exynos_pcie_rc_irq_handler(int irq, void *arg)
 			return IRQ_HANDLED;
 		}
 
-		dw_handle_msi_irq(pp);
+		exynos_pcie_handle_msi_irq(pp);
 
 		/* Mask & Clear MSI to pend MSI interrupt.
 		 * After clearing IRQ_PULSE, MSI interrupt can be ignored if
@@ -4770,7 +4791,7 @@ static irqreturn_t exynos_pcie_msi0_handler(int irq, void *arg)
 		return IRQ_HANDLED;
 	}
 
-	dw_handle_msi_irq(pp);
+	exynos_pcie_handle_msi_irq(pp);
 
 	if (!msi_vec->flags) {
 		/* To set as handle_level_irq, get virq, mapped_irq, irq_data. */
@@ -5042,9 +5063,12 @@ skip_sep_request_irq:
 	if (pp->irq_domain) {
 		/* Endpoint MSI domains inherit these controller-specific operations. */
 		exynos_pcie->msi_irq_chip = *pp->msi_irq_chip;
+		/* Keep the no-op ack: a second clear could lose a new MSI. */
+		exynos_pcie->msi_irq_chip.irq_pre_redirect = NULL;
 		exynos_pcie->msi_irq_chip.irq_set_affinity = exynos_pcie_msi_set_affinity;
 		pp->msi_irq_chip = &exynos_pcie->msi_irq_chip;
 		exynos_pcie->msi_parent_ops = *pp->irq_domain->msi_parent_ops;
+		exynos_pcie->msi_parent_ops.chip_flags |= MSI_CHIP_FLAG_SET_ACK;
 		exynos_pcie->msi_parent_ops.required_flags &= ~MSI_FLAG_NO_AFFINITY;
 		exynos_pcie->msi_parent_ops.init_dev_msi_info = exynos_pcie_init_dev_msi_info;
 		if (exynos_pcie->ep_device_type == EP_QC_WIFI ||
