@@ -1296,7 +1296,7 @@ int max77779_vimon_init(struct max77779_vimon_data *data)
 	}
 
 	/* register vimon in power_supply subsystem */
-	psy_cfg.of_node = dev->of_node;
+	psy_cfg.fwnode = dev_fwnode(dev);
 	psy_cfg.drv_data = data;
 
 	data->psy = devm_power_supply_register(dev, &psy_desc, &psy_cfg);
