@@ -2102,19 +2102,19 @@ static void google_wlc_soc_work(struct work_struct *work)
 	int soc_raw = -1;
 
 	if (!charger->pdata->batt_psy) {
-		static struct power_supply *psy[2];
+		struct power_supply *psy;
 
-		charger->pdata->batt_psy = devm_power_supply_get_by_reference(charger->dev,
-								     "google,fg-power-supply");
-		if (IS_ERR_OR_NULL(charger->pdata->batt_psy)) {
+		psy = devm_power_supply_get_by_reference(charger->dev,
+						       "google,fg-power-supply");
+		if (IS_ERR_OR_NULL(psy)) {
 			mod_delayed_work(system_wq, &charger->soc_work, msecs_to_jiffies(1000));
 			dev_info(charger->dev, "wait for fg\n");
 			return;
 		}
 
+		charger->pdata->batt_psy = psy;
 		dev_info(charger->dev, "Reading SOC from %s\n",
-			 charger->pdata->batt_psy->desc &&
-			 charger->pdata->batt_psy->desc->name ? psy[0]->desc->name : "<>");
+			 psy->desc && psy->desc->name ? psy->desc->name : "<>");
 	}
 
 	/* triggered from notifier_cb */
