@@ -372,7 +372,7 @@ static struct device* max77779_get_spmi_dev(struct device_node *dn)
 {
 	struct spmi_device *sdev;
 
-	sdev = spmi_device_from_of(dn);
+	sdev = spmi_find_device_by_of_node(dn);
 
 	return sdev ? &sdev->dev : NULL;
 }
