@@ -688,7 +688,7 @@ err_free_bufs:
 	return ret;
 }
 
-static int ggauge_health_monitor_remove(struct platform_device *pdev)
+static void ggauge_health_monitor_remove(struct platform_device *pdev)
 {
 	struct ggauge_health_monitor *ghm = platform_get_drvdata(pdev);
 
@@ -714,8 +714,6 @@ static int ggauge_health_monitor_remove(struct platform_device *pdev)
 		kvfree(ghm->raw_samples);
 
 	ghm_free_buffers(ghm);
-
-	return 0;
 }
 
 static const struct of_device_id ggauge_health_monitor_match[] = {
