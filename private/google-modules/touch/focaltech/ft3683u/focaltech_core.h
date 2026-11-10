@@ -489,6 +489,8 @@ int fts_upgrade_bin(char *fw_name, bool force);
 int fts_enter_test_environment(bool test_state);
 
 /* Other */
+void transpose_raw(u8 *src, u8 *dist, int tx, int rx, bool big_endian);
+size_t goog_internal_sttw_setting_read(char *buf, size_t buf_size);
 int fts_reset_proc(int hdelayms);
 int fts_check_cid(struct fts_ts_data *ts_data, u8 id_h);
 int fts_wait_tp_to_valid(void);
