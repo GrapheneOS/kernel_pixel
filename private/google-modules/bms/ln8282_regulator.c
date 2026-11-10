@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -305,8 +306,7 @@ static const struct regulator_desc ln8282_regulator_desc = {
 	.of_map_mode = &ln8282_of_map_mode,
 };
 
-static int ln8282_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ln8282_probe(struct i2c_client *client)
 {
 	struct device_node *of_node = client->dev.of_node;
 	struct ln8282_regulator_data *rdata;
