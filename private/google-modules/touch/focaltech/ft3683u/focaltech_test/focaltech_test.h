@@ -716,6 +716,21 @@ int fts_test_write(u8 addr, u8 *writebuf, int writelen);
 int enter_work_mode(void);
 int enter_factory_mode(void);
 int read_mass_data(u8 addr, int byte_num, int *buf);
+
+int fts_test_get_raw(int *raw, u8 tx, u8 rx);
+int fts_test_get_baseline(int *raw, int *base_raw, u8 tx, u8 rx);
+int fts_test_get_strength(u8 *base_raw, u16 base_raw_size);
+int fts_test_get_uniformity_data(int *raw, int *rawdata_linearity, u8 tx, u8 rx);
+int fts_test_get_scap_raw(int *scap_raw, u8 tx, u8 rx, int *fwcheck);
+int fts_test_get_scap_cb(int *scap_cb, u8 tx, u8 rx, int *fwcheck);
+int fts_test_get_short(int *short_data, u8 tx, u8 rx);
+int fts_test_get_noise(int *noise, u8 tx, u8 rx);
+int fts_test_get_panel_differ(int *panel_differ, u8 tx, u8 rx);
+int fts_get_low_high_freq_rawdata(struct fts_test *tdata, int *data, bool only_high);
+int fts_test_get_scap_noise(int *scap_noise_data, u8 tx, u8 rx, int *fwcheck);
+int fts_test_get_short_ch_to_gnd(int *res, u8 *ab_ch, u8 tx, u8 rx);
+int fts_test_get_short_ch_to_ch(int *res, u8 *ab_ch, u8 tx, u8 rx);
+
 int chip_clb(void);
 int wait_state_update(u8 retval);
 int get_cb_incell(u16 saddr, int byte_num, int *cb_buf);
