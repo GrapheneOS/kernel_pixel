@@ -1340,9 +1340,10 @@ static int staea_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct staea_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct staea_panel, base.bridge,
+				     get_panel_drm_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->cal_read_type = COLOR_DATA_TYPE_MAX;
 	return gs_dsi_panel_common_init(dsi, &spanel->base);
