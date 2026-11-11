@@ -7025,7 +7025,7 @@ ProbeErrorExit_1:
 
 ProbeErrorExit_0:
 	if (error != -EPROBE_DEFER)
-		dev_err(info->dev, "Probe Failed!\n");
+		dev_err(&client->dev, "Probe Failed!\n");
 
 	return error;
 }
