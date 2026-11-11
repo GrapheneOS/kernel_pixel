@@ -1070,9 +1070,10 @@ static int ak3b_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct ak3b_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct ak3b_panel,
+				       base.bridge, exynos_panel_get_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->base.op_hz = 120;
 
