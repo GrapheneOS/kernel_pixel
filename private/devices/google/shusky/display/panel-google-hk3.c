@@ -2769,9 +2769,10 @@ static int hk3_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct hk3_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct hk3_panel,
+				       base.bridge, exynos_panel_get_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	spanel->base.op_hz = 120;
 	spanel->hw_vrefresh = 60;
