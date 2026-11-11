@@ -811,6 +811,7 @@ static void unregister_panel_bridge(struct drm_bridge *bridge)
 		}
 	drm_modeset_unlock(&bridge->dev->mode_config.connection_mutex);
 	bridge->dev = NULL;
+	drm_bridge_put(bridge);
 }
 
 /**
@@ -1371,12 +1372,13 @@ static int fts_probe(struct spi_device *client)
 #endif
 
 	log_info(1, "%s SET Device driver INFO:\n", __func__);
-	info = kzalloc(sizeof(struct fts_ts_info), GFP_KERNEL);
-	if (!info) {
+	info = devm_drm_bridge_alloc(&client->dev, struct fts_ts_info, panel_bridge,
+				     &panel_bridge_funcs);
+	if (IS_ERR(info)) {
 		log_info(1,
 			 "%s: Out of memory... Impossible to allocate struct info!\n",
 			 __func__);
-		error = -ENOMEM;
+		error = PTR_ERR(info);
 		goto probe_error_exit_0;
 	}
 
@@ -1547,7 +1549,6 @@ probe_error_exit_2:
 	fts_get_reg(info, false);
 
 probe_error_exit_1:
-	kfree(info);
 
 probe_error_exit_0:
 	log_info(1, "%s: Probe Failed!\n", __func__);
@@ -1578,7 +1579,6 @@ static void fts_remove(struct spi_device *client)
 #endif
 	fts_enable_reg(info, false);
 	fts_get_reg(info, false);
-	kfree(info);
 }
 
 static struct of_device_id fts_of_match_table[] = {

@@ -2856,6 +2856,7 @@ static void syna_unregister_panel_bridge(struct drm_bridge *bridge)
 		}
 	drm_modeset_unlock(&bridge->dev->mode_config.connection_mutex);
 	bridge->dev = NULL;
+	drm_bridge_put(bridge);
 }
 #endif
 
@@ -3054,11 +3055,18 @@ static int syna_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+#if defined(USE_DRM_BRIDGE)
+	tcm = devm_drm_bridge_alloc(&pdev->dev, struct syna_tcm, panel_bridge,
+				    &panel_bridge_funcs);
+	if (IS_ERR(tcm))
+		return PTR_ERR(tcm);
+#else
 	tcm = syna_pal_mem_alloc(1, sizeof(struct syna_tcm));
 	if (!tcm) {
 		LOGE("Fail to create the instance of syna_tcm\n");
 		return -ENOMEM;
 	}
+#endif
 
 	tcm->pinctrl = devm_pinctrl_get(pdev->dev.parent);
 	if (IS_ERR_OR_NULL(tcm->pinctrl)) {
@@ -3328,7 +3336,9 @@ err_alloc_workqueue:
 	syna_tcm_buf_release(&tcm->event_data);
 	syna_pal_mutex_free(&tcm->tp_event_mutex);
 err_allocate_cdev:
+#if !defined(USE_DRM_BRIDGE)
 	syna_pal_mem_free((void *)tcm);
+#endif
 
 	return retval;
 }
@@ -3422,7 +3432,9 @@ static void syna_dev_remove(struct platform_device *pdev)
 	syna_tcm_remove_device(tcm->tcm_dev);
 
 	/* release the device context */
+#if !defined(USE_DRM_BRIDGE)
 	syna_pal_mem_free((void *)tcm);
+#endif
 
 	return;
 }

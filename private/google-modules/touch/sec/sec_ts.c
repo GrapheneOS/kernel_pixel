@@ -56,6 +56,7 @@ static void sec_ts_input_close(struct input_dev *dev);
 
 static int register_panel_bridge(struct sec_ts_data *ts);
 static void unregister_panel_bridge(struct drm_bridge *bridge);
+static const struct drm_bridge_funcs panel_bridge_funcs;
 
 int sec_ts_read_information(struct sec_ts_data *ts);
 
@@ -4624,9 +4625,12 @@ static int sec_ts_probe(struct spi_device *client)
 		input_err(true, &client->dev, "%s: could not get pinctrl\n",
 			  __func__);
 
-	ts = kzalloc(sizeof(struct sec_ts_data), GFP_KERNEL);
-	if (!ts)
+	ts = devm_drm_bridge_alloc(&client->dev, struct sec_ts_data, panel_bridge,
+				   &panel_bridge_funcs);
+	if (IS_ERR(ts)) {
+		ret = PTR_ERR(ts);
 		goto error_allocate_mem;
+	}
 
 	ts->client = client;
 	ts->plat_data = pdata;
@@ -5009,7 +5013,6 @@ error_alloc_fw_update_wq:
 	if (ts->event_wq)
 		destroy_workqueue(ts->event_wq);
 error_alloc_workqueue:
-	kfree(ts);
 
 error_allocate_mem:
 	if (gpio_is_valid(pdata->irq_gpio))
@@ -5516,7 +5519,6 @@ static void sec_ts_remove(struct spi_device *client)
 #endif
 	kfree(ts->pFrameSS);
 	kfree(ts->pFrame);
-	kfree(ts);
 }
 
 #ifdef I2C_INTERFACE
@@ -6310,6 +6312,7 @@ static void unregister_panel_bridge(struct drm_bridge *bridge)
 		}
 	drm_modeset_unlock(&bridge->dev->mode_config.connection_mutex);
 	bridge->dev = NULL;
+	drm_bridge_put(bridge);
 }
 
 /*
