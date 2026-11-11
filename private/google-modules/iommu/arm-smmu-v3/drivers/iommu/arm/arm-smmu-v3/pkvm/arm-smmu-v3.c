@@ -2711,15 +2711,23 @@ static bool smmu_dabt_device(struct hyp_arm_smmu_v3_device *smmu,
 		return false;
 
 	if (len == sizeof(u32)) {
-		if (is_write)
-			writel_relaxed(regs->regs[rd] & mask, smmu->base + off);
-		else
-			regs->regs[rd] = readl_relaxed(smmu->base + off);
+		if (is_write) {
+			writel_relaxed((rd == 31 ? 0 : regs->regs[rd]) & mask, smmu->base + off);
+		} else {
+			u32 val = readl_relaxed(smmu->base + off);
+
+			if (rd != 31)
+				regs->regs[rd] = val;
+		}
 	} else if (len == sizeof(u64)) {
-		if (is_write)
-			writeq_relaxed(regs->regs[rd], smmu->base + off);
-		else
-			regs->regs[rd] = readq_relaxed(smmu->base + off);
+		if (is_write) {
+			writeq_relaxed(rd == 31 ? 0 : regs->regs[rd], smmu->base + off);
+		} else {
+			u64 val = readq_relaxed(smmu->base + off);
+
+			if (rd != 31)
+				regs->regs[rd] = val;
+		}
 	}
 
 	return true;
