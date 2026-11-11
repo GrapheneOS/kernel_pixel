@@ -574,9 +574,10 @@ static int ppa957db2d_panel_probe(struct mipi_dsi_device *dsi)
 {
 	struct ppa957db2d_panel *spanel;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct ppa957db2d_panel,
+				       base.bridge, exynos_panel_get_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	return exynos_panel_common_init(dsi, &spanel->base);
 }
