@@ -3168,20 +3168,16 @@ error:
 int aoc_displayport_service_free(struct aoc_chip *chip)
 {
 	struct aoc_service_dev *dev;
-	bool mutex_locked = true;
-
 	if (!chip)
 		return -ENODEV;
-	if (mutex_lock_interruptible(&chip->audio_cmd_chan_mutex))
-		mutex_locked = false;
+	mutex_lock(&chip->audio_cmd_chan_mutex);
 
 	chip->dp_starting = 0;
 	dev = chip->dp_dev;
 	chip->dp_dev = NULL;
 	if (dev)
 		free_aoc_audio_service(AOC_DISPLAYPORT_SERVICE, dev);
-	if (mutex_locked)
-		mutex_unlock(&chip->audio_cmd_chan_mutex);
+	mutex_unlock(&chip->audio_cmd_chan_mutex);
 	return 0;
 }
 
