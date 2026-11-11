@@ -122,6 +122,7 @@ static void fts_pinctrl_setup(struct fts_ts_info *info, bool active);
 static int fts_chip_initialization(struct fts_ts_info *info, int init_type);
 static int register_panel_bridge(struct fts_ts_info *info);
 static void unregister_panel_bridge(struct drm_bridge *bridge);
+static const struct drm_bridge_funcs panel_bridge_funcs;
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 static void fts_offload_push_coord_frame(struct fts_ts_info *info);
@@ -6069,6 +6070,7 @@ static void unregister_panel_bridge(struct drm_bridge *bridge)
 		}
 	drm_modeset_unlock(&bridge->dev->mode_config.connection_mutex);
 	bridge->dev = NULL;
+	drm_bridge_put(bridge);
 }
 
 /**
@@ -6590,10 +6592,11 @@ static int fts_probe(struct spi_device *client)
 #endif
 	dev_info(&client->dev, "SET Device driver INFO:\n");
 
-	info = kzalloc(sizeof(struct fts_ts_info), GFP_KERNEL);
-	if (!info) {
+	info = devm_drm_bridge_alloc(&client->dev, struct fts_ts_info, panel_bridge,
+				     &panel_bridge_funcs);
+	if (IS_ERR(info)) {
 		dev_err(&client->dev, "Out of memory... Impossible to allocate struct info!\n");
-		error = -ENOMEM;
+		error = PTR_ERR(info);
 		goto ProbeErrorExit_0;
 	}
 
@@ -7024,11 +7027,10 @@ ProbeErrorExit_2:
 	fts_get_reg(info, false);
 
 ProbeErrorExit_1:
-	kfree(info);
 
 ProbeErrorExit_0:
 	if (error != -EPROBE_DEFER)
-		dev_err(info->dev, "Probe Failed!\n");
+		dev_err(&client->dev, "Probe Failed!\n");
 
 	return error;
 }
@@ -7111,8 +7113,6 @@ static void fts_remove(struct spi_device *client)
 	/* free any extinfo */
 	kfree(info->extinfo.data);
 
-	/* free all */
-	kfree(info);
 }
 
 #ifdef CONFIG_PM

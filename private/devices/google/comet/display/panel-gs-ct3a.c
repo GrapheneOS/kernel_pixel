@@ -1319,17 +1319,16 @@ static int ct3a_panel_probe(struct mipi_dsi_device *dsi)
 	struct gs_panel *ctx;
 	int ret;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct ct3a_panel,
+				       base.bridge, get_panel_drm_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	ctx = &spanel->base;
 
 	ctx->thermal = devm_kzalloc(&dsi->dev, sizeof(*ctx->thermal), GFP_KERNEL);
-	if (!ctx->thermal) {
-		devm_kfree(&dsi->dev, spanel);
+	if (!ctx->thermal)
 		return -ENOMEM;
-	}
 
 	spanel->base.op_hz = 120;
 	spanel->is_pixel_off = false;
