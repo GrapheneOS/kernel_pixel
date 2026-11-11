@@ -2215,9 +2215,10 @@ static int gs_hk3_panel_probe(struct mipi_dsi_device *dsi)
 	struct hk3_panel *spanel;
 	struct gs_panel *ctx;
 
-	spanel = devm_kzalloc(&dsi->dev, sizeof(*spanel), GFP_KERNEL);
-	if (!spanel)
-		return -ENOMEM;
+	spanel = devm_drm_bridge_alloc(&dsi->dev, struct hk3_panel,
+				       base.bridge, get_panel_drm_bridge_funcs());
+	if (IS_ERR(spanel))
+		return PTR_ERR(spanel);
 
 	ctx = &spanel->base;
 	ctx->op_hz = 120;
