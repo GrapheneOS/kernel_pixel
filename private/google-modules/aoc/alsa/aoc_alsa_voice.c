@@ -158,10 +158,8 @@ static int snd_aoc_pcm_close(struct snd_soc_component *component,
 		 substream);
 	aoc_timer_stop_sync(alsa_stream);
 
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		pr_err("ERR: interrupted while waiting for lock\n");
-		return -EINTR;
-	}
+	/* ALSA releases the stream even if this callback returns an error. */
+	mutex_lock(&chip->audio_mutex);
 
 	/* Stop phone call (Refactor needed) */
 	pr_notice("Stop voice call\n");

@@ -442,10 +442,8 @@ static int aoc_compr_playback_free(struct snd_compr_stream *cstream)
 	aoc_timer_stop_sync(alsa_stream);
 
 	cancel_work_sync(&alsa_stream->free_aoc_service_work);
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		pr_err("ERR: interrupted while waiting for lock\n");
-		return -EINTR;
-	}
+	/* ALSA releases the stream even if this callback returns an error. */
+	mutex_lock(&chip->audio_mutex);
 	chip->compr_offload_stream = NULL;
 
 	pr_notice("alsa compr offload close\n");

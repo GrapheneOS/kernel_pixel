@@ -470,10 +470,8 @@ static int snd_aoc_pcm_close(struct snd_soc_component *component,
 	}
 	atomic_set(&alsa_stream->cancel_work_active, 0);
 
-	if (mutex_lock_interruptible(&chip->audio_mutex)) {
-		pr_err("ERR: interrupted while waiting for lock\n");
-		return -EINTR;
-	}
+	/* ALSA releases the stream even if this callback returns an error. */
+	mutex_lock(&chip->audio_mutex);
 
 	runtime = substream->runtime;
 	alsa_stream = runtime->private_data;
