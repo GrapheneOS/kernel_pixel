@@ -72,7 +72,12 @@ int gcip_domain_pool_init(struct gcip_domain_pool *pool, struct device *dev, int
 			goto err_free_domain;
 		}
 
-		xa_store(&pool->domain_xa, i, gdomain, GFP_KERNEL);
+		ret = xa_err(xa_store(&pool->domain_xa, i, gdomain, GFP_KERNEL));
+		if (ret) {
+			gcip_iommu_domain_destroy(gdomain);
+			iommu_domain_free(domain);
+			goto err_free_domain;
+		}
 		xa_set_mark(&pool->domain_xa, i, GCIP_DOMAIN_POOL_MARK_AVAILABLE);
 	}
 
