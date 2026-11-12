@@ -412,7 +412,10 @@ static int vh_sched_init(void)
 #endif /* IS_ENABLED(CONFIG_RVH_SCHED_LIB) */
 
 	REGISTER_TRACE_VH(binder_set_priority, vh_binder_set_priority_pixel_mod);
+	REGISTER_TRACE_VH(binder_wait_for_work, vh_binder_wait_for_work_pixel_mod);
+	REGISTER_TRACE_VH(binder_looper_exited, vh_binder_looper_exited_pixel_mod);
 	REGISTER_TRACE_VH(binder_restore_priority, vh_binder_restore_priority_pixel_mod);
+	REGISTER_TRACE_VH(binder_before_restore_priority, vh_binder_restore_priority_pixel_mod);
 	REGISTER_TRACE_VH(binder_proc_transaction_finish, vh_binder_proc_transaction_finish);
 #if IS_ENABLED(CONFIG_ANDROID_BINDER_IPC_RUST)
 	REGISTER_TRACE_VH(rust_binder_set_priority, vh_rust_binder_set_priority_pixel_mod);
