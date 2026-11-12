@@ -709,7 +709,7 @@ static struct sg_table *gcip_mapping_dmabuf_sgt_create(struct device *dev, struc
 	attachment->dma_map_attrs |= GCIP_MAP_FLAGS_GET_DMA_ATTR(gcip_map_flags);
 
 	/* Map the attachment into the default domain. */
-	sgt_default = dma_buf_map_attachment(attachment, dir);
+	sgt_default = dma_buf_map_attachment_unlocked(attachment, dir);
 	if (IS_ERR(sgt_default)) {
 		ret = PTR_ERR(sgt_default);
 		dev_err(dev, "Failed to get sgt from attachment (ret=%d, name=%s, size=%lu)\n", ret,
@@ -739,7 +739,7 @@ static void gcip_mapping_dmabuf_sgt_destroy(struct sg_table *sgt_default, struct
 					    struct dma_buf_attachment *attachment,
 					    enum dma_data_direction dir)
 {
-	dma_buf_unmap_attachment(attachment, sgt_default, dir);
+	dma_buf_unmap_attachment_unlocked(attachment, sgt_default, dir);
 
 	dma_buf_detach(dmabuf, attachment);
 }

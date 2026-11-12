@@ -298,8 +298,8 @@ static int smfc_vb2_buf_init(struct vb2_buffer *vb)
 		dbuf = dma_buf_get(vb->planes[plane].m.fd);
 		sbuf->info[plane].dba = dma_buf_attach(dbuf, smfc->dev);
 		sbuf->info[plane].dba->dma_map_attrs = DMA_ATTR_PRIVILEGED;
-		sbuf->info[plane].sgt = dma_buf_map_attachment(sbuf->info[plane].dba,
-							       vb->vb2_queue->dma_dir);
+		sbuf->info[plane].sgt = dma_buf_map_attachment_unlocked(sbuf->info[plane].dba,
+									vb->vb2_queue->dma_dir);
 	}
 	return 0;
 }
@@ -410,9 +410,9 @@ static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb)
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		if (!sbuf->info[plane].sgt)
 			continue;
-		dma_buf_unmap_attachment(sbuf->info[plane].dba,
-					 sbuf->info[plane].sgt,
-					 vb->vb2_queue->dma_dir);
+		dma_buf_unmap_attachment_unlocked(sbuf->info[plane].dba,
+						  sbuf->info[plane].sgt,
+						  vb->vb2_queue->dma_dir);
 		dma_buf_detach(sbuf->info[plane].dba->dmabuf,
 			       sbuf->info[plane].dba);
 		sbuf->info[plane].dba = NULL;
