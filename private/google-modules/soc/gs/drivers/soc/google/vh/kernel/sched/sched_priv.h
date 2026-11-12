@@ -1375,6 +1375,10 @@ void rvh_set_cpus_allowed_by_task(void *data, const struct cpumask *cpu_valid_ma
 void vh_binder_set_priority_pixel_mod(void *data, struct binder_transaction *t,
 	struct task_struct *p);
 void vh_binder_restore_priority_pixel_mod(void *data, struct binder_transaction *t);
+void vh_binder_wait_for_work_pixel_mod(void *data, bool do_proc_work,
+				     struct binder_thread *thread, struct binder_proc *proc);
+void vh_binder_looper_exited_pixel_mod(void *data, struct binder_thread *thread,
+				     struct binder_proc *proc);
 void vh_binder_proc_transaction_finish(void *data, struct binder_proc *proc,
 		struct binder_transaction *t, struct task_struct *binder_th_task,
 		bool pending_async, bool sync);
