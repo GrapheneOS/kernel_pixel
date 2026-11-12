@@ -34,7 +34,7 @@
  */
 struct dmabuf_map_entry {
 	struct dma_buf_attachment *attachment;
-	/* SG table returned by dma_buf_map_attachment() */
+	/* SG table returned by dma_buf_map_attachment_unlocked() */
 	struct sg_table *sgt;
 	/*
 	 * The SG table that shrunk and condensed from @sgt with region [0, size), where @size is
@@ -302,8 +302,8 @@ static void dmabuf_map_callback_release(struct edgetpu_mapping *map)
 
 		sg_free_table(&entry->shrunk_sgt);
 		if (entry->sgt)
-			dma_buf_unmap_attachment(entry->attachment, entry->sgt,
-						 dir);
+			dma_buf_unmap_attachment_unlocked(entry->attachment, entry->sgt,
+							  dir);
 		if (entry->attachment)
 			dma_buf_detach(dmap->dmabufs[0], entry->attachment);
 	}
@@ -421,7 +421,7 @@ static void dmabuf_bulk_map_callback_release(struct edgetpu_mapping *map)
 
 		sg_free_table(&entry->shrunk_sgt);
 		if (entry->sgt)
-			dma_buf_unmap_attachment(entry->attachment, entry->sgt, dir);
+			dma_buf_unmap_attachment_unlocked(entry->attachment, entry->sgt, dir);
 		if (entry->attachment)
 			dma_buf_detach(bmap->dmabufs[i], entry->attachment);
 		if (bmap->dmabufs[i])
@@ -610,7 +610,7 @@ static int etdev_attach_dmabuf_to_entry(struct edgetpu_dev *etdev, struct dma_bu
 	attachment = dma_buf_attach(dmabuf, etdev->dev);
 	if (IS_ERR(attachment))
 		return PTR_ERR(attachment);
-	sgt = dma_buf_map_attachment(attachment, dir);
+	sgt = dma_buf_map_attachment_unlocked(attachment, dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		goto err_detach;
@@ -624,7 +624,7 @@ static int etdev_attach_dmabuf_to_entry(struct edgetpu_dev *etdev, struct dma_bu
 	return 0;
 
 err_unmap:
-	dma_buf_unmap_attachment(attachment, sgt, dir);
+	dma_buf_unmap_attachment_unlocked(attachment, sgt, dir);
 err_detach:
 	dma_buf_detach(dmabuf, attachment);
 	entry->sgt = NULL;
