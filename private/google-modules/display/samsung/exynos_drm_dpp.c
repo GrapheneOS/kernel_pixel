@@ -382,7 +382,7 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 		return PTR_ERR(buf);
 	}
 
-	ret = dma_buf_vmap(buf, &map);
+	ret = dma_buf_vmap_unlocked(buf, &map);
 	if (ret) {
 		pr_err("failed to vmap buffer\n");
 		dma_buf_put(buf);
@@ -390,7 +390,7 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 	}
 
 	memset(map.vaddr, 0x80, size);
-	dma_buf_vunmap(buf, &map);
+	dma_buf_vunmap_unlocked(buf, &map);
 
 	/* mapping buffer for translating to DVA */
 	attachment = dma_buf_attach(buf, priv->iommu_client);
@@ -400,7 +400,7 @@ static dma_addr_t dpp_alloc_map_buf_test(void)
 		return -EINVAL;
 	}
 
-	sg_table = dma_buf_map_attachment(attachment, DMA_TO_DEVICE);
+	sg_table = dma_buf_map_attachment_unlocked(attachment, DMA_TO_DEVICE);
 	if (IS_ERR_OR_NULL(sg_table)) {
 		pr_err("failed to map attachment\n");
 		dma_buf_put(buf);
