@@ -485,8 +485,8 @@ static void gcip_iommu_mapping_unmap_dma_buf(struct gcip_iommu_mapping *mapping)
 				  mapping->gcip_map_flags, false);
 	}
 
-	dma_buf_unmap_attachment(dmabuf_mapping->dma_buf_attachment, dmabuf_mapping->sgt_default,
-				 mapping->dir);
+	dma_buf_unmap_attachment_unlocked(dmabuf_mapping->dma_buf_attachment,
+					  dmabuf_mapping->sgt_default, mapping->dir);
 
 	dma_buf_detach(dmabuf_mapping->dma_buf, dmabuf_mapping->dma_buf_attachment);
 	dma_buf_put(dmabuf_mapping->dma_buf);
@@ -1231,7 +1231,7 @@ struct gcip_iommu_mapping *gcip_iommu_domain_map_dma_buf_to_iova(struct gcip_iom
 	attachment->dma_map_attrs |= GCIP_MAP_FLAGS_GET_DMA_ATTR(gcip_map_flags);
 
 	/* Map the attachment into the default domain. */
-	sgt = dma_buf_map_attachment(attachment, dir);
+	sgt = dma_buf_map_attachment_unlocked(attachment, dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
 		dev_err(dev, "Failed to get sgt from attachment (ret=%d, name=%s, size=%lu)\n", ret,
@@ -1249,7 +1249,7 @@ struct gcip_iommu_mapping *gcip_iommu_domain_map_dma_buf_to_iova(struct gcip_iom
 	return mapping;
 
 err_map_dma_buf_sgt:
-	dma_buf_unmap_attachment(attachment, sgt, dir);
+	dma_buf_unmap_attachment_unlocked(attachment, sgt, dir);
 err_map_attachment:
 	dma_buf_detach(dmabuf, attachment);
 	return ERR_PTR(ret);
