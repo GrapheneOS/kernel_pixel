@@ -403,7 +403,7 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 
 	ret = exynos_pm_qos_add_notifier(data->pm_qos_class, &data->nb.nb);
 	if (ret < 0)
-		goto err1;
+		return ret;
 
 	if (data->pm_qos_class_max) {
 		data->nb_max.df = df;
@@ -412,7 +412,7 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 		ret = exynos_pm_qos_add_notifier(data->pm_qos_class_max, &data->nb_max.nb);
 		if (ret < 0) {
 			exynos_pm_qos_remove_notifier(data->pm_qos_class, &data->nb.nb);
-			goto err2;
+			return ret;
 		}
 	}
 
@@ -464,13 +464,6 @@ err3:
 	exynos_pm_qos_remove_notifier(data->pm_qos_class, &data->nb.nb);
 	if (data->pm_qos_class_max)
 		exynos_pm_qos_remove_notifier(data->pm_qos_class_max, &data->nb_max.nb);
-
-
-err2:
-	kfree((void *)&data->nb_max.nb);
-
-err1:
-	kfree((void *)&data->nb.nb);
 
 	return ret;
 }
