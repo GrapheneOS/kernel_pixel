@@ -1494,7 +1494,7 @@ static int bcm_spi_probe(struct spi_device *spi)
 		ret = platform_device_add(&priv->sscd_dev);
 	if (ret) {
 		platform_device_put(&priv->sscd_dev);
-		goto free_wq;
+		goto deregister_misc;
 	}
 	priv->sscd_registered = true;
 
@@ -1526,7 +1526,7 @@ static int bcm_spi_probe(struct spi_device *spi)
 	/* Init BBD & SSP */
 	priv->bbd = bbd_init(&spi->dev, legacy_patch);
 	if (priv->bbd == NULL)
-		goto free_wq;
+		goto deregister_misc;
 
 	if (device_create_file(&priv->spi->dev, &dev_attr_nstandby))
 		dev_err(&spi->dev, "Unable to create sysfs 4775 nstandby entry");
@@ -1540,7 +1540,7 @@ static int bcm_spi_probe(struct spi_device *spi)
 	if (ret) {
 		dev_err(&spi->dev, "Failed to register BCM477x SPI TTY IRQ %d.\n",
 				spi->irq);
-		goto free_wq;
+		goto deregister_misc;
 	}
 
 	dev_info(&spi->dev, "Probe OK. ssp-host-req=%d, irq=%d, priv=0x%pK\n",
@@ -1548,6 +1548,8 @@ static int bcm_spi_probe(struct spi_device *spi)
 
 	return 0;
 
+deregister_misc:
+	misc_deregister(&priv->misc);
 free_wq:
 	if (priv->sscd_registered) {
 		device_remove_file(&spi->dev, &dev_attr_coredump);
@@ -1564,6 +1566,8 @@ static void bcm_spi_remove(struct spi_device *spi)
 {
 	struct bcm_spi_priv *priv = spi_get_drvdata(spi);
 	unsigned long flags;
+
+	misc_deregister(&priv->misc);
 
 	atomic_set(&priv->suspending, 1);
 
