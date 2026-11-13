@@ -98,7 +98,8 @@ static int pps_check_type(struct pd_pps_data *pps_data,
 	pr_debug("%s: name=%s type=%d ret=%d\n", __func__, pps_name(pps_psy),
 		 pval.intval, ret);
 	if (ret == 0 && (pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS ||
-			pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS))
+			pval.intval == POWER_SUPPLY_USB_TYPE_PD_PPS_SPR_AVS ||
+			pval.intval == POWER_SUPPLY_USB_TYPE_PD_SPR_AVS))
 		return true;
 	if (ret == 0 && pval.intval == POWER_SUPPLY_USB_TYPE_PD)
 		return true;
