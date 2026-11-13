@@ -207,7 +207,7 @@ static bool port_src_pdo_updated;
 static bool limit_src_cap_enable;
 static u32 orig_src_current;
 static unsigned int nr_orig_src_pdo;
-spinlock_t g_caps_lock;
+static DEFINE_SPINLOCK(g_caps_lock);
 
 
 /* Callback for data_active changes */
@@ -3666,7 +3666,6 @@ static int max77759_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	spin_lock_init(&g_caps_lock);
 	chip->first_toggle = true;
 
 	ret = max77759_read8(chip->data.regmap, TCPC_POWER_STATUS,
