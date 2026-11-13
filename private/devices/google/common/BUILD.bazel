@@ -182,6 +182,7 @@ filegroup(
         "//common:drivers/android/debug_kinfo.h",
         "//common:drivers/hwtracing/coresight/coresight-etm4x.h",
         "//common:drivers/hwtracing/coresight/coresight-priv.h",
+        "//common:drivers/hwtracing/coresight/coresight-trace-id.h",
         "//common:drivers/iommu/dma-iommu.h",
         "//common:drivers/pinctrl/samsung/pinctrl-samsung.h",
         "//common:drivers/spi/spi-dw.h",
