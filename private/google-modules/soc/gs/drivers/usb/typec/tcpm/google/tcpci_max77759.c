@@ -2929,7 +2929,7 @@ int tcpm_get_partner_src_caps(struct tcpm_port *port, u32 **src_pdo)
 	int i, ret;
 
 	*src_pdo = kcalloc(PDO_MAX_OBJECTS, sizeof(u32), GFP_KERNEL);
-	if (!src_pdo)
+	if (!*src_pdo)
 		return -ENOMEM;
 
 	spin_lock(&g_caps_lock);
