@@ -457,9 +457,9 @@ static int devfreq_simple_interactive_register_notifier(struct devfreq *df)
 	return 0;
 
 err3:
-	timer_destroy_on_stack(&data->freq_timer);
+	timer_shutdown_sync(&data->freq_timer);
 #if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
-	timer_destroy_on_stack(&data->freq_slack_timer);
+	timer_shutdown_sync(&data->freq_slack_timer);
 #endif
 	exynos_pm_qos_remove_notifier(data->pm_qos_class, &data->nb.nb);
 	if (data->pm_qos_class_max)
@@ -491,7 +491,10 @@ static int devfreq_simple_interactive_unregister_notifier(struct devfreq *df)
 
 	ret = exynos_pm_qos_remove_notifier(data->pm_qos_class, &data->nb.nb);
 
-	timer_destroy_on_stack(&data->freq_timer);
+	timer_shutdown_sync(&data->freq_timer);
+#if IS_ENABLED(CONFIG_EXYNOS_ALT_DVFS)
+	timer_shutdown_sync(&data->freq_slack_timer);
+#endif
 	kthread_stop(data->change_freq_task);
 
 err:
