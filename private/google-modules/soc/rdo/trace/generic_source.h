@@ -6,12 +6,11 @@
 #ifndef GENERIC_SOURCE_H_
 #define GENERIC_SOURCE_H_
 
-#include <asm/local.h>
 #include <linux/coresight.h>
 
 struct soc_source_drvdata {
 	struct coresight_device *csdev;
-	local_t mode;
+	u8 traceid;
 };
 
 #endif  // GENERIC_SOURCE_H_
