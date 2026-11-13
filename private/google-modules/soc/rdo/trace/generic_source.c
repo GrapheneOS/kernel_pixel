@@ -3,10 +3,11 @@
  * Copyright 2023 Google LLC
  */
 
+#include <linux/coresight.h>
 #include <linux/moduleparam.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <drivers/hwtracing/coresight/coresight-etm4x.h>
+#include <drivers/hwtracing/coresight/coresight-trace-id.h>
 
 #include "generic_source.h"
 
@@ -29,18 +30,29 @@ static void soc_source_disable(struct coresight_device *csdev,
 	dev_info(&csdev->dev, "%s disabled\n", __func__);
 }
 
+static int soc_source_trace_id(struct coresight_device *csdev,
+			       __maybe_unused enum cs_mode mode,
+			       __maybe_unused struct coresight_device *sink)
+{
+	struct soc_source_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+
+	return drvdata->traceid;
+}
+
 static const struct coresight_ops_source soc_source_ops = {
 	.enable = soc_source_enable,
 	.disable = soc_source_disable,
 };
 
 static const struct coresight_ops soc_cs_ops = {
+	.trace_id = soc_source_trace_id,
 	.source_ops = &soc_source_ops,
 };
 
 static int trace_platdev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	int trace_id;
 	struct coresight_platform_data *pdata = NULL;
 	struct soc_source_drvdata *drvdata;
 	struct coresight_desc desc = {0};
@@ -80,9 +92,19 @@ static int trace_platdev_probe(struct platform_device *pdev)
 	desc.ops = &soc_cs_ops;
 	desc.pdata = pdata;
 	desc.dev = dev;
+
+	/* Firmware owns the hardware ID; reserve one for path bookkeeping. */
+	trace_id = coresight_trace_id_get_system_id();
+	if (trace_id < 0) {
+		dev_err(dev, "trace ID allocation failed: %d\n", trace_id);
+		return trace_id;
+	}
+	drvdata->traceid = trace_id;
+
 	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev)) {
 		dev_err(dev, "soc source register failed: %ld\n", PTR_ERR(drvdata->csdev));
+		coresight_trace_id_put_system_id(drvdata->traceid);
 		return PTR_ERR(drvdata->csdev);
 	}
 
@@ -97,6 +119,7 @@ static void trace_platdev_remove(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Remove soc_source device");
 	coresight_unregister(drvdata->csdev);
+	coresight_trace_id_put_system_id(drvdata->traceid);
 }
 
 static const struct of_device_id trace_of_ids[] = {
