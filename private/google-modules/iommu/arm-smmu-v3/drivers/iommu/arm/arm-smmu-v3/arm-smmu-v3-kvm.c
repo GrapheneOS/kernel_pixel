@@ -1949,6 +1949,23 @@ static struct platform_driver kvm_arm_smmu_driver = {
 	.remove = kvm_arm_smmu_remove,
 };
 
+/* Only safe before kvm_iommu_register_hyp_ops() can donate/share pages. */
+static void kvm_arm_smmu_array_free(void)
+{
+	if (kvm_arm_smmu_v3_err) {
+		free_pages_exact(kvm_arm_smmu_v3_err,
+				 NR_CPUS * sizeof(*kvm_arm_smmu_v3_err));
+		kvm_arm_smmu_v3_err = NULL;
+	}
+	if (kvm_arm_smmu_array) {
+		free_pages((unsigned long)kvm_arm_smmu_array,
+			   get_order(kvm_arm_smmu_count * sizeof(*kvm_arm_smmu_array)));
+		kvm_arm_smmu_array = NULL;
+	}
+	kfree(host_arm_smmu_array);
+	host_arm_smmu_array = NULL;
+}
+
 static int kvm_arm_smmu_array_alloc(void)
 {
 	int smmu_order, err_size;
@@ -2144,8 +2161,10 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	 * Check whether any device owned by the host is behind an SMMU.
 	 */
 	ret = kvm_arm_smmu_array_alloc();
-	if (ret || !kvm_arm_smmu_count)
-		return ret;
+	if (ret)
+		goto err;
+	if (!kvm_arm_smmu_count)
+		return 0;
 
 	ret = kvm_arm_smmu_telemetry_alloc();
 	if (ret)
@@ -2209,6 +2228,7 @@ unregister_driver:
 free_telemetry:
 	kvm_arm_smmu_telemetry_free();
 err:
+	kvm_arm_smmu_array_free();
 	pr_err("pKVM SMMUv3 init failed with %d\n", ret);
 	return ret;
 }
