@@ -3196,8 +3196,8 @@ static void max77759_modify_src_caps(void *unused, unsigned int *nr_src_pdo,
 		return;
 	}
 
+	(*src_pdo)[0] &= ~(PDO_CURR_MASK << PDO_FIXED_CURR_SHIFT);
 	if (limit_src_cap_enable) {
-		(*src_pdo)[0] &= ~(PDO_CURR_MASK << PDO_FIXED_CURR_SHIFT);
 		(*src_pdo)[0] |= PDO_FIXED_CURR(SRC_CURRENT_LIMIT_MA);
 		*nr_src_pdo = 1;
 	} else {
