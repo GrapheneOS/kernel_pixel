@@ -2041,10 +2041,18 @@ static int kvm_arm_smmu_array_alloc(void)
 
 static void kvm_arm_smmu_array_free(void)
 {
-	int order;
-
-	order = get_order(kvm_arm_smmu_count * sizeof(*kvm_arm_smmu_array));
-	free_pages((unsigned long)kvm_arm_smmu_array, order);
+	if (kvm_arm_smmu_v3_err) {
+		free_pages_exact(kvm_arm_smmu_v3_err,
+				 NR_CPUS * sizeof(*kvm_arm_smmu_v3_err));
+		kvm_arm_smmu_v3_err = NULL;
+	}
+	if (kvm_arm_smmu_array) {
+		free_pages((unsigned long)kvm_arm_smmu_array,
+			   get_order(kvm_arm_smmu_count * sizeof(*kvm_arm_smmu_array)));
+		kvm_arm_smmu_array = NULL;
+	}
+	kfree(host_arm_smmu_array);
+	host_arm_smmu_array = NULL;
 }
 
 extern void __kvm_nvhe_pkvm_ptw_hvc_call(struct user_pt_regs *);
@@ -2075,10 +2083,7 @@ static int kvm_arm_smmu_telemetry_alloc(void)
 
 static void kvm_arm_smmu_telemetry_free(void)
 {
-	int order;
-
-	order = get_order(sizeof(*kvm_shared_arm_smmu_telemetry));
-	free_pages((unsigned long)kvm_shared_arm_smmu_telemetry, order);
+	free_pages_exact(kvm_shared_arm_smmu_telemetry, sizeof(*kvm_shared_arm_smmu_telemetry));
 }
 
 static int smmu_put_device(struct device *dev, void *data)
@@ -2262,8 +2267,10 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	 * Check whether any device owned by the host is behind an SMMU.
 	 */
 	ret = kvm_arm_smmu_array_alloc();
-	if (ret || !kvm_arm_smmu_count)
-		return ret;
+	if (ret)
+		goto err_free;
+	if (!kvm_arm_smmu_count)
+		return 0;
 
 	ret = kvm_arm_smmu_telemetry_alloc();
 	if (ret)
@@ -2276,7 +2283,7 @@ static int kvm_arm_smmu_v3_init_drv(void)
 	if (kvm_arm_smmu_cur != kvm_arm_smmu_count) {
 		/* A device exists but failed to probe */
 		ret = -EUNATCH;
-		goto free_telemetry;
+		goto unregister_driver;
 	}
 
 #ifdef MODULE
@@ -2285,7 +2292,7 @@ static int kvm_arm_smmu_v3_init_drv(void)
 
 	if (ret) {
 		pr_err("Failed to load SMMUv3 IOMMU EL2 module: %d\n", ret);
-		return ret;
+		goto unregister_driver;
 	}
 
 	arm_smmu_telemetry_register_hvc();
@@ -2305,25 +2312,27 @@ static int kvm_arm_smmu_v3_init_drv(void)
 
 	ret = smmu_alloc_atomic_mc(&atomic_mc);
 	if (ret)
-		goto free_telemetry;
+		goto unregister_driver;
 
 	ret = kvm_arm_smmu_v3_init_global_config();
 	if (ret)
-		goto free_telemetry;
+		goto unregister_driver;
 
 	ret = kvm_iommu_init_hyp(ksym_ref_addr_nvhe(smmu_ops), &atomic_mc);
 	if (ret)
-		goto free_telemetry;
+		return ret;
 
 	/* Preemptively allocate the identity domain. */
 	if (atomic_pages) {
 		ret = kvm_iommu_alloc_domain(KVM_IOMMU_DOMAIN_IDMAP_ID,
 					     KVM_IOMMU_DOMAIN_IDMAP_TYPE);
 		if (ret)
-			goto free_telemetry;
+			return ret;
 	}
 	return kvm_arm_smmu_v3_post_init();
 
+unregister_driver:
+	platform_driver_unregister(&kvm_arm_smmu_driver);
 free_telemetry:
 	kvm_arm_smmu_telemetry_free();
 err_free:
