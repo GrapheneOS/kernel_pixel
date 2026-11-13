@@ -221,8 +221,7 @@ struct bcm_spi_priv {
 	/* Should be more MAX_SPI_FRAME_LEN. See below */
 	struct bbd_device *bbd;
 	/* To register ssrdump platform */
-	struct platform_device sscd_dev;
-	bool sscd_registered;
+	struct platform_device *sscd_dev;
 	/* To register ssrdump driver */
 	struct sscd_platform_data sscd_pdata;
 };
