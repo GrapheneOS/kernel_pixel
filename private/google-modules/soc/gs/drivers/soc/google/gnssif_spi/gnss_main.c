@@ -178,11 +178,26 @@ static int gnss_probe(struct platform_device *pdev)
 		return PTR_ERR(pdata);
 	}
 
+	/* Register SSCD before acquiring resources or publishing the misc device. */
+	sscd_dev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
+	if (!sscd_dev)
+		return -ENOMEM;
+	ret = platform_device_add_data(sscd_dev, &sscd_pdata, sizeof(sscd_pdata));
+	if (!ret)
+		ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
+	if (!ret)
+		ret = platform_device_add(sscd_dev);
+	if (ret) {
+		platform_device_put(sscd_dev);
+		sscd_dev = NULL;
+		return ret;
+	}
+
 	gc = create_ctl_device(pdev);
 	if (!gc) {
 		gif_err("%s: Could not create gc\n", pdata->name);
 		ret = -ENOMEM;
-		goto probe_fail;
+		goto unregister_sscd;
 	}
 
 	ld = create_link_device(pdev);
@@ -210,22 +225,6 @@ static int gnss_probe(struct platform_device *pdev)
 		goto free_ld;
 	}
 
-	sscd_dev = platform_device_alloc(DEVICE_NAME, PLATFORM_DEVID_NONE);
-	if (!sscd_dev) {
-		ret = -ENOMEM;
-		goto unregister_pm;
-	}
-	ret = platform_device_add_data(sscd_dev, &sscd_pdata, sizeof(sscd_pdata));
-	if (!ret)
-		ret = device_set_driver_override(&sscd_dev->dev, SSCD_NAME);
-	if (!ret)
-		ret = platform_device_add(sscd_dev);
-	if (ret) {
-		platform_device_put(sscd_dev);
-		sscd_dev = NULL;
-		goto unregister_pm;
-	}
-
 	if (device_create_file(dev, &dev_attr_coredump))
 		gif_err("Unable to create sysfs coredump entry");
 
@@ -236,12 +235,13 @@ static int gnss_probe(struct platform_device *pdev)
 
 	return 0;
 
-unregister_pm:
-	unregister_pm_notifier(&gc->pm_notifier);
 free_ld:
 	devm_kfree(dev, ld);
 free_gc:
 	devm_kfree(dev, gc);
+unregister_sscd:
+	platform_device_unregister(sscd_dev);
+	sscd_dev = NULL;
 probe_fail:
 	gif_err("%s: xxx\n", pdata->name);
 
