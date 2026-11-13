@@ -570,24 +570,18 @@ static void tbn_remove(struct platform_device *pdev)
 	if (tbn == NULL)
 		return;
 
-	if (tbn->mode == TBN_MODE_GPIO) {
-		free_irq(tbn->aoc2ap_irq, tbn);
-		if (gpio_is_valid(tbn->ap2aoc_gpio))
-			gpio_free(tbn->ap2aoc_gpio);
-		if (gpio_is_valid(tbn->aoc2ap_gpio))
-			gpio_free(tbn->aoc2ap_gpio);
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_TBN_AOC_CHANNEL_MODE)
-	} else if (tbn->mode == TBN_MODE_AOC_CHANNEL) {
-		if (!IS_ERR(tbn->aoc_channel_task))
+	if (tbn->mode == TBN_MODE_AOC_CHANNEL) {
+		if (!IS_ERR_OR_NULL(tbn->aoc_channel_task))
 			kthread_stop(tbn->aoc_channel_task);
 		if (tbn->event_wq)
 			destroy_workqueue(tbn->event_wq);
-#endif
 	}
+#endif
 
-	devm_kfree(dev, tbn);
+	/* Managed IRQs and GPIOs must be released before their context. */
+	dev_set_drvdata(dev, NULL);
 	tbn_context = NULL;
-	return;
 }
 
 static struct of_device_id tbn_of_match_table[] = {
