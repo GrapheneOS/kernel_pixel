@@ -22,6 +22,7 @@ KERNEL_TARGETS = [
     "drivers/android/debug_kinfo.h",
     "drivers/hwtracing/coresight/coresight-etm4x.h",
     "drivers/hwtracing/coresight/coresight-priv.h",
+    "drivers/hwtracing/coresight/coresight-trace-id.h",
     "drivers/iommu/dma-iommu.h",
     "drivers/pinctrl/pinctrl-utils.h",
     "drivers/pinctrl/samsung/pinctrl-samsung.h",
