@@ -1,3 +1,4 @@
 [abi_symbol_list]
   console_srcu_read_lock
   console_srcu_read_unlock
+  v4l2_prio_check
