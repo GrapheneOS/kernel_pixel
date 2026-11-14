@@ -822,7 +822,6 @@ static int smfc_init_clock(struct device *dev, struct smfc_dev *smfc)
 	if (IS_ERR(smfc->clk_gate2) && (PTR_ERR(smfc->clk_gate2) != -ENOENT)) {
 		dev_err(dev, "Failed(%ld) to get 'gate2' clock\n",
 			PTR_ERR(smfc->clk_gate2));
-		clk_put(smfc->clk_gate);
 		return PTR_ERR(smfc->clk_gate2);
 	}
 
@@ -1112,21 +1111,11 @@ err_v4l2:
 	return ret;
 }
 
-static void smfc_deinit_clock(struct smfc_dev *smfc)
-{
-	if (!IS_ERR(smfc->clk_gate2))
-		clk_put(smfc->clk_gate2);
-	if (!IS_ERR(smfc->clk_gate))
-		clk_put(smfc->clk_gate);
-}
-
 static void exynos_smfc_remove(struct platform_device *pdev)
 {
 	struct smfc_dev *smfc = platform_get_drvdata(pdev);
 
 	g2d_pm_qos_remove_request(smfc);
-
-	smfc_deinit_clock(smfc);
 
 	samsung_iommu_unregister_fault_handler(&pdev->dev);
 
