@@ -738,12 +738,18 @@ static long mfc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -EFAULT;
 	if (mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
-	if (!video_is_registered(vdev))
+	if (!video_is_registered(vdev)) {
 		ret = -ENODEV;
-	else if (ctx->type == MFCINST_ENCODER)
+		goto unlock;
+	}
+	ret = v4l2_prio_check(vdev->prio, ctx->fh.prio);
+	if (ret)
+		goto unlock;
+	if (ctx->type == MFCINST_ENCODER)
 		ret = mfc_enc_s_ctrl(file, NULL, &ctrl);
 	else
 		ret = mfc_dec_s_ctrl(file, NULL, &ctrl);
+unlock:
 	mutex_unlock(vdev->lock);
 
 	if (!ret && copy_to_user((void __user *)arg, &ctrl, sizeof(ctrl)))
