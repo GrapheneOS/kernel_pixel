@@ -776,18 +776,8 @@ static int smfc_init_v4l2(struct device *dev, struct smfc_dev *smfc)
 		goto err_m2m_init;
 	}
 
-	/* TODO: promote the magic number 12 in public */
-	ret = video_register_device(smfc->videodev, VFL_TYPE_VIDEO, 12);
-	if (ret < 0) {
-		dev_err(dev, "Failed(%d) to register video_device[%d]\n",
-			ret, 12);
-		goto err_register;
-	}
-
 	return 0;
 
-err_register:
-	v4l2_m2m_release(smfc->m2mdev);
 err_m2m_init:
 	video_device_release(smfc->videodev);
 err_videodev_alloc:
@@ -795,7 +785,19 @@ err_videodev_alloc:
 	return ret;
 }
 
-static void smfc_deinit_v4l2(struct device *dev, struct smfc_dev *smfc)
+static int smfc_register_video_device(struct device *dev, struct smfc_dev *smfc)
+{
+	int ret;
+
+	/* TODO: promote the magic number 12 in public */
+	ret = video_register_device(smfc->videodev, VFL_TYPE_VIDEO, 12);
+	if (ret < 0)
+		dev_err(dev, "Failed(%d) to register video_device[%d]\n", ret, 12);
+
+	return ret;
+}
+
+static void smfc_deinit_v4l2(struct smfc_dev *smfc)
 {
 	v4l2_m2m_release(smfc->m2mdev);
 	video_device_release(smfc->videodev);
@@ -829,7 +831,7 @@ static int smfc_init_clock(struct device *dev, struct smfc_dev *smfc)
 
 static int smfc_find_hw_version(struct device *dev, struct smfc_dev *smfc)
 {
-	int ret = pm_runtime_get_sync(dev);
+	int ret = pm_runtime_resume_and_get(dev);
 
 	if (ret < 0) {
 		dev_err(dev, "Failed(%d) to get the local power\n", ret);
@@ -840,25 +842,30 @@ static int smfc_find_hw_version(struct device *dev, struct smfc_dev *smfc)
 
 	if (!IS_ERR(smfc->clk_gate)) {
 		ret = clk_prepare_enable(smfc->clk_gate);
-		if (!ret && !IS_ERR(smfc->clk_gate2))
-			ret = clk_prepare_enable(smfc->clk_gate2);
-		if (ret) {
-			clk_disable_unprepare(smfc->clk_gate);
-			dev_err(dev, "Failed(%d) to get gate clocks\n", ret);
+		if (ret)
 			goto err_clk;
+
+		if (!IS_ERR(smfc->clk_gate2)) {
+			ret = clk_prepare_enable(smfc->clk_gate2);
+			if (ret) {
+				clk_disable_unprepare(smfc->clk_gate);
+				goto err_clk;
+			}
 		}
 	}
 
-	if (ret >= 0) {
-		smfc->hwver = readl(smfc->reg + REG_IP_VERSION_NUMBER);
-		if (!IS_ERR(smfc->clk_gate)) {
-			clk_disable_unprepare(smfc->clk_gate);
-			if (!IS_ERR(smfc->clk_gate2))
-				clk_disable_unprepare(smfc->clk_gate2);
-		}
+	smfc->hwver = readl(smfc->reg + REG_IP_VERSION_NUMBER);
+	if (!IS_ERR(smfc->clk_gate)) {
+		if (!IS_ERR(smfc->clk_gate2))
+			clk_disable_unprepare(smfc->clk_gate2);
+		clk_disable_unprepare(smfc->clk_gate);
 	}
+
+	goto out;
 
 err_clk:
+	dev_err(dev, "Failed(%d) to get gate clocks\n", ret);
+out:
 	g2d_pm_qos_reset_request(smfc);
 	pm_runtime_put(dev);
 
@@ -1026,13 +1033,6 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq, exynos_smfc_irq_handler,
-			       0, pdev->name, smfc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to install IRQ handler");
-		return ret;
-	}
-
 	ret = smfc_init_clock(&pdev->dev, smfc);
 	if (ret)
 		return ret;
@@ -1081,19 +1081,30 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 	ret = smfc_init_v4l2(&pdev->dev, smfc);
 	if (ret < 0)
+		goto err_pm;
+
+	spin_lock_init(&smfc->flag_lock);
+	timer_setup(&smfc->timer, smfc_timedout_handler, 0);
+
+	ret = devm_request_irq(&pdev->dev, irq, exynos_smfc_irq_handler,
+			       0, pdev->name, smfc);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to install IRQ handler");
 		goto err_v4l2;
+	}
 
 	ret = iommu_register_device_fault_handler(&pdev->dev, smfc_iommu_fault_handler, smfc);
 	if (ret)
-		goto err_hwver;
-
-	timer_setup(&smfc->timer, smfc_timedout_handler, 0);
+		goto err_irq;
 
 	ret = smfc_find_hw_version(&pdev->dev, smfc);
 	if (ret < 0)
 		goto err_fault_handler;
 
-	spin_lock_init(&smfc->flag_lock);
+	/* No fallible initialization may follow publication of the video node. */
+	ret = smfc_register_video_device(&pdev->dev, smfc);
+	if (ret < 0)
+		goto err_fault_handler;
 
 	dev_info(
 		&pdev->dev,
@@ -1104,9 +1115,14 @@ static int exynos_smfc_probe(struct platform_device *pdev)
 
 err_fault_handler:
 	iommu_unregister_device_fault_handler(&pdev->dev);
-err_hwver:
-	smfc_deinit_v4l2(&pdev->dev, smfc);
+err_irq:
+	devm_free_irq(&pdev->dev, irq, smfc);
 err_v4l2:
+	smfc_deinit_v4l2(smfc);
+err_pm:
+	cancel_delayed_work_sync(&smfc->qos_work);
+	g2d_pm_qos_remove_request(smfc);
+	pm_runtime_disable(&pdev->dev);
 	return ret;
 }
 
