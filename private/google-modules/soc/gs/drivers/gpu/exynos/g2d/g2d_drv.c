@@ -974,6 +974,12 @@ static int g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_device *g2d_dev = platform_get_drvdata(pdev);
 
+	unregister_pm_notifier(&g2d_dev->pm_notifier);
+#if IS_ENABLED(CONFIG_EXYNOS_ITMON)
+	itmon_notifier_chain_unregister(&g2d_dev->itmon_nb);
+#endif
+	iommu_unregister_device_fault_handler(&pdev->dev);
+
 	g2d_destroy_debug(g2d_dev);
 
 	g2d_shutdown(pdev);
