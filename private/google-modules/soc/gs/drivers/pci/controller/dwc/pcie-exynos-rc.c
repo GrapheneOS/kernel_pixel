@@ -5912,6 +5912,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	if (ret)
 		goto probe_fail;
 	pci->dbi_base = exynos_pcie->rc_dbi_base;
+	pci->elbi_base = exynos_pcie->elbi_base;
 
 	/* NOTE: TDB */
 	/* Mapping PHY functions */
