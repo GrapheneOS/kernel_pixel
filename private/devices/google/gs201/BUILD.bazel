@@ -260,6 +260,7 @@ device_build(
         "//private/devices/google/tangorpro:tangorpro/ext_modules",
     ],
     insmod_cfgs = glob(["insmod_cfg/*.cfg"]),
+    kunit_modules = ["//private/devices/google/pantah:pantah/kunit_modules"],
     module_outs = GS201_MODULE_OUTS + GS201_DEVICE_MODULE_OUTS,
     vendor_dlkm_modules_blocklists = ["vendor_dlkm.blocklist.devices"],
     vendor_ramdisk_modules_lists = ["vendor_ramdisk.modules.devices"],
