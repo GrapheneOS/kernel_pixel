@@ -1782,7 +1782,7 @@ static void fts_populate_mutual_channel(struct fts_ts_data *ts_data,
         TOUCH_OFFLOAD_FRAME_SIZE_2D(mutual_strength->rx_size,
             mutual_strength->tx_size);
 
-    memcpy(mutual_strength->data, ts_data->heatmap_buff,
+    memcpy(mutual_strength->data_flex, ts_data->heatmap_buff,
         mutual_strength->tx_size * mutual_strength->rx_size * sizeof(u16));
 }
 
@@ -1817,11 +1817,11 @@ static void fts_populate_self_channel(struct fts_ts_data *ts_data,
 
     if (ss_type == SS_WATER) {
         /* Copy Water-SS. */
-        memcpy(self_strength->data, ts_data->heatmap_buff + idx_ss_water,
+        memcpy(self_strength->data_flex, ts_data->heatmap_buff + idx_ss_water,
             ss_size);
     } else {
         /* Copy Normal-SS. */
-        memcpy(self_strength->data, ts_data->heatmap_buff + idx_ss_normal,
+        memcpy(self_strength->data_flex, ts_data->heatmap_buff + idx_ss_normal,
             ss_size);
     }
 }

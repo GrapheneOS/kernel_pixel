@@ -2878,7 +2878,7 @@ int goog_offload_populate_mutual_channel(struct goog_touch_interface *gti,
 		GOOG_LOGW(gti, "invalid buffer %p or size %u!\n", buffer, size);
 		return -EINVAL;
 	}
-	memcpy(mutual->data, buffer, size);
+	memcpy(mutual->data_flex, buffer, size);
 
 	return 0;
 }
@@ -2904,7 +2904,7 @@ int goog_offload_populate_self_channel(struct goog_touch_interface *gti,
 		GOOG_LOGW(gti, "invalid buffer %p or size %u!\n", buffer, size);
 		return -EINVAL;
 	}
-	memcpy(self->data, buffer, size);
+	memcpy(self->data_flex, buffer, size);
 
 	return 0;
 }
