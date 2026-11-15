@@ -30,8 +30,14 @@ fi
 gki_out="${WORKSPACE_DIR}/bazel-bin/common/kernel_aarch64"
 dist="${WORKSPACE_DIR}/out/${DEVICE}/dist"
 cmp "${dist}/Image" "${gki_out}/Image"
+# Remove the old flat test module left by an incremental dist install.
+rm -f "${dist}/dw3000-core-tests.ko"
 for module in "${dist}"/*.ko; do
   "${gki_out}/scripts/sign-file" sha256 \
     "${gki_out}/certs/signing_key.pem" \
     "${gki_out}/certs/signing_key.x509" "${module}"
 done
+
+"${WORKSPACE_DIR}/prebuilts/build-tools/linux_musl-x86/bin/py3-cmd" \
+  "${WORKSPACE_DIR}/private/devices/google/common/tools/sign_kunit_archive.py" \
+  "${gki_out}" "${dist}/kunit_tests.zip"

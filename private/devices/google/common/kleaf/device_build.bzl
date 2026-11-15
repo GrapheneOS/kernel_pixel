@@ -8,6 +8,7 @@ load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:select_file.bzl", "select_file")
 load("@rules_pkg//pkg:install.bzl", "pkg_install")
 load("@rules_pkg//pkg:mappings.bzl", "pkg_files", "strip_prefix")
+load("@rules_pkg//pkg:pkg.bzl", "pkg_zip")
 load("@kleaf//build/kernel/kleaf:constants.bzl", "COMMON_KCFLAGS")
 load(
     "@kleaf//build/kernel/kleaf:kernel.bzl",
@@ -45,6 +46,7 @@ def device_build(
         additional_kmi_symbol_lists = [],
         ext_dtbos = [],
         ext_modules = [],
+        kunit_modules = [],
         ddk_uapi_headers = [],
         build_dtb = False,
         build_dtbo = False,
@@ -66,6 +68,7 @@ def device_build(
         {name}/dtbs
         {name}/dtbos
         {name}/ext_modules
+        {name}/kunit_modules
         {name}/ddk_uapi_headers
         {name}/kernel_images
         {name}/dtb_image
@@ -91,6 +94,7 @@ def device_build(
         additional_kmi_symbol_lists: Additional exported symbols used by this device.
         ext_dtbos: Extra dtbos.
         ext_modules: Out-of-tree modules. Combined with the base device.
+        kunit_modules: KUnit modules, packed into kunit_tests.zip. Combined with the base device.
         ddk_uapi_headers: DDK uapi headers which will be merged into kernel-uapi-headers.tar.gz.
             Combined with the base device.
         build_dtb: If True, build dtb.img from dtb_outs.
@@ -117,6 +121,7 @@ def device_build(
         base_kconfig_exts = ["{}/kconfig_ext".format(base_device)]
         base_defconfig_fragments = ["{}/defconfig_fragments".format(base_device)]
         base_ext_modules = ["{}/ext_modules".format(base_device)]
+        base_kunit_modules = ["{}/kunit_modules".format(base_device)]
         base_ddk_uapi_headers = ["{}/ddk_uapi_headers".format(base_device)]
         base_vendor_ramdisk_modules_lists = ["{}/vendor_ramdisk_modules_list".format(base_device)]
         base_system_dlkm_modules_blocklists = ["{}/system_dlkm_modules_blocklist".format(base_device)]
@@ -132,6 +137,7 @@ def device_build(
         base_kconfig_exts = []
         base_defconfig_fragments = []
         base_ext_modules = []
+        base_kunit_modules = []
         base_ddk_uapi_headers = []
         base_vendor_ramdisk_modules_lists = []
         base_system_dlkm_modules_blocklists = []
@@ -150,6 +156,10 @@ def device_build(
     target_dtbos = "{}/dtbos".format(name)
     target_ext_modules = "{}/ext_modules".format(name)
     target_kernel_modules_install = "{}/kernel_modules_install".format(name)
+    target_kunit_modules = "{}/kunit_modules".format(name)
+    target_kunit_modules_install = "{}/kunit_modules_install".format(name)
+    target_kunit_modules_pkg = "{}/kunit_modules_pkg".format(name)
+    target_kunit_tests_zip = "{}/kunit_tests_zip".format(name)
     target_kernel_unstripped_modules_archive = "{}/kernel_unstripped_modules_archive".format(name)
     target_merged_kernel_uapi_headers = "{}/merged_kernel_uapi_headers".format(name)
     target_ddk_uapi_headers = "{}/ddk_uapi_headers".format(name)
@@ -285,6 +295,39 @@ def device_build(
         name = target_merged_kernel_uapi_headers,
         kernel_build = target_kernel,
         kernel_modules = [target_ext_modules],
+        visibility = ["//visibility:private"],
+    )
+
+    kernel_module_group(
+        name = target_kunit_modules,
+        srcs = base_kunit_modules + kunit_modules,
+    )
+
+    kernel_modules_install(
+        name = target_kunit_modules_install,
+        kernel_build = target_kernel,
+        kernel_modules = [target_kunit_modules],
+        visibility = ["//visibility:private"],
+    )
+
+    pkg_files(
+        name = target_kunit_modules_pkg,
+        srcs = [
+            "//common:kernel_aarch64/lib/kunit/kunit.ko",
+            target_kunit_modules_install,
+        ],
+        prefix = "kunit_test_modules",
+        strip_prefix = strip_prefix.files_only(),
+        visibility = ["//visibility:private"],
+    )
+
+    pkg_zip(
+        name = target_kunit_tests_zip,
+        srcs = [
+            "//private/devices/google/common/testing:kunit_test_scripts",
+            target_kunit_modules_pkg,
+        ],
+        out = "{}/kunit_tests.zip".format(name),
         visibility = ["//visibility:private"],
     )
 
@@ -458,6 +501,7 @@ def device_build(
         target_kernel,
         target_kernel_images,
         target_kernel_modules_install,
+        target_kunit_tests_zip,
         target_kernel_unstripped_modules_archive,
         target_kmi_symbol_list,
         target_merged_ddk_uapi_headers,
