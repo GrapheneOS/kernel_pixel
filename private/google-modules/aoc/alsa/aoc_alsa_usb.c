@@ -28,6 +28,7 @@ struct endpoint_info {
 
 struct uaudio_dev {
 	int card_num;
+	int connected_interfaces;
 	struct snd_usb_audio *chip;
 	struct xhci_sideband *sb;
 	struct usb_device *udev;
@@ -116,11 +117,47 @@ static int aoc_usb_sideband_event(struct usb_interface *intf, struct xhci_sideba
 	return 0;
 }
 
+static void release_pending_sideband(void *data)
+{
+	struct uaudio_dev *dev = data;
+
+	xhci_sideband_unregister(dev->sb);
+	dev->sb = NULL;
+}
+
+static void usb_audio_offload_quirks(struct snd_usb_audio *chip)
+{
+	unsigned int card_num = chip->card->number;
+	struct usb_interface *intf;
+	struct uaudio_dev *dev;
+
+	if (chip->num_interfaces || card_num >= SNDRV_CARDS)
+		return;
+
+	dev = &uadev[card_num];
+	if (dev->sb)
+		return;
+
+	/* ALSA parents the card to the first interface before parsing it. */
+	intf = to_usb_interface(chip->card->dev);
+	dev->sb = xhci_sideband_register(intf, XHCI_SIDEBAND_VENDOR, aoc_usb_sideband_event);
+	if (!dev->sb) {
+		dev_err(&intf->dev, "Failed to register xHCI sideband\n");
+		return;
+	}
+
+	/* A failed first probe frees the card without calling disconnect. */
+	if (devm_add_action_or_reset(&chip->card->card_dev, release_pending_sideband, dev))
+		return;
+
+	chip->quirk_flags &= ~QUIRK_FLAG_GENERIC_IMPLICIT_FB;
+	chip->quirk_flags |= QUIRK_FLAG_SKIP_IMPLICIT_FB;
+}
+
 void usb_audio_offload_connect(struct snd_usb_audio *chip)
 {
-	int card_num;
-	struct xhci_sideband *sb;
-	struct usb_interface *intf;
+	unsigned int card_num;
+	struct uaudio_dev *dev;
 
 	if (!chip)
 		return;
@@ -129,30 +166,19 @@ void usb_audio_offload_connect(struct snd_usb_audio *chip)
 	if (card_num >= SNDRV_CARDS)
 		return;
 
-	if (chip->num_interfaces < 1) {
-		pr_err("chip->num_interfaces = %d is invalid\n", chip->num_interfaces);
+	dev = &uadev[card_num];
+	if (!dev->sb || (dev->chip && dev->chip != chip) ||
+	    dev->connected_interfaces >= chip->num_interfaces)
 		return;
-	}
 
-	intf = chip->intf[chip->num_interfaces - 1];
-
-	if (!uadev[card_num].chip) {
-		sb = xhci_sideband_register(intf, XHCI_SIDEBAND_VENDOR, aoc_usb_sideband_event);
-		if (!sb) {
-			pr_err("xhci_sideband_register fail");
-			return;
-		}
-	} else {
-		sb = uadev[chip->card->number].sb;
-	}
+	if (!dev->chip)
+		devm_remove_action(&chip->card->card_dev, release_pending_sideband, dev);
 
 	pr_info("%s card%d connected", __func__, card_num);
 	mutex_lock(&chip->mutex);
-	uadev[card_num].chip = chip;
-	uadev[card_num].card_num = card_num;
-	uadev[card_num].sb = sb;
-	chip->quirk_flags &= ~QUIRK_FLAG_GENERIC_IMPLICIT_FB;
-	chip->quirk_flags |= QUIRK_FLAG_SKIP_IMPLICIT_FB;
+	dev->chip = chip;
+	dev->card_num = card_num;
+	dev->connected_interfaces++;
 	mutex_unlock(&chip->mutex);
 
 	atomic_inc(&usb_active_count);
@@ -165,7 +191,7 @@ void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 	struct uaudio_dev *dev;
 	struct usb_device *udev;
 	struct endpoint_info *info = NULL;
-	int card_num;
+	unsigned int card_num;
 	int i;
 
 	if (!chip)
@@ -175,12 +201,16 @@ void usb_audio_offload_disconnect(struct snd_usb_audio *chip)
 	if (card_num >= SNDRV_CARDS)
 		return;
 
+	dev = &uadev[card_num];
+	if (dev->chip != chip)
+		return;
+
 	pr_info("%s card%d disconnected", __func__, card_num);
 	atomic_dec(&usb_active_count);
 	blocking_notifier_call_chain(&aoc_alsa_usb_notifier_list,
 				     USB_DISCONNECT, NULL);
 	mutex_lock(&chip->mutex);
-	dev = &uadev[card_num];
+	dev->connected_interfaces--;
 	udev = chip->dev;
 	dev->udev = NULL;
 	dev->card_num = 0;
@@ -282,6 +312,7 @@ int aoc_setup_transfer_ring(struct aoc_chip *achip, int card_num, int aoc_dir,
 }
 
 static struct snd_usb_platform_ops ops = {
+	.quirks_cb = usb_audio_offload_quirks,
 	.connect_cb = usb_audio_offload_connect,
 	.disconnect_cb = usb_audio_offload_disconnect,
 };
