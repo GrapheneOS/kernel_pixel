@@ -3,6 +3,8 @@
 #ifndef _UAPI_TOUCH_OFFLOAD_H
 #define _UAPI_TOUCH_OFFLOAD_H
 
+#include <linux/stddef.h>
+
 #define TOUCH_OFFLOAD_INTERFACE_MAJOR_VERSION 2
 #define TOUCH_OFFLOAD_INTERFACE_MINOR_VERSION 1
 
@@ -245,7 +247,10 @@ struct TouchOffloadData2d {
 	__u16 heatmap_height;
 	};
 	__u8 reserved1[16];
-	__u8 data[1];
+	union {
+		__u8 data[1];
+		__DECLARE_FLEX_ARRAY(__u8, data_flex);
+	};
 } __attribute__((packed));
 #define TOUCH_OFFLOAD_DATA_SIZE_2D(heatmap_height, heatmap_width) \
 	(sizeof(__u16)*(heatmap_height)*(heatmap_width))
@@ -271,7 +276,10 @@ struct TouchOffloadData1d {
 	__u16 heatmap_height;
 	};
 	__u8 reserved1[16];
-	__u8 data[1];
+	union {
+		__u8 data[1];
+		__DECLARE_FLEX_ARRAY(__u8, data_flex);
+	};
 } __attribute__((packed));
 #define TOUCH_OFFLOAD_DATA_SIZE_1D(heatmap_height, heatmap_width) \
 	(sizeof(__u16)*((heatmap_height)+(heatmap_width)))
