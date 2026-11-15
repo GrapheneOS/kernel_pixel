@@ -50,6 +50,7 @@ device_build(
         "//private/google-modules/radio/samsung/s5300:cpif.kconfig",
         "//private/google-modules/touch/common:touch.common.kconfig",
     ],
+    kunit_modules = ["//private/google-modules/uwb/qorvo/dw3000/kernel:uwb.dw3000.kunit"],
     module_outs = GS201_MODULE_OUTS,
     vendor_dlkm_modules_blocklists = ["vendor_dlkm.blocklist.felix"],
     vendor_ramdisk_modules_lists = ["vendor_ramdisk.modules.felix"],
