@@ -130,12 +130,7 @@ static int format_battery_history_entry(char *temp, int size, int page_size, u16
 }
 
 /*
- * Removed the following properties:
- *   POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG
- *   POWER_SUPPLY_PROP_TIME_TO_FULL_AVG
- *   POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
- *   POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
- * Need to keep the number of properies under UEVENT_NUM_ENVP (minus # of
+ * Keep the number of properties under UEVENT_NUM_ENVP (minus # of
  * standard uevent variables).
  */
 static enum power_supply_property max77779_fg_battery_props[] = {
@@ -149,6 +144,10 @@ static enum power_supply_property max77779_fg_battery_props[] = {
 	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TEMP,
+	POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG,
+	POWER_SUPPLY_PROP_TIME_TO_FULL_AVG,
+	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,

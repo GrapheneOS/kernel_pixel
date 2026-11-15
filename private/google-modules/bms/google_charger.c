@@ -4803,7 +4803,7 @@ static int msc_update_charger_cb(struct gvotable_election *el,
 	fv_uv = gvotable_get_current_int_vote(chg_drv->msc_fv_votable);
 	cc_max = gvotable_get_current_int_vote(chg_drv->msc_fcc_votable);
 	if (chg_drv->bat_psy)
-		topoff = GPSY_GET_PROP(chg_drv->bat_psy, POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT);
+		topoff = GPSY_GET_PROP(chg_drv->bat_psy, GBMS_PROP_CHARGE_TERM_CURRENT);
 
 	/* invalid values will cause the adapter to exit PPS */
 	if (cc_max < 0 || fv_uv < 0) {
