@@ -4037,6 +4037,9 @@ cppflags-$(CONFIG_WLAN_TRACEPOINTS) += -DWLAN_TRACEPOINTS
 # GSOC configuration
 ccflags-y += -DCONFIG_WCN_GOOGLE
 
+# Channel lists and firmware messages use legacy trailing arrays.
+ccflags-y += -fstrict-flex-arrays=0
+
 ifdef CONFIG_MAX_LOGS_PER_SEC
 ccflags-y += -DWLAN_MAX_LOGS_PER_SEC=$(CONFIG_MAX_LOGS_PER_SEC)
 endif
