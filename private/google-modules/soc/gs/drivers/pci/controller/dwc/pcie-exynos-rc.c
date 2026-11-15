@@ -68,6 +68,20 @@
 #include <misc/sbbm.h>
 
 struct exynos_pcie g_pcie_rc[MAX_RC_NUM];
+
+/* Publish controller state only after probe has completed successfully. */
+static bool pcie_ready[MAX_RC_NUM];
+
+static struct exynos_pcie *exynos_pcie_get_ready(int ch_num)
+{
+	/* Pair with probe to expose fully initialized controller state. */
+	if (ch_num < 0 || ch_num >= MAX_RC_NUM ||
+	    !smp_load_acquire(&pcie_ready[ch_num]))
+		return NULL;
+
+	return &g_pcie_rc[ch_num];
+}
+
 int pcie_is_linkup;	/* checkpatch: do not initialise globals to 0 */
 
 static struct separated_msi_vector sep_msi_vec[MAX_RC_NUM][PCIE_MAX_SEPA_IRQ_NUM];
@@ -3860,7 +3874,7 @@ retry:
 
 int exynos_pcie_rc_poweron(int ch_num)
 {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
 	struct dw_pcie *pci;
 	struct dw_pcie_rp *pp;
 	struct device *dev;
@@ -4037,7 +4051,7 @@ poweron_fail:
 
 void exynos_pcie_rc_poweroff(int ch_num)
 {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
 	struct dw_pcie *pci;
 	struct dw_pcie_rp *pp;
 	struct device *dev;
@@ -4178,8 +4192,11 @@ void exynos_pcie_pm_suspend(int ch_num);
 
 void exynos_pcie_pm_suspend(int ch_num)
 {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
 	unsigned long flags;
+
+	if (!exynos_pcie)
+		return;
 
 	logbuffer_log(exynos_pcie->log, "pm_suspend api called");
 	if (exynos_pcie->state == STATE_LINK_DOWN) {
@@ -4201,7 +4218,10 @@ int exynos_pcie_pm_resume(int ch_num);
 
 int exynos_pcie_pm_resume(int ch_num)
 {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
+
+	if (!exynos_pcie)
+		return -ENODEV;
 
 	logbuffer_log(exynos_pcie->log, "pm_resume api called");
 	if (exynos_pcie_check_skip_config(exynos_pcie)) {
@@ -4695,9 +4715,13 @@ int exynos_pcie_poweron(int ch_num, int spd, int width);
 
 int exynos_pcie_poweron(int ch_num, int spd, int width)
 {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
-	struct dw_pcie *pci = exynos_pcie->pci;
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
+	struct dw_pcie *pci;
 
+	if (!exynos_pcie)
+		return -ENODEV;
+
+	pci = exynos_pcie->pci;
 	dev_dbg(pci->dev, "%s requested with link speed GEN%d, lane num %d\n",
 			__func__, spd, width);
 	exynos_pcie->target_link_speed = spd;
@@ -4740,7 +4764,7 @@ int exynos_pcie_rc_chk_link_status(int ch_num);
 
 int exynos_pcie_rc_chk_link_status(int ch_num)
 {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
 	struct dw_pcie *pci;
 	struct device *dev;
 	unsigned long flags;
@@ -5561,7 +5585,10 @@ EXPORT_SYMBOL_GPL(pcie_linkup_stat);
 int exynos_pcie_set_msi_ctrl_addr(int ch_num, u64 msi_ctrl_addr);
 
 int exynos_pcie_set_msi_ctrl_addr(int ch_num, u64 msi_ctrl_addr) {
-	struct exynos_pcie *exynos_pcie = &g_pcie_rc[ch_num];
+	struct exynos_pcie *exynos_pcie = exynos_pcie_get_ready(ch_num);
+
+	if (!exynos_pcie)
+		return -ENODEV;
 
         exynos_pcie->pci->pp.msi_data = msi_ctrl_addr;
         dev_info(exynos_pcie->pci->dev, "Updated MSI Control Addr: %pad\n",
@@ -5749,6 +5776,11 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 		is_vhook_registered = true;
 	}
 
+	if (ch_num < 0 || ch_num >= MAX_RC_NUM)
+		return -EINVAL;
+
+	WRITE_ONCE(pcie_ready[ch_num], false);
+
 	dev_info(&pdev->dev, "## PCIe ch %d ##\n", ch_num);
 
 	pci = devm_kzalloc(&pdev->dev, sizeof(*pci), GFP_KERNEL);
@@ -5851,6 +5883,7 @@ static int exynos_pcie_rc_probe(struct platform_device *pdev)
 	if (ret)
 		goto probe_fail;
 	pci->dbi_base = exynos_pcie->rc_dbi_base;
+	pci->elbi_base = exynos_pcie->elbi_base;
 
 	/* NOTE: TDB */
 	/* Mapping PHY functions */
@@ -5955,6 +5988,8 @@ probe_fail:
 	} else {
 		dev_info(&pdev->dev, "## %s: PCIe probe success\n", __func__);
 		logbuffer_log(exynos_pcie->log, "PCIe %d: probe done", ch_num);
+		/* Publish the initialized controller to power requests. */
+		smp_store_release(&pcie_ready[ch_num], true);
 	}
 
 	return ret;
@@ -5962,9 +5997,9 @@ probe_fail:
 
 static void exynos_pcie_rc_remove(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct dw_pcie *pci = container_of(&dev, struct dw_pcie, dev);
-	struct exynos_pcie *exynos_pcie = to_exynos_pcie(pci);
+	struct exynos_pcie *exynos_pcie = platform_get_drvdata(pdev);
+
+	WRITE_ONCE(pcie_ready[exynos_pcie->ch_num], false);
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
