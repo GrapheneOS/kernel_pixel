@@ -108,6 +108,7 @@ enum gbms_property {
 	GBMS_PROP_CHARGE_START_LEVEL,	/* GBMS used for dynamic soc spoofing (Dwell v1.5) */
 	GBMS_PROP_DWELL_SOC_SPOOFING,	/* GBMS used for stopping soc spoofing (Dwell v1.5) */
 	GBMS_PROP_DWELL_STATE,		/* GBMS used for Dwell v1.5 Vtier reporting */
+	GBMS_PROP_CHARGE_TERM_CURRENT,	/* GBMS temperature-dependent top-off */
 };
 
 union gbms_propval {
