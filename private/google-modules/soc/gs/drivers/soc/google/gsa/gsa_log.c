@@ -32,7 +32,7 @@ struct gsa_log_hdr {
 
 struct gsa_log_mem {
 	struct gsa_log_hdr hdr;
-	uint8_t body[0];
+	uint8_t body[];
 } __packed;
 
 struct gsa_log {
