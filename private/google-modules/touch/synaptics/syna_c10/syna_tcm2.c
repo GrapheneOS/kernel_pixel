@@ -1517,14 +1517,14 @@ static void syna_populate_mutual_channel(struct syna_tcm *tcm,
 
 		for (i = 0; i < tcm->tcm_dev->cols; i++) {
 			for (j = 0; j < tcm->tcm_dev->rows; j++) {
-				((u16 *) mutual_strength->data)[tcm->tcm_dev->rows * i + j] =
+				((u16 *) mutual_strength->data_flex)[tcm->tcm_dev->rows * i + j] =
 					tcm->heatmap_buff[tcm->tcm_dev->cols * j + i];
 			}
 		}
-		memcpy(tcm->heatmap_buff, (u16 *) mutual_strength->data,
+		memcpy(tcm->heatmap_buff, (u16 *) mutual_strength->data_flex,
 			tcm->tcm_dev->cols * tcm->tcm_dev->rows * sizeof(u16));
 	} else {
-		memset(mutual_strength->data, 0,
+		memset(mutual_strength->data_flex, 0,
 			tcm->tcm_dev->cols * tcm->tcm_dev->rows * sizeof(u16));
 	}
 
@@ -1549,16 +1549,16 @@ static void syna_populate_self_channel(struct syna_tcm *tcm,
 					    self_strength->tx_size);
 	if (has_heatmap) {
 		for (i = 0; i < tcm->tcm_dev->rows; i++) {
-			((u16 *) self_strength->data)[i] =
+			((u16 *) self_strength->data_flex)[i] =
 				((u16 *) tcm->event_data.buf)[tcm->tcm_dev->cols + i];
 		}
 
 		for (i = 0; i < tcm->tcm_dev->cols; i++) {
-			((u16 *) self_strength->data)[tcm->tcm_dev->rows + i] =
+			((u16 *) self_strength->data_flex)[tcm->tcm_dev->rows + i] =
 				((u16 *) tcm->event_data.buf)[i];
 		}
 	} else {
-		memset(self_strength->data, 0,
+		memset(self_strength->data_flex, 0,
 			(tcm->tcm_dev->cols + tcm->tcm_dev->rows) * sizeof(u16));
 	}
 }
