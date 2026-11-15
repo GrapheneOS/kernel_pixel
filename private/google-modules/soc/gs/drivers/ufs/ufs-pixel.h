@@ -10,6 +10,7 @@
 #ifndef _UFS_PIXEL_H_
 #define _UFS_PIXEL_H_
 
+#include <linux/limits.h>
 #include <linux/unaligned.h>
 #include <ufs/ufshcd.h>
 #include <scsi/scsi_cmnd.h>
@@ -332,6 +333,8 @@ struct pixel_ufs {
 	struct ufs_manual_gc manual_gc;
 
 	/* pixel ufs request statistics */
+	/* UPIU task tags are 8 bits, including the device-management tag. */
+	ktime_t issue_time[U8_MAX + 1];
 	struct pixel_req_stats req_stats[REQ_TYPE_MAX];
 	u64 peak_reqs[REQ_TYPE_MAX];
 	u64 peak_queue_depth;

@@ -338,13 +338,12 @@ static inline void record_ufs_stats(struct ufs_hba *hba)
 	}
 }
 
-static void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
+static void pixel_ufs_update_req_stats(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
+				       u64 delta)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 	struct pixel_req_stats *rst;
 	enum req_type_stats cmd_type;
-	u64 delta = (u64)ktime_us_delta(lrbp->compl_time_stamp,
-		lrbp->issue_time_stamp);
 
 	/* Log for slow I/O */
 	pixel_ufs_log_slowio(hba, lrbp, delta);
@@ -597,8 +596,7 @@ static void __store_cmd_log(struct ufs_hba *hba, enum pixel_event_type event,
 	entry->queue_eh_work = queue_eh_work;
 }
 
-static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
-					struct ufshcd_lrb *lrbp, u8 opcode)
+static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba, u8 opcode, s64 delta)
 {
 	struct pixel_ufs *ufs = to_pixel_ufs(hba);
 	struct latency_metrics *metric = NULL;
@@ -609,9 +607,6 @@ static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
 		metric = &ufs->power_stats.fdevinit_read;
 
 	if (metric) {
-		s64 delta = ktime_to_us(ktime_sub(lrbp->compl_time_stamp,
-						  lrbp->issue_time_stamp));
-
 		WARN_ON(delta < 0);
 
 		metric->count++;
@@ -622,7 +617,7 @@ static void pixel_ufs_trace_fdeviceinit(struct ufs_hba *hba,
 }
 
 static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
-		struct ufshcd_lrb *lrbp, bool is_start)
+		struct ufshcd_lrb *lrbp, bool is_start, s64 delta)
 {
 	u8 lun = 0, opcode = 0, idn = 0, tag = 0, group_id = 0;
 	enum pixel_event_type event = EVENT_UNDEF;
@@ -651,7 +646,7 @@ static void pixel_ufs_trace_upiu_cmd(struct ufs_hba *hba,
 			idn = hba->dev_cmd.query.request.upiu_req.idn;
 			if (idn == QUERY_FLAG_IDN_FDEVICEINIT &&
 			    event == EVENT_QUERY_COMPL)
-				pixel_ufs_trace_fdeviceinit(hba, lrbp, opcode);
+				pixel_ufs_trace_fdeviceinit(hba, opcode, delta);
 		}
 	}
 
@@ -718,8 +713,12 @@ static void pixel_ufs_check_int_errors(void *data, struct ufs_hba *hba,
 static void pixel_ufs_send_command(void *data, struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp)
 {
+	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+
+	/* Core timestamps are only maintained while its monitor is enabled. */
+	ufs->issue_time[lrbp->task_tag] = ktime_get();
 	pixel_ufs_update_io_stats(hba, lrbp, true);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, true);
+	pixel_ufs_trace_upiu_cmd(hba, lrbp, true, 0);
 }
 
 static inline int ufshcd_get_tr_ocs(struct ufshcd_lrb *lrbp)
@@ -740,9 +739,12 @@ static inline int ufshcd_get_rsp_upiu_result(struct utp_upiu_rsp *ucd_rsp_ptr)
 static void pixel_ufs_compl_command(void *data, struct ufs_hba *hba,
 					struct ufshcd_lrb *lrbp)
 {
+	struct pixel_ufs *ufs = to_pixel_ufs(hba);
+	s64 delta = ktime_us_delta(ktime_get(), ufs->issue_time[lrbp->task_tag]);
+
 	pixel_ufs_update_io_stats(hba, lrbp, false);
-	pixel_ufs_update_req_stats(hba, lrbp);
-	pixel_ufs_trace_upiu_cmd(hba, lrbp, false);
+	pixel_ufs_update_req_stats(hba, lrbp, delta);
+	pixel_ufs_trace_upiu_cmd(hba, lrbp, false, delta);
 }
 
 static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
