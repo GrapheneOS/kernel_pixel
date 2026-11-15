@@ -31,6 +31,10 @@ void vh_alter_futex_plist_add_pixel_mod(void *data, struct plist_node *q_list,
 	}
 
 	plist_for_each_entry_safe(this, next, hb_chain, list) {
+		/* io_uring futex waiters have no associated task. */
+		if (!this->task)
+			continue;
+
 		if ((!this->pi_state || !this->rt_waiter) && !get_adpf(this->task, true)) {
 			this_node = &this->list;
 			list_add(&current_node->node_list,
