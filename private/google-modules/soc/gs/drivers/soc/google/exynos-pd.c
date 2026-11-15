@@ -337,6 +337,8 @@ static int exynos_pd_genpd_init(struct exynos_pm_domain *pd, int state)
 	pd->genpd.name = pd->name;
 	pd->genpd.power_off = genpd_power_off;
 	pd->genpd.power_on = genpd_power_on;
+	/* need_sync already defers hardware power-off until consumers probe. */
+	pd->genpd.flags |= GENPD_FLAG_NO_STAY_ON;
 
 	/* pd power on/off latency is less than 1ms */
 	pm_genpd_init(&pd->genpd, NULL, state ? false : true);
@@ -362,8 +364,8 @@ static int exynos_pd_suspend_late(struct device *dev)
 
 	/* Suspend callback function might be registered if necessary */
 	if (pd->always_on) {
-		pd->genpd.flags = 0;
-		dev_info(dev, "genpd.flags set to 0\n");
+		pd->genpd.flags &= ~GENPD_FLAG_ALWAYS_ON;
+		dev_info(dev, "genpd always-on flag cleared\n");
 	}
 
 	pr_debug("%s: %s is %s\n", __func__, pd->name,
