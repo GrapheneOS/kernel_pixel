@@ -4344,7 +4344,7 @@ static void fts_populate_mutual_channel(struct fts_ts_info *info,
 						x_val * max_y + y_val];
 
 				((uint16_t *)
-				 mutual_strength->data)[frame_index++] =
+				 mutual_strength->data_flex)[frame_index++] =
 				    heatmap_value;
 			}
 		}
@@ -4352,7 +4352,7 @@ static void fts_populate_mutual_channel(struct fts_ts_info *info,
 
 	if (data_type == MS_STRENGTH) {
 		fts_update_v4l2_mutual_strength(info, max_x, max_y,
-		    (int16_t *) mutual_strength->data);
+		    (int16_t *) mutual_strength->data_flex);
 	}
 
 	kfree(ms_frame.node_data);
@@ -4408,8 +4408,8 @@ static void fts_populate_self_channel(struct fts_ts_info *info,
 			rx_src = ss_frame.sense_data;
 		}
 		/* tx, rx data order is fixed in TouchOffloadData1d */
-		tx_dst = (uint16_t *)self_strength->data;
-		rx_dst = (uint16_t *)&self_strength->data[
+		tx_dst = (uint16_t *)self_strength->data_flex;
+		rx_dst = (uint16_t *)&self_strength->data_flex[
 					2 * self_strength->tx_size];
 
 		/* If the tx data is flipped, copy in left-to-right order */
