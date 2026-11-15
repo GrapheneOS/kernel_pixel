@@ -1075,12 +1075,16 @@ static inline bool uclamp_is_ignore_uclamp_max(struct task_struct *p)
 	return vp->uclamp_filter.uclamp_max_ignored;
 }
 
-static inline bool apply_uclamp_filters(struct rq *rq, struct task_struct *p)
+static inline bool apply_uclamp_filters(struct rq *rq, struct task_struct *p, int flags)
 {
 	int auto_uclamp_max = get_vendor_task_struct(p)->auto_uclamp_max_flags;
 	unsigned long rq_uclamp_min = rq->uclamp[UCLAMP_MIN].value;
 	unsigned long rq_uclamp_max = rq->uclamp[UCLAMP_MAX].value;
 	bool force_cpufreq_update;
+
+	/* The core only accounts delayed tasks when they are waking up. */
+	if (p->se.sched_delayed && !(flags & ENQUEUE_DELAYED))
+		return false;
 
 	/*
 	 * For AUTO_UCLAMP_MAX_FLAG_GROUP the effective value should have been
