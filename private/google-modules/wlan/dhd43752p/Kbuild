@@ -983,6 +983,9 @@ obj-$(DRIVER_TYPE)   += synadhd$(BCM_WLAN_CHIP_SUFFIX).o
 ccflags-y := $(KBUILD_CFLAGS)
 ccflags-y += $(EXTRA_CFLAGS)
 
+# Firmware structures and allocators use legacy trailing arrays.
+ccflags-y += -fstrict-flex-arrays=0
+
 # For in-tree model, define make rules here (KERNEL_SRC will be NULL)
 ifeq ($(KERNEL_SRC),)
 all:
