@@ -104,6 +104,12 @@ static int aoc_usb_notifier_call(struct notifier_block *notifier,
 	return NOTIFY_OK;
 }
 
+static void usb_audio_offload_quirks(struct snd_usb_audio *chip)
+{
+	chip->quirk_flags &= ~QUIRK_FLAG_GENERIC_IMPLICIT_FB;
+	chip->quirk_flags |= QUIRK_FLAG_SKIP_IMPLICIT_FB;
+}
+
 void usb_audio_offload_connect(struct snd_usb_audio *chip)
 {
 	int card_num;
@@ -133,8 +139,6 @@ void usb_audio_offload_connect(struct snd_usb_audio *chip)
 	uadev[card_num].chip = chip;
 	uadev[card_num].card_num = card_num;
 	uadev[card_num].sb = sb;
-	chip->quirk_flags &= ~QUIRK_FLAG_GENERIC_IMPLICIT_FB;
-	chip->quirk_flags |= QUIRK_FLAG_SKIP_IMPLICIT_FB;
 	mutex_unlock(&chip->mutex);
 
 	blocking_notifier_call_chain(&aoc_alsa_usb_notifier_list,
@@ -237,6 +241,7 @@ int aoc_setup_transfer_ring(struct aoc_chip *achip, int card_num, int aoc_dir,
 }
 
 static struct snd_usb_platform_ops ops = {
+	.quirks_cb = usb_audio_offload_quirks,
 	.connect_cb = usb_audio_offload_connect,
 	.disconnect_cb = usb_audio_offload_disconnect,
 };
