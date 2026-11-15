@@ -3020,7 +3020,7 @@ void rvh_enqueue_task_fair_pixel_mod(void *data, struct rq *rq, struct task_stru
 
 	/* Can only process uclamp after sched_slice() was updated */
 	if (uclamp_is_used())
-		force_cpufreq_update = apply_uclamp_filters(rq, p);
+		force_cpufreq_update = apply_uclamp_filters(rq, p, flags);
 
 	/*
 	 * If we have applied the uclamp filter, we'll unconditionally request

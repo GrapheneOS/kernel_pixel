@@ -195,6 +195,12 @@ void rvh_after_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_str
 	if (p->prio < MAX_RT_PRIO)
 		return;
 
+	/* Delayed wakeups bypass the fair-enqueue hook and its clamp filtering. */
+	if ((flags & ENQUEUE_DELAYED) && p->sched_class == &fair_sched_class &&
+	    static_branch_unlikely(&enqueue_dequeue_ready) && uclamp_is_used() &&
+	    apply_uclamp_filters(rq, p, flags))
+		cpufreq_update_util(rq, SCHED_PIXEL_FORCE_UPDATE);
+
 	update_misfit_status(p, rq);
 }
 
@@ -228,7 +234,7 @@ void rvh_enqueue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p
 	 * can read sched_slice()
 	 */
 	if (uclamp_is_used() && rt_task(p) && p->sched_class->uclamp_enabled)
-		apply_uclamp_filters(rq, p);
+		apply_uclamp_filters(rq, p, flags);
 }
 
 void rvh_dequeue_task_pixel_mod(void *data, struct rq *rq, struct task_struct *p, int flags)
