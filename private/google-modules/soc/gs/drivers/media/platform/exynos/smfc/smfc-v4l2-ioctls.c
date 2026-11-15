@@ -484,7 +484,7 @@ err:
 
 static int smfc_v4l2_querycap(struct file *filp, void *fh, struct v4l2_capability *cap)
 {
-	struct smfc_dev *smfc = v4l2_fh_to_smfc_ctx(fh)->smfc;
+	struct smfc_dev *smfc = video_drvdata(filp);
 
 	strncpy(cap->driver, MODULE_NAME, sizeof(cap->driver));
 	strncpy(cap->bus_info, dev_name(smfc->dev), sizeof(cap->bus_info));
@@ -521,7 +521,7 @@ static int smfc_v4l2_enum_fmt(struct file *filp, void *fh, struct v4l2_fmtdesc *
 static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
 				  struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 
 	f->fmt.pix_mp.width = ctx->width;
 	f->fmt.pix_mp.height = ctx->height;
@@ -553,7 +553,7 @@ static int smfc_v4l2_g_fmt_mplane(struct file *filp, void *fh,
 
 static int smfc_v4l2_g_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 
 	f->fmt.pix.width = ctx->width;
 	f->fmt.pix.height = ctx->height;
@@ -739,7 +739,7 @@ static bool smfc_v4l2_init_fmt_mplane(const struct smfc_ctx *ctx,
 
 static int smfc_v4l2_try_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix_mp.pixelformat);
 
@@ -786,7 +786,7 @@ static __u32 v4l2_to_multiplane_type(__u32 type)
 
 static int smfc_v4l2_s_fmt_mplane(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix_mp.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
@@ -865,7 +865,7 @@ static bool smfc_v4l2_init_fmt(const struct smfc_ctx *ctx,
 
 static int smfc_v4l2_try_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix.pixelformat);
 
@@ -874,7 +874,7 @@ static int smfc_v4l2_try_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 
 static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(filp));
 	const struct smfc_image_format *smfc_fmt = smfc_find_format(ctx->smfc,
 								    f->fmt.pix.pixelformat);
 	int ret = smfc_v4l2_prepare_s_fmt(ctx, smfc_fmt, f->type);
@@ -906,7 +906,7 @@ static int smfc_v4l2_s_fmt(struct file *filp, void *fh, struct v4l2_format *f)
 
 static int smfc_v4l2_s_selection(struct file *file, void *fh, struct v4l2_selection *s)
 {
-	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(fh);
+	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file_to_v4l2_fh(file));
 	unsigned int i;
 	int ret = 0;
 	u32 sum_x, sum_y;
