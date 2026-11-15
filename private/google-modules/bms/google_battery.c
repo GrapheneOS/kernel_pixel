@@ -13732,12 +13732,6 @@ static int gbatt_get_property(struct power_supply *psy,
 		}
 		break;
 
-	case POWER_SUPPLY_PROP_CHARGE_TERM_CURRENT:
-		if (batt_drv->topoff)
-			val->intval = batt_drv->topoff;
-		else
-			val->intval = -1;
-		break;
 	case POWER_SUPPLY_PROP_SERIAL_NUMBER:
 		if (strlen(batt_drv->serial_number) != 0) {
 			val->strval = batt_drv->serial_number;
@@ -13870,6 +13864,13 @@ static int gbatt_gbms_get_property(struct power_supply *psy,
 	 */
 	case GBMS_PROP_CHARGE_CHARGER_STATE:
 		val->int64val = batt_drv->chg_state.v;
+		break;
+
+	case GBMS_PROP_CHARGE_TERM_CURRENT:
+		if (batt_drv->topoff)
+			val->prop.intval = batt_drv->topoff;
+		else
+			val->prop.intval = -1;
 		break;
 
 	case GBMS_PROP_CAPACITY_TO_CHARGER:
