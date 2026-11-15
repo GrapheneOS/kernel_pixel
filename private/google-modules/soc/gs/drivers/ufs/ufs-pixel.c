@@ -776,10 +776,14 @@ static void pixel_ufs_prepare_command(void *data, struct ufs_hba *hba,
 		return;
 
 	opcode = (u8)(*lrbp->cmd->cmnd);
-	if (opcode == WRITE_10)
+	/* The core has already copied the CDB into the command UPIU. */
+	if (opcode == WRITE_10) {
 		lrbp->cmd->cmnd[6] = 0x11;
-	else if (opcode == WRITE_16)
+		lrbp->ucd_req_ptr->sc.cdb[6] = 0x11;
+	} else if (opcode == WRITE_16) {
 		lrbp->cmd->cmnd[14] = 0x11;
+		lrbp->ucd_req_ptr->sc.cdb[14] = 0x11;
+	}
 	ufs->need_wb_flush = true;
 }
 
