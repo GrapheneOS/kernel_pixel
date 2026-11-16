@@ -274,7 +274,8 @@ err:
  * are not ready by the end of max wait time.
  */
 static int s2mpg15_spmic_wait_for_sensors_ready(
-			struct s2mpg15_spmic_thermal_chip *s2mpg15_spmic_thermal, u8 adc_chan_en)
+			struct s2mpg15_spmic_thermal_chip *s2mpg15_spmic_thermal,
+			u8 adc_chan_en, bool skip_update)
 {
 	struct device *dev = s2mpg15_spmic_thermal->dev;
 	int raw, ret_code = 0, i, j = SENSOR_MAX_WAIT_TIME_MS / SENSOR_WAIT_SLEEP_MS;
@@ -308,8 +309,9 @@ static int s2mpg15_spmic_wait_for_sensors_ready(
 		if (ret_code)
 			dev_warn(dev, "Sensor %d LPF write fail with ret:%d\n", i, ret_code);
 		mutex_unlock(&s2mpg15_spmic_thermal->adc_chan_lock);
-		thermal_zone_device_update(s2mpg15_spmic_thermal->sensor[i].tzd,
-					   THERMAL_EVENT_UNSPECIFIED);
+		if (!skip_update)
+			thermal_zone_device_update(s2mpg15_spmic_thermal->sensor[i].tzd,
+						   THERMAL_EVENT_UNSPECIFIED);
 	}
 	/* set up spmic driver info for API access*/
 	spmic_thermal_chip = s2mpg15_spmic_thermal;
@@ -337,7 +339,7 @@ int s2mpg15_spmic_set_hw_lpf(bool enable) {
 	}
 	if (enable) {
 		ret = s2mpg15_spmic_wait_for_sensors_ready(
-			spmic_thermal_chip,spmic_thermal_chip->adc_chan_en);
+			spmic_thermal_chip, spmic_thermal_chip->adc_chan_en, false);
 		if (ret)
 			spmic_thermal_chip->adc_chan_en = 0x00;
 	} else {
@@ -625,7 +627,7 @@ static int s2mpg15_spmic_thermal_set_emul_temp(struct thermal_zone_device *tz, i
 	sensor->emul_temperature = temp;
 
 	mutex_unlock(&sensor->chip->adc_chan_lock);
-	return s2mpg15_spmic_wait_for_sensors_ready(sensor->chip, value);
+	return s2mpg15_spmic_wait_for_sensors_ready(sensor->chip, value, true);
 
 err:
 	mutex_unlock(&sensor->chip->adc_chan_lock);
@@ -718,7 +720,7 @@ static void s2mpg15_spmic_thermal_wait_sensor_work(struct kthread_work *work)
 		goto err;
 	mutex_unlock(&s2mpg15_spmic_thermal->adc_chan_lock);
 
-	s2mpg15_spmic_wait_for_sensors_ready(s2mpg15_spmic_thermal, adc_chan_en);
+	s2mpg15_spmic_wait_for_sensors_ready(s2mpg15_spmic_thermal, adc_chan_en, false);
 	return;
 
 err:
@@ -876,7 +878,7 @@ adc_chan_en_store(struct device *dev, struct device_attribute *devattr,
 	chip->adc_chan_en = value;
 	mutex_unlock(&chip->adc_chan_lock);
 
-	ret = s2mpg15_spmic_wait_for_sensors_ready(chip, chip->adc_chan_en);
+	ret = s2mpg15_spmic_wait_for_sensors_ready(chip, chip->adc_chan_en, false);
 	if (ret) {
 		chip->adc_chan_en = 0x00;
 		return ret;
