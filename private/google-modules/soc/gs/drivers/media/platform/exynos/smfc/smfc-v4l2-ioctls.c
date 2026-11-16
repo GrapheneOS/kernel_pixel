@@ -292,6 +292,9 @@ static int smfc_s_ctrl(struct v4l2_ctrl *ctrl)
 				ctx->smfc->hwver);
 			return -EINVAL;
 		}
+		if (ctx->enable_hwfc != ctrl->val &&
+		    vb2_is_busy(v4l2_m2m_get_src_vq(ctx->fh.m2m_ctx)))
+			return -EBUSY;
 		ctx->enable_hwfc = (unsigned char)ctrl->val;
 		break;
 	case V4L2_CID_JPEG_RESTART_INTERVAL:
