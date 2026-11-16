@@ -40,6 +40,7 @@ static wait_queue_head_t smfc_suspend_wq;
 
 static void g2d_pm_qos_update_request(struct smfc_dev *smfc);
 static void g2d_pm_qos_reset_request(struct smfc_dev *smfc);
+static void smfc_vb2_buf_cleanup(struct vb2_buffer *vb);
 
 enum {
 	SMFC_HWFC_STANDBY = 0,
@@ -280,8 +281,8 @@ static int smfc_vb2_buf_init(struct vb2_buffer *vb)
 	struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
 	struct smfc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct smfc_dev *smfc = ctx->smfc;
-	struct dma_buf *dbuf;
 	unsigned int plane;
+	int ret;
 
 	if (!V4L2_TYPE_IS_OUTPUT(vb->vb2_queue->type) || !ctx->enable_hwfc)
 		return 0;
@@ -292,14 +293,36 @@ static int smfc_vb2_buf_init(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 
+	if (vb->num_planes > ARRAY_SIZE(sbuf->info))
+		return -EINVAL;
+
 	for (plane = 0; plane < vb->num_planes; ++plane) {
-		dbuf = dma_buf_get(vb->planes[plane].m.fd);
-		sbuf->info[plane].dba = dma_buf_attach(dbuf, smfc->dev);
-		sbuf->info[plane].dba->dma_map_attrs = DMA_ATTR_PRIVILEGED;
-		sbuf->info[plane].sgt = dma_buf_map_attachment_unlocked(sbuf->info[plane].dba,
-									vb->vb2_queue->dma_dir);
+		struct dma_buf *dbuf = vb->planes[plane].dbuf;
+		struct dma_buf_attachment *dba;
+		struct sg_table *sgt;
+
+		/* VB2 holds the DMA-BUF reference through buf_cleanup(). */
+		dba = dma_buf_attach(dbuf, smfc->dev);
+		if (IS_ERR(dba)) {
+			ret = PTR_ERR(dba);
+			goto err_cleanup;
+		}
+		dba->dma_map_attrs = DMA_ATTR_PRIVILEGED;
+		sgt = dma_buf_map_attachment_unlocked(dba, vb->vb2_queue->dma_dir);
+		if (IS_ERR(sgt)) {
+			ret = PTR_ERR(sgt);
+			dma_buf_detach(dbuf, dba);
+			goto err_cleanup;
+		}
+
+		sbuf->info[plane].dba = dba;
+		sbuf->info[plane].sgt = sgt;
 	}
 	return 0;
+
+err_cleanup:
+	smfc_vb2_buf_cleanup(vb);
+	return ret;
 }
 
 static int smfc_vb2_buf_prepare(struct vb2_buffer *vb)
