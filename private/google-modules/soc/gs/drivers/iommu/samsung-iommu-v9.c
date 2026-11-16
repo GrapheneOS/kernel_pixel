@@ -986,8 +986,7 @@ static void samsung_sysmmu_release_device(struct device *dev)
 	client = (struct sysmmu_clientdata *)dev_iommu_priv_get(dev);
 	if (client->domain)
 		samsung_sysmmu_detach_dev(client->domain, dev);
-	for (int i = 0; i < client->sysmmu_count; i++)
-		device_link_del(client->dev_link[i]);
+	/* Device removal purges links before the IOMMU release callback. */
 	kfree(client->dev_link);
 
 }
