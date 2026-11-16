@@ -950,27 +950,48 @@ static int smfc_v4l2_s_selection(struct file *file, void *fh, struct v4l2_select
 static int v4l2_smfc_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 {
 	struct smfc_ctx *ctx = v4l2_fh_to_smfc_ctx(file->private_data);
+	struct vb2_smfc_buffer *sbuf;
+	struct v4l2_m2m_buffer *mbuf;
+	struct vb2_v4l2_buffer *vbuf;
+	struct vb2_buffer *vb;
 	struct vb2_queue *vq;
-	unsigned int index;
+	unsigned int offsets[SMFC_MAX_PLANES] = { 0 };
+	unsigned int saved_offsets[SMFC_MAX_PLANES];
+	unsigned int plane;
+	int ret;
 
 	vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, buf->type);
-
-	if (vb2_get_num_buffers(vq) > SMFC_MAX_PLANES) {
+	if (buf->type != vq->type || buf->memory != vq->memory)
 		return -EINVAL;
+
+	vb = vb2_get_buffer(vq, buf->index);
+	if (!vb || vb->num_planes > SMFC_MAX_PLANES)
+		return -EINVAL;
+	if (vb->state != VB2_BUF_STATE_DEQUEUED)
+		return -EINVAL;
+
+	/* With zero length, the V4L2 core has not copied the userspace planes. */
+	if (V4L2_TYPE_IS_MULTIPLANAR(buf->type) &&
+	    (!buf->m.planes || !buf->length || buf->length < vb->num_planes ||
+	     buf->length > VIDEO_MAX_PLANES))
+		return -EINVAL;
+
+	if (!V4L2_TYPE_IS_OUTPUT(buf->type) && V4L2_TYPE_IS_MULTIPLANAR(buf->type)) {
+		for (plane = 0; plane < vb->num_planes; plane++)
+			offsets[plane] = buf->m.planes[plane].data_offset;
 	}
 
-	for (index = 0; index < vb2_get_num_buffers(vq); index++) {
-		struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vq->bufs[index]);
-		struct v4l2_m2m_buffer *mbuf = container_of(vbuf, typeof(*mbuf), vb);
-		struct vb2_smfc_buffer *sbuf = container_of(mbuf, typeof(*sbuf), mb);
+	vbuf = to_vb2_v4l2_buffer(vb);
+	mbuf = container_of(vbuf, typeof(*mbuf), vb);
+	sbuf = container_of(mbuf, typeof(*sbuf), mb);
+	memcpy(saved_offsets, sbuf->offset, sizeof(saved_offsets));
+	/* Queueing can start hardware, so publish only this buffer's offsets first. */
+	memcpy(sbuf->offset, offsets, sizeof(offsets));
+	ret = v4l2_m2m_qbuf(file, ctx->fh.m2m_ctx, buf);
+	if (ret)
+		memcpy(sbuf->offset, saved_offsets, sizeof(saved_offsets));
 
-		if (!V4L2_TYPE_IS_OUTPUT(buf->type) && V4L2_TYPE_IS_MULTIPLANAR(buf->type))
-			sbuf->offset[index] = buf->m.planes[index].data_offset;
-		else
-			sbuf->offset[index] = 0;
-	}
-
-	return v4l2_m2m_qbuf(file, ctx->fh.m2m_ctx, buf);
+	return ret;
 }
 
 const struct v4l2_ioctl_ops smfc_v4l2_ioctl_ops = {
