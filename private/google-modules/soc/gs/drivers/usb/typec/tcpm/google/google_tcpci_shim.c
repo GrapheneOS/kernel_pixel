@@ -341,13 +341,16 @@ static int google_tcpci_shim_set_auto_vbus_discharge_threshold(struct tcpc_dev *
 		/* To prevent disconnect when the source is fast role swap is capable. */
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
 	} else if (mode == TYPEC_PWR_MODE_PD) {
-		if (pps_active)
+		if (pps_active) {
+			/* Invalid APDO minima must not underflow or disable the threshold. */
+			apdo_min_voltage_mv = max(apdo_min_voltage_mv, PD_PPS_MIN_VOLT_MV);
 			threshold = VPPS_SHUTDOWN_MIN_PERCENT * apdo_min_voltage_mv / 100 -
 				     VSINKPD_MIN_IR_DROP_MV;
-		else
+		} else {
 			threshold = ((VSRC_NEW_MIN_PERCENT * requested_vbus_voltage_mv / 100) -
 				     VSINKPD_MIN_IR_DROP_MV - VSRC_VALID_MIN_MV) *
 				     VSINKDISCONNECT_PD_MIN_PERCENT / 100;
+		}
 	} else {
 		/* 3.5V for non-pd sink */
 		threshold = AUTO_DISCHARGE_DEFAULT_THRESHOLD_MV;
