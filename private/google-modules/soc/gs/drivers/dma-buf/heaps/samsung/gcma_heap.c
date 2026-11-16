@@ -233,6 +233,7 @@ static struct dma_buf *gcma_heap_allocate(struct dma_heap *heap, unsigned long l
 	unsigned int alignment = samsung_dma_heap->alignment;
 	struct page *page, *tmp_page;
 	struct heap_pages heap_pages;
+	unsigned long size_remaining;
 	int ret = -ENOMEM;
 
 	/* We don't support a secure heap with the flexible_alloc strategy */
@@ -264,9 +265,14 @@ static struct dma_buf *gcma_heap_allocate(struct dma_heap *heap, unsigned long l
 	}
 
 	sg = buffer->sg_table.sgl;
+	size_remaining = len;
 	list_for_each_entry_safe(page, tmp_page, &heap_pages.pages_list, lru) {
-		sg_set_page(sg, page,
-			   page_is_gcma(page) ? gcma_get_size(page) : page_size(page), 0);
+		unsigned long size = page_is_gcma(page) ? gcma_get_size(page) : page_size(page);
+
+		/* The final allocation can exceed the exported buffer size. */
+		size = min(size, size_remaining);
+		sg_set_page(sg, page, size, 0);
+		size_remaining -= size;
 		sg = sg_next(sg);
 		list_del(&page->lru);
 	}
