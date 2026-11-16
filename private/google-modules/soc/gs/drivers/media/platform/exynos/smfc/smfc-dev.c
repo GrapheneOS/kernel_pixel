@@ -248,9 +248,9 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 		unsigned int i;
 
 		*num_planes = ctx->img_fmt->num_buffers;
+		/* Valid image sizes fit in u32 bytes, but their bit counts may not. */
 		for (i = 0; i < *num_planes; i++) {
-			sizes[i] = ctx->width * ctx->height;
-			sizes[i] = (sizes[i] * ctx->img_fmt->bpp_buf[i]) / 8;
+			sizes[i] = (u64)ctx->width * ctx->height * ctx->img_fmt->bpp_buf[i] / 8;
 			alloc_devs[i] = ctx->smfc->dev;
 		}
 
@@ -259,10 +259,8 @@ static int smfc_vb2_queue_setup(struct vb2_queue *vq, unsigned int *num_buffers,
 
 			for (i = 0; i < *num_planes; i++) {
 				idx = *num_planes + i;
-				sizes[idx] = ctx->thumb_width;
-				sizes[idx] *= ctx->thumb_height;
-				sizes[idx] *= ctx->img_fmt->bpp_buf[i];
-				sizes[idx] /= 8;
+				sizes[idx] = (u64)ctx->thumb_width * ctx->thumb_height *
+					     ctx->img_fmt->bpp_buf[i] / 8;
 				alloc_devs[idx] = ctx->smfc->dev;
 			}
 
