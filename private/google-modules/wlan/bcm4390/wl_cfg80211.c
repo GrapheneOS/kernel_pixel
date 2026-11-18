@@ -3778,6 +3778,34 @@ wl_role_to_cfg80211_type(uint16 role, uint16 *wl_iftype, uint16 *mode)
 	}
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+static void wl_release_vif_wdev(struct net_device *ndev)
+{
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct bcm_cfg80211 *cfg;
+
+	/* cfg80211 still needs wdev while register_netdevice() unwinds. */
+	if (!wdev || wdev->registering)
+		return;
+
+	cfg = wiphy_priv(wdev->wiphy);
+	ndev->ieee80211_ptr = NULL;
+	MFREE(cfg->osh, wdev, sizeof(*wdev));
+}
+
+bool wl_cfg80211_cleanup_failed_vif(struct net_device *ndev)
+{
+	if (ndev->priv_destructor != wl_release_vif_wdev ||
+	    ndev->reg_state == NETREG_REGISTERED)
+		return false;
+
+	/* Pending unregister runs the destructor after the last reference drops. */
+	if (ndev->reg_state != NETREG_UNREGISTERING)
+		wl_release_vif_wdev(ndev);
+	return true;
+}
+#endif
+
 struct net_device *
 wl_cfg80211_post_ifcreate(struct net_device *ndev,
 	wl_if_event_info *event, u8 *addr,
@@ -3897,16 +3925,19 @@ wl_cfg80211_post_ifcreate(struct net_device *ndev,
 		wdev->iftype = iface_type;
 
 		new_ndev->ieee80211_ptr = wdev;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+		new_ndev->needs_free_netdev = true;
+		new_ndev->priv_destructor = wl_release_vif_wdev;
+#endif
 		SET_NETDEV_DEV(new_ndev, wiphy_dev(wdev->wiphy));
 
 		NETDEV_ADDR_SET(new_ndev, ETH_ALEN, addr, ETH_ALEN);
 		if (wl_cfg80211_register_if(cfg, event->ifidx, new_ndev, rtnl_lock_reqd)
 			!= BCME_OK) {
 			WL_ERR(("IFACE register failed \n"));
-			/* Post interface registration, wdev would be freed from the netdev
-			 * destructor path. For other cases, handle it here.
-			 */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 18, 0))
 			MFREE(cfg->osh, wdev, sizeof(*wdev));
+#endif
 			wl_cfg80211_remove_if(cfg, event->ifidx, new_ndev, rtnl_lock_reqd);
 			return NULL;
 		}
