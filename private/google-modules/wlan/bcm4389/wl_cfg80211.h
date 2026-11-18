@@ -3368,6 +3368,9 @@ extern s32 wl_cfg80211_bss_up(struct bcm_cfg80211 *cfg,
 	struct net_device *ndev, s32 bsscfg_idx, s32 up);
 extern bool wl_cfg80211_bss_isup(struct net_device *ndev, int bsscfg_idx);
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+bool wl_cfg80211_cleanup_failed_vif(struct net_device *ndev);
+#endif
 struct net_device *wl_cfg80211_post_ifcreate(struct net_device *ndev,
 	wl_if_event_info *event, u8 *addr, const char *name, bool rtnl_lock_reqd);
 extern s32 wl_cfg80211_post_ifdel(struct net_device *ndev, bool rtnl_lock_reqd, s32 ifidx);
