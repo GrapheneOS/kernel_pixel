@@ -27,6 +27,11 @@
 #define	VPPS_SHUTDOWN_MIN_PERCENT		85
 #define	VSINKDISCONNECT_PD_MIN_PERCENT		90
 
+/* Older common kernels do not define the PPS operating minimum. */
+#ifndef PD_PPS_MIN_VOLT_MV
+#define PD_PPS_MIN_VOLT_MV			3300
+#endif
+
 struct google_shim_tcpci_chip {
 	struct google_shim_tcpci *tcpci;
 	struct google_shim_tcpci_data data;
