@@ -1482,8 +1482,10 @@ static const u32 __wl_cipher_suites[] = {
 #ifdef WL_GCMP
 	WLAN_CIPHER_SUITE_GCMP,
 	WLAN_CIPHER_SUITE_GCMP_256,
+#if !defined(MFP) || LINUX_VERSION_CODE < KERNEL_VERSION(4, 0, 0)
 	WLAN_CIPHER_SUITE_BIP_GMAC_128,
 	WLAN_CIPHER_SUITE_BIP_GMAC_256,
+#endif
 #endif /* WL_GCMP */
 };
 
