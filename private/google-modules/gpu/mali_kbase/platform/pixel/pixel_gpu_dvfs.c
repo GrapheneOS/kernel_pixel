@@ -9,7 +9,7 @@
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 /* SOC includes */
 #if IS_ENABLED(CONFIG_CAL_IF)
