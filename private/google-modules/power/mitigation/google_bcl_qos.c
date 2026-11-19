@@ -19,6 +19,7 @@
 #include <linux/mfd/samsung/s2mpg1x.h>
 #include <linux/mfd/samsung/s2mpg1x-register.h>
 #endif
+#include <trace/events/pixel_clock.h>
 #include "bcl.h"
 
 #define CREATE_TRACE_POINTS

@@ -9,7 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include <soc/google/modem_notifier.h>
 #include "bcl.h"
 
