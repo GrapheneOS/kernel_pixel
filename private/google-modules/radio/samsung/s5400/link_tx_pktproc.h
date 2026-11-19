@@ -149,6 +149,7 @@ struct pktproc_adaptor_ul {
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
 extern int pktproc_create_ul(struct platform_device *pdev,
 		struct mem_link_device *mld, unsigned long memaddr, u32 memsize);
+void pktproc_destroy_ul(struct platform_device *pdev, struct mem_link_device *mld);
 extern int pktproc_init_ul(struct pktproc_adaptor_ul *ppa_ul);
 static inline int pktproc_check_support_ul(struct pktproc_adaptor_ul *ppa_ul)
 {

@@ -376,6 +376,36 @@ static int pktproc_get_info_ul(struct pktproc_adaptor_ul *ppa_ul,
 	return 0;
 }
 
+static void pktproc_free_ul(struct pktproc_adaptor_ul *ppa_ul)
+{
+	int i;
+
+	for (i = 0; i < ppa_ul->num_queue; i++)
+		kfree(ppa_ul->q[i]);
+
+#if IS_ENABLED(CONFIG_EXYNOS_CPIF_IOMMU)
+	if (ppa_ul->buff_map)
+		cpif_vmap_free(ppa_ul->buff_map);
+	if (ppa_ul->desc_map)
+		cpif_vmap_free(ppa_ul->desc_map);
+#endif
+	if (!ppa_ul->info_rgn_cached && ppa_ul->info_vbase)
+		vunmap(ppa_ul->info_vbase);
+	if (!ppa_ul->desc_rgn_cached && ppa_ul->desc_vbase)
+		vunmap(ppa_ul->desc_vbase);
+	if (!ppa_ul->buff_rgn_cached && ppa_ul->buff_vbase)
+		vunmap(ppa_ul->buff_vbase);
+}
+
+void pktproc_destroy_ul(struct platform_device *pdev, struct mem_link_device *mld)
+{
+	if (!mld->pktproc_ul.support)
+		return;
+
+	sysfs_remove_group(&pdev->dev.kobj, &pktproc_ul_group);
+	pktproc_free_ul(&mld->pktproc_ul);
+}
+
 int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		unsigned long memaddr, u32 memsize)
 {
@@ -456,23 +486,18 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 			ppa_ul->buff_rgn_size, ppa_ul->buff_rgn_size);
 	if (unlikely(!ppa_ul->buff_map)) {
 		mif_err("failed to create buff map for pktproc ul\n");
-		cpif_vmap_free(ppa_ul->desc_map);
 		ret = -ENOMEM;
 		goto create_error;
 	}
 
 	temp = cpif_vmap_map_area(ppa_ul->desc_map, 0, 0, memaddr + ppa_ul->desc_rgn_offset);
 	if (temp != ppa_ul->cp_base + ppa_ul->desc_rgn_offset) {
-		cpif_vmap_free(ppa_ul->desc_map);
-		cpif_vmap_free(ppa_ul->buff_map);
 		ret = -EINVAL;
 		goto create_error;
 	}
 
 	temp = cpif_vmap_map_area(ppa_ul->buff_map, 0, 0, memaddr + ppa_ul->buff_rgn_offset);
 	if (temp != ppa_ul->cp_base + ppa_ul->buff_rgn_offset) {
-		cpif_vmap_free(ppa_ul->desc_map);
-		cpif_vmap_free(ppa_ul->buff_map);
 		ret = -EINVAL;
 		goto create_error;
 	}
@@ -573,6 +598,7 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 		if ((last_q_desc_offset + q->desc_size) > ppa_ul->desc_rgn_size) {
 			mif_err("Descriptor overflow. 0x%08x + 0x%08x > 0x%08lx\n",
 				last_q_desc_offset, q->desc_size, ppa_ul->desc_rgn_size);
+			ret = -EINVAL;
 			goto create_error;
 		}
 
@@ -628,15 +654,6 @@ int pktproc_create_ul(struct platform_device *pdev, struct mem_link_device *mld,
 	return 0;
 
 create_error:
-	for (i = 0; i < ppa_ul->num_queue; i++)
-		kfree(ppa_ul->q[i]);
-
-	if (!ppa_ul->info_rgn_cached && ppa_ul->info_vbase)
-		vunmap(ppa_ul->info_vbase);
-	if (!ppa_ul->desc_rgn_cached && ppa_ul->desc_vbase)
-		vunmap(ppa_ul->desc_vbase);
-	if (!ppa_ul->buff_rgn_cached && ppa_ul->buff_vbase)
-		vunmap(ppa_ul->buff_vbase);
-
+	pktproc_free_ul(ppa_ul);
 	return ret;
 }

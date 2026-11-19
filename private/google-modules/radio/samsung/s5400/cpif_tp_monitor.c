@@ -1106,7 +1106,8 @@ int tpmon_start(void)
 {
 	struct cpif_tpmon *tpmon = &_tpmon;
 
-	if (tpmon->use_user_level)
+	/* An RX IRQ can arrive before tpmon_create() publishes the initialized monitor. */
+	if (!smp_load_acquire(&tpmon->ld) || tpmon->use_user_level)
 		return 0;
 
 	tpmon_calc_q_status(tpmon);
@@ -1438,68 +1439,44 @@ static int tpmon_set_cpufreq(struct tpmon_data *data)
 {
 #if IS_ENABLED(CONFIG_CPU_FREQ)
 	struct cpif_tpmon *tpmon = data->tpmon;
-	struct cpufreq_policy *policy;
-	int qos_type;
 
 	switch (data->target) {
 	case TPMON_TARGET_CPU_CL0:
 		data->extra_data = (void *)&tpmon->qos_req_cpu_cl0;
 		data->set_data = tpmon_set_cpu_freq;
-		qos_type = FREQ_QOS_MIN;
+		data->qos_type = FREQ_QOS_MIN;
 		break;
 	case TPMON_TARGET_CPU_CL0_MAX:
 		data->extra_data = (void *)&tpmon->qos_req_cpu_cl0_max;
 		data->set_data = tpmon_set_cpu_freq;
-		qos_type = FREQ_QOS_MAX;
+		data->qos_type = FREQ_QOS_MAX;
 		break;
 	case TPMON_TARGET_CPU_CL1:
 		data->extra_data = (void *)&tpmon->qos_req_cpu_cl1;
 		data->set_data = tpmon_set_cpu_freq;
-		qos_type = FREQ_QOS_MIN;
+		data->qos_type = FREQ_QOS_MIN;
 		break;
 	case TPMON_TARGET_CPU_CL1_MAX:
 		data->extra_data = (void *)&tpmon->qos_req_cpu_cl1_max;
 		data->set_data = tpmon_set_cpu_freq;
-		qos_type = FREQ_QOS_MAX;
+		data->qos_type = FREQ_QOS_MAX;
 		break;
 	case TPMON_TARGET_CPU_CL2:
 		data->extra_data = (void *)&tpmon->qos_req_cpu_cl2;
 		data->set_data = tpmon_set_cpu_freq;
-		qos_type = FREQ_QOS_MIN;
+		data->qos_type = FREQ_QOS_MIN;
 		break;
 	case TPMON_TARGET_CPU_CL2_MAX:
 		data->extra_data = (void *)&tpmon->qos_req_cpu_cl2_max;
 		data->set_data = tpmon_set_cpu_freq;
-		qos_type = FREQ_QOS_MAX;
+		data->qos_type = FREQ_QOS_MAX;
 		break;
 	default:
 		mif_err_limited("no target\n");
 		return -EINVAL;
 	}
 
-	if (tpmon->cpufreq_nb.notifier_call) {
-		mif_info("notifier_call is registered\n");
-		return 0;
-	}
-
-	policy = cpufreq_cpu_get(data->extra_idx);
-	if (!policy) {
-		mif_err_limited("cpufreq_cpu_get() error\n");
-		return -EINVAL;
-	}
-
-	if (policy->cpu == data->extra_idx) {
-		mif_info("freq_qos_add_request for cpu%d %d\n",
-			policy->cpu, qos_type);
-#if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
-		freq_qos_tracer_add_request(&policy->constraints,
-			data->extra_data, qos_type, PM_QOS_DEFAULT_VALUE);
-#else
-		freq_qos_add_request(&policy->constraints,
-			data->extra_data, qos_type, PM_QOS_DEFAULT_VALUE);
 #endif
-	}
-#endif /* CONFIG_CPU_FREQ */
 
 	return 0;
 }
@@ -1699,31 +1676,76 @@ static int tpmon_parse_dt(struct device_node *np, struct cpif_tpmon *tpmon)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_CPU_FREQ)
+static void tpmon_install_cpu_requests(struct cpif_tpmon *tpmon)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+	struct tpmon_data *data, *next;
+
+	if (!policy) {
+		int ret;
+
+		tpmon->cpufreq_nb.notifier_call = tpmon_cpufreq_nb;
+		ret = cpufreq_register_notifier(&tpmon->cpufreq_nb, CPUFREQ_POLICY_NOTIFIER);
+		if (ret)
+			mif_err("cpufreq_register_notifier() error:%d\n", ret);
+		return;
+	}
+	cpufreq_cpu_put(policy);
+
+	list_for_each_entry_safe(data, next, &tpmon->all_data_list, data_node) {
+		if (data->set_data != tpmon_set_cpu_freq)
+			continue;
+
+		policy = cpufreq_cpu_get(data->extra_idx);
+		if (!policy) {
+			mif_err_limited("cpufreq_cpu_get() error\n");
+			/* Direct setup skips targets without a policy. */
+			if (data->measure == TPMON_MEASURE_TP)
+				list_del(&data->tp_node);
+			else
+				list_del(&data->q_status_node);
+			list_del(&data->data_node);
+			continue;
+		}
+
+		if (policy->cpu == data->extra_idx &&
+		    !freq_qos_request_active(data->extra_data)) {
+			mif_info("freq_qos_add_request for cpu%d %d\n",
+				 policy->cpu, data->qos_type);
+#if IS_ENABLED(CONFIG_ARM_FREQ_QOS_TRACER)
+			freq_qos_tracer_add_request(&policy->constraints, data->extra_data,
+						    data->qos_type, PM_QOS_DEFAULT_VALUE);
+#else
+			freq_qos_add_request(&policy->constraints, data->extra_data,
+					     data->qos_type, PM_QOS_DEFAULT_VALUE);
+#endif
+			if (freq_qos_request_active(data->extra_data))
+				continue;
+		}
+		cpufreq_cpu_put(policy);
+	}
+}
+#endif
+
 int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct cpif_tpmon *tpmon = &_tpmon;
 	struct mem_link_device *mld = ld_to_mem_link_device(ld);
-	int ret = 0;
-#if IS_ENABLED(CONFIG_CPU_FREQ)
-	struct cpufreq_policy *policy;
-#endif
+	int ret;
 
 	if (!np) {
 		mif_err("np is null\n");
-		ret = -EINVAL;
-		goto create_error;
+		return -EINVAL;
 	}
 	if (!ld) {
 		mif_err("ld is null\n");
-		ret = -EINVAL;
-		goto create_error;
+		return -EINVAL;
 	}
 
-	tpmon->ld = ld;
 	tpmon->use_user_level = 0;
 	tpmon->debug_print = 0;
-	mld->tpmon = &_tpmon;
 
 	spin_lock_init(&tpmon->lock);
 	atomic_set(&tpmon->active, 0);
@@ -1733,17 +1755,44 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 	INIT_LIST_HEAD(&tpmon->q_status_list);
 	INIT_LIST_HEAD(&tpmon->net_node_list);
 
-#if IS_ENABLED(CONFIG_CPU_FREQ)
-	policy = cpufreq_cpu_get(0);
-	if (!policy) {
-		mif_info("register cpufreq notifier\n");
-		tpmon->cpufreq_nb.notifier_call = tpmon_cpufreq_nb;
-		cpufreq_register_notifier(&tpmon->cpufreq_nb, CPUFREQ_POLICY_NOTIFIER);
-	} else {
-		cpufreq_cpu_put(policy);
-	}
+#if IS_ENABLED(CONFIG_EXYNOS_BTS)
+	tpmon->bts_scen_index = bts_get_scenindex("cp_throughput");
 #endif
 
+	ret = tpmon_parse_dt(np, tpmon);
+	if (ret) {
+		mif_err("tpmon_parse_dt() error:%d\n", ret);
+		return ret;
+	}
+
+	tpmon->monitor_wq = alloc_workqueue("cpif_tpmon_monitor_wq",
+					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
+	if (!tpmon->monitor_wq) {
+		mif_err("create_workqueue() monitor_wq error\n");
+		return -ENOMEM;
+	}
+	INIT_DELAYED_WORK(&tpmon->monitor_dwork, tpmon_monitor_work);
+
+	tpmon->boost_wq = alloc_workqueue("cpif_tpmon_boost_wq",
+					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
+	if (!tpmon->boost_wq) {
+		mif_err("create_workqueue() boost_wq error\n");
+		goto destroy_monitor_wq;
+	}
+	INIT_DELAYED_WORK(&tpmon->boost_dwork, tpmon_boost_work);
+
+	tpmon->update_speed_wq = alloc_workqueue("cpif_tpmon_update_speed_wq",
+					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
+	if (!tpmon->update_speed_wq) {
+		mif_err("alloc_workqueue() update_speed_wq error!\n");
+		goto destroy_boost_wq;
+	}
+	INIT_WORK(&tpmon->update_speed_work, tpmon_update_speed);
+
+	/* Publish callbacks and QoS requests after all fallible setup. */
+#if IS_ENABLED(CONFIG_CPU_FREQ)
+	tpmon_install_cpu_requests(tpmon);
+#endif
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 	exynos_pm_qos_add_request(&tpmon->qos_req_mif,
 		PM_QOS_BUS_THROUGHPUT, 0);
@@ -1757,57 +1806,27 @@ int tpmon_create(struct platform_device *pdev, struct link_device *ld)
 		PM_QOS_DEVICE_THROUGHPUT_MAX_DEFAULT_VALUE);
 #endif
 
-#if IS_ENABLED(CONFIG_EXYNOS_BTS)
-	tpmon->bts_scen_index = bts_get_scenindex("cp_throughput");
-#endif
-
-	ret = tpmon_parse_dt(np, tpmon);
-	if (ret) {
-		mif_err("tpmon_parse_dt() error:%d\n", ret);
-		goto create_error;
-	}
-
-	tpmon->monitor_wq = alloc_workqueue("cpif_tpmon_monitor_wq",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
-	if (!tpmon->monitor_wq) {
-		mif_err("create_workqueue() monitor_wq error\n");
-		ret = -EINVAL;
-		goto create_error;
-	}
-	INIT_DELAYED_WORK(&tpmon->monitor_dwork, tpmon_monitor_work);
-
-	tpmon->boost_wq = alloc_workqueue("cpif_tpmon_boost_wq",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
-	if (!tpmon->boost_wq) {
-		mif_err("create_workqueue() boost_wq error\n");
-		ret = -EINVAL;
-		goto create_error;
-	}
-	INIT_DELAYED_WORK(&tpmon->boost_dwork, tpmon_boost_work);
-
-	tpmon->update_speed_wq = alloc_workqueue("cpif_tpmon_update_speed_wq",
-					__WQ_LEGACY | WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
-	if (!tpmon->update_speed_wq) {
-		mif_err("alloc_workqueue() update_speed_wq error!\n");
-		return -EINVAL;
-		goto create_error;
-	}
-	INIT_WORK(&tpmon->update_speed_work, tpmon_update_speed);
-
 	tpmon->start = tpmon_start;
 	tpmon->stop = tpmon_stop;
 	tpmon->add_rx_bytes = tpmon_add_rx_bytes;
 	tpmon->check_active = tpmon_check_active;
 	tpmon->reset_data = tpmon_reset_data;
 
+	mld->tpmon = tpmon;
+	/* Make the queues and targets visible to tpmon_start() before it uses the link. */
+	smp_store_release(&tpmon->ld, ld);
+
 	if (sysfs_create_group(&pdev->dev.kobj, &tpmon_group))
 		mif_err("failed to create cpif tpmon groups node\n");
 
 	return ret;
 
-create_error:
-	mif_err("Error:%d\n", ret);
-
-	return ret;
+destroy_boost_wq:
+	destroy_workqueue(tpmon->boost_wq);
+	tpmon->boost_wq = NULL;
+destroy_monitor_wq:
+	destroy_workqueue(tpmon->monitor_wq);
+	tpmon->monitor_wq = NULL;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(tpmon_create);
