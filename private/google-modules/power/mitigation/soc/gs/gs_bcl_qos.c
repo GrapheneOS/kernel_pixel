@@ -18,6 +18,7 @@
 #include <linux/mfd/samsung/s2mpg1415.h>
 #include <linux/mfd/samsung/s2mpg1415-register.h>
 #endif
+#include <trace/events/pixel_clock.h>
 #include "bcl.h"
 #include "soc/soc_defs.h"
 

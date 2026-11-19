@@ -30,7 +30,7 @@
 #include <soc/google/cal-if.h>
 #include <soc/google/bts.h>
 #include <linux/of_platform.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include <trace/hooks/systrace.h>
 #include <dt-bindings/soc/google/gs101-devfreq.h>
 #include "acpm_dvfs.h"

@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_qos.h>
 #include <perf/core/google_pm_qos.h>
+#include <trace/events/pixel_clock.h>
 #include "bcl.h"
 #include "soc/soc_defs.h"
 #define CREATE_TRACE_POINTS

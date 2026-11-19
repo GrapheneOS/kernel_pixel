@@ -86,6 +86,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #endif
 
 #if defined(SUPPORT_PDVFS) && defined(PVRSRV_ANDROID_TRACE_GPU_FREQ)
+#include <trace/events/pixel_clock.h>
 #include <trace/events/power.h>
 #endif
 

@@ -126,6 +126,7 @@ ddk_module(
     deps = [
         ":governor_memlat_trace_header",
         "//common:all_headers_aarch64",
+        "//private/google-modules/soc/gs/drivers/soc/google/vh/kernel:systrace",
         "//private/google-modules/soc/gs:headers",
     ],
 )
@@ -149,6 +150,7 @@ ddk_module(
     ],
     deps = [
         "//common:all_headers_aarch64",
+        "//private/google-modules/soc/gs/drivers/soc/google/vh/kernel:systrace",
         "//private/google-modules/soc/gs:headers",
     ],
 )
