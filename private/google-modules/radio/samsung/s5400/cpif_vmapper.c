@@ -22,11 +22,8 @@ struct cpif_va_mapper *cpif_vmap_create(u64 va_start, u64 va_size, u64 instance_
 	vmap->va_end = va_start + va_size;
 	vmap->instance_size = instance_size;
 
-	if (va_size == instance_size) /* no need to use item list */
-		goto skip_item_list;
 	INIT_LIST_HEAD(&vmap->item_list);
 
-skip_item_list:
 	cpif_sysmmu_set_use_iocc();
 	cpif_sysmmu_enable();
 
@@ -97,15 +94,17 @@ u64 cpif_vmap_map_area(struct cpif_va_mapper *vmap, u64 item_paddr, u64 item_siz
 			return 0;
 		}
 
+		temp = kzalloc(sizeof(*temp), GFP_ATOMIC);
+		if (!temp)
+			return 0;
+
 		err = cpif_iommu_map(vmap->va_start, instance_paddr, vmap->va_size,
 					DMA_BIDIRECTIONAL);
 		if (unlikely(err)) {
 			mif_err("failed to perform iommu mapping\n");
+			kfree(temp);
 			return 0;
 		}
-		temp = kzalloc(sizeof(struct cpif_vmap_item), GFP_ATOMIC);
-		if (!temp)
-			return 0;
 		temp->vaddr_base = vmap->va_start;
 		temp->paddr_base = instance_paddr;
 		atomic_set(&temp->ref, 1);
