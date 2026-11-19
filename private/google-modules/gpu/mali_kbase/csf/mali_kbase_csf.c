@@ -3904,6 +3904,7 @@ void kbase_csf_doorbell_mapping_term(struct kbase_device *kbdev)
 		kbase_mem_pool_free(&kbdev->fw_mem_pools.small, page, false);
 
 		fput(kbdev->csf.db_filp);
+		kbdev->csf.db_filp = NULL;
 	}
 }
 
@@ -3966,6 +3967,7 @@ void kbase_csf_free_dummy_user_reg_page(struct kbase_device *kbdev)
 		 */
 		kbase_mem_pool_free(&kbdev->fw_mem_pools.small, page, false);
 		fput(kbdev->csf.user_reg.filp);
+		kbdev->csf.user_reg.filp = NULL;
 	}
 }
 
