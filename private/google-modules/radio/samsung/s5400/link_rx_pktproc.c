@@ -1897,6 +1897,8 @@ static int pktproc_get_info(struct pktproc_adaptor *ppa, struct device_node *np)
 	return 0;
 }
 
+static void pktproc_free(struct pktproc_adaptor *ppa);
+
 int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 					unsigned long memaddr, u32 memsize)
 {
@@ -2187,6 +2189,7 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 				mif_err("cp_mbox_register_handler() error:%d\n", ret);
 				goto create_error;
 			}
+			q->irq_registered = true;
 #endif
 #if IS_ENABLED(CONFIG_LINK_DEVICE_PCIE)
 			/* Set by request_pcie_msi_int() */
@@ -2233,20 +2236,34 @@ int pktproc_create(struct platform_device *pdev, struct mem_link_device *mld,
 	return 0;
 
 create_error:
+	pktproc_free(ppa);
+	return ret;
+}
+
+static void pktproc_free(struct pktproc_adaptor *ppa)
+{
+	int i;
+
 	for (i = 0; i < ppa->num_queue; i++) {
-		if (!ppa->q[i])
+		struct pktproc_queue *q = ppa->q[i];
+
+		if (!q)
 			continue;
 
-		if (ppa->q[i]->manager)
-			cpif_exit_netrx_mng(ppa->q[i]->manager);
-
-		if (ppa->q[i]->netdev) {
-			napi_disable(&ppa->q[i]->napi);
-			netif_napi_del(&ppa->q[i]->napi);
-			free_netdev(ppa->q[i]->netdev);
+		if (q->netdev) {
+			napi_disable(&q->napi);
+			netif_napi_del(&q->napi);
+#if IS_ENABLED(CONFIG_MCU_IPC)
+			if (q->irq_registered)
+				cp_mbox_unregister_handler(q->irq_idx, q->mld->irq_cp2ap_msg,
+							   q->irq_handler);
+#endif
+			free_netdev(q->netdev);
 		}
-		kfree(ppa->q[i]->dma_addr);
-		kfree(ppa->q[i]);
+		if (q->manager)
+			cpif_exit_netrx_mng(q->manager);
+		kfree(q->dma_addr);
+		kfree(q);
 	}
 
 	if (!ppa->info_rgn_cached && ppa->info_vbase)
@@ -2255,6 +2272,10 @@ create_error:
 		vunmap(ppa->desc_vbase);
 	if (!ppa->buff_rgn_cached && ppa->buff_vbase)
 		vunmap(ppa->buff_vbase);
+}
 
-	return ret;
+void pktproc_destroy(struct pktproc_adaptor *ppa)
+{
+	sysfs_remove_group(&ppa->dev->kobj, &pktproc_group);
+	pktproc_free(ppa);
 }
