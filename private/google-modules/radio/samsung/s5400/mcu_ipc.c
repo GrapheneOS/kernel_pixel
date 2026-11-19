@@ -126,6 +126,8 @@ int cp_mbox_unregister_handler(u32 idx, u32 int_num, irq_handler_t handler)
 	}
 
 	cp_mbox_disable_handler(irq_data->idx, int_num);
+	/* A running handler may already have sampled the unmasked status. */
+	synchronize_irq(irq_data->irq);
 	mif_info("idx:%d num:%d intmr0:0x%08x\n",
 		irq_data->idx, int_num, mcu_ipc_read(irq_data->sfr_rx.mr));
 
