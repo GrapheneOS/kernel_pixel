@@ -4465,6 +4465,9 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	err = tpmon_create(pdev, ld);
 	if (err < 0) {
 		mif_err("tpmon_create() error %d\n", err);
+#if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
+		pktproc_destroy_ul(pdev, mld);
+#endif
 		goto error;
 	}
 #endif
@@ -4503,6 +4506,8 @@ error:
 	}
 	if (pktproc_created)
 		pktproc_destroy(&mld->pktproc);
+	if (modem->mld == mld)
+		modem->mld = NULL;
 	kfree(mld);
 	mif_err("xxx\n");
 	return NULL;

@@ -29,6 +29,9 @@
 
 struct tpmon_data {
 	struct cpif_tpmon *tpmon;
+#if IS_ENABLED(CONFIG_CPU_FREQ)
+	enum freq_qos_req_type qos_type;
+#endif
 
 	struct list_head data_node;
 	struct list_head tp_node;
