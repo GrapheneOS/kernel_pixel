@@ -16,7 +16,7 @@
 #include <linux/debugfs.h>
 #include <linux/sched/clock.h>
 #include <soc/google/acpm_ipc_ctrl.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include "exynos_acpm_tmu.h"
 
 static unsigned int acpm_tmu_ch_num, acpm_tmu_size;

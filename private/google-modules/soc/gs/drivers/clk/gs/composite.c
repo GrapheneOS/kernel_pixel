@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <soc/google/cal-if.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 #include "composite.h"
 

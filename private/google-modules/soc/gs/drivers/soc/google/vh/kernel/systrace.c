@@ -9,8 +9,10 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/hooks/systrace.h>
+#include <trace/events/pixel_clock.h>
 
 EXPORT_TRACEPOINT_SYMBOL_GPL(0);
+EXPORT_TRACEPOINT_SYMBOL_GPL(clock_set_rate);
 
 static int systrace_init(void)
 {
