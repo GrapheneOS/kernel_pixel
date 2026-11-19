@@ -4240,6 +4240,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	struct link_device *ld;
 	int err;
 	u32 cp_num;
+	bool pktproc_created = false;
 
 	mif_info("+++\n");
 
@@ -4450,6 +4451,7 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 		mif_err("pktproc_create() error %d\n", err);
 		goto error;
 	}
+	pktproc_created = true;
 #endif
 
 #if IS_ENABLED(CONFIG_CP_PKTPROC_UL)
@@ -4498,6 +4500,8 @@ struct link_device *create_link_device(struct platform_device *pdev, u32 link_ty
 	return ld;
 
 error:
+	if (pktproc_created)
+		pktproc_destroy(&mld->pktproc);
 	kfree(mld);
 	mif_err("xxx\n");
 	return NULL;
