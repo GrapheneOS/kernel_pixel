@@ -23,7 +23,7 @@
 #include <perf/core/gs_governor_memlat.h>
 #include <perf/core/gs_perf_mon.h>
 #include <perf/core/perf_domain.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 #include "gs_governor_utils.h"
 #include "gs_lat_governors_trace.h"

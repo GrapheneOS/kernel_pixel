@@ -23,7 +23,7 @@
 
 #include <linux/devfreq.h>
 #include <soc/google/exynos-devfreq.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include <uapi/linux/sched/types.h>
 
 #include "dvfs_events.h"

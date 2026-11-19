@@ -13,7 +13,7 @@
 #include <linux/units.h>
 #include <perf/core/google_pm_qos.h>
 #include <perf/core/google_vote_manager.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include <dt-bindings/lpcm/pf_state.h>
 #include <dvfs-helper/google_dvfs_helper.h>
 #include <mailbox/protocols/mba/cpm/common/service_ids.h>

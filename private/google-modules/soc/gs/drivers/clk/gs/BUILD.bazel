@@ -50,6 +50,7 @@ ddk_module(
     kernel_build = "//private/devices/google/common:kernel",
     deps = [
         "//common:all_headers_aarch64",
+        "//private/google-modules/soc/gs/drivers/soc/google/vh/kernel:systrace",
         "//private/google-modules/soc/gs:headers",
         "//private/google-modules/soc/gs/drivers/soc/google/cal-if:cmupmucal",
         "//private/google-modules/soc/gs/drivers/soc/google/cal-if:headers",

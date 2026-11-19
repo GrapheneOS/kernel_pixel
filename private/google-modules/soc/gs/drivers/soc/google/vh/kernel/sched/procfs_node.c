@@ -21,7 +21,6 @@
 #include <net/genetlink.h>
 #include <linux/workqueue.h>
 #include <kernel/sched/sched.h>
-#include <trace/events/power.h>
 
 #include "sched_priv.h"
 

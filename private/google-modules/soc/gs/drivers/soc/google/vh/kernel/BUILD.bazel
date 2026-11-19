@@ -27,6 +27,7 @@ ddk_module(
             ],
         },
     },
+    hdrs = ["//private/google-modules/soc/gs:clock_trace_headers"],
     kernel_build = "//private/devices/google/common:kernel",
     deps = [
         "//common:all_headers_aarch64",

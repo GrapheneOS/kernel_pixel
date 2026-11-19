@@ -29,7 +29,7 @@
 #include <linux/errno.h>
 
 #include <perf/core/gs_domain_idle.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 #define GENPD_MAX_FILE_NAME_SIZE 128
 #define NS_PER_US 1000

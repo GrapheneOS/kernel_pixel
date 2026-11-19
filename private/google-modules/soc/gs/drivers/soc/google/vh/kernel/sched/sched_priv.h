@@ -4,6 +4,7 @@
 #include <linux/mmap_lock.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <trace/events/pixel_clock.h>
 #include "sched.h"
 #include "sched_events.h"
 #include "drivers/android/binder_internal.h"
