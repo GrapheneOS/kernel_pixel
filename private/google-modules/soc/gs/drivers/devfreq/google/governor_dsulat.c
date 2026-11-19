@@ -22,7 +22,7 @@
 #include <linux/of.h>
 #include <linux/devfreq.h>
 #include <soc/google/exynos_pm_qos.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include "governor.h"
 #include "governor_memlat.h"
 #include "governor_dsulat.h"

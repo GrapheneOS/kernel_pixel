@@ -16,7 +16,7 @@
 #include <soc/google/exynos-devfreq.h>
 #include <soc/google/ect_parser.h>
 #include <dt-bindings/soc/google/zuma-devfreq.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include "governor.h"
 #include "governor_memlat.h"
 #include "arm-memlat-mon.h"

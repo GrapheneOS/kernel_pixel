@@ -17,6 +17,7 @@
 #include "bcl.h"
 
 #include <trace/events/bcl_exynos.h>
+#include <trace/events/pixel_clock.h>
 
 static void compute_odpm_lpf(struct bcl_device *bcl_dev,
 				struct timespec64 triggered_time,

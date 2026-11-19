@@ -17,7 +17,7 @@
 #include <linux/of.h>
 #include <performance/gs_perf_mon/gs_perf_mon.h>
 #include <soc/google/exynos-devfreq.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 #include "gs_governor_utils.h"
 #include "gs_lat_governors_trace.h"

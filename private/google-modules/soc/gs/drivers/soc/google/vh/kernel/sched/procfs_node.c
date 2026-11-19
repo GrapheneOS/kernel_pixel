@@ -18,7 +18,6 @@
 #include <linux/uaccess.h>
 #include <linux/idle_inject.h>
 #include <kernel/sched/sched.h>
-#include <trace/events/power.h>
 
 #include "sched_priv.h"
 
