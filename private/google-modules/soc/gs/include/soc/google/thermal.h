@@ -8,22 +8,13 @@
 
 #include <linux/thermal.h>
 
-/* The core stores software hysteresis after this callback succeeds. */
-static inline int google_thermal_set_trip_hyst(struct thermal_zone_device *tz,
-					      const struct thermal_trip *trip, int hyst)
-{
-	return 0;
-}
-
 static inline struct thermal_zone_device *google_devm_thermal_of_zone_register(
 		struct device *dev, int id, void *data,
 		const struct thermal_zone_device_ops *ops)
 {
 	struct thermal_zone_device_ops zone_ops = *ops;
 
-	/* Preserve QPR2's writable DT trip hysteresis without a core hook. */
-	if (IS_ENABLED(CONFIG_VH_THERMAL) && !zone_ops.set_trip_hyst)
-		zone_ops.set_trip_hyst = google_thermal_set_trip_hyst;
+	zone_ops.writable_trip_hyst = IS_ENABLED(CONFIG_VH_THERMAL);
 
 	/* The thermal core copies the operations into the zone. */
 	return devm_thermal_of_zone_register(dev, id, data, &zone_ops);
