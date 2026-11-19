@@ -54,6 +54,7 @@ kernel_module(
     deps = [
         "//private/google-modules/gpu/mali_pixel",
         "//private/google-modules/power/mitigation:google_bcl",
+        "//private/google-modules/soc/gs/drivers/soc/google/vh/kernel:systrace",
     ],
 )
 

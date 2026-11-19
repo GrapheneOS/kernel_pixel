@@ -57,7 +57,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <drm/drmP.h>
 #endif
 
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 #include "power.h"
 #include "pvrsrv.h"

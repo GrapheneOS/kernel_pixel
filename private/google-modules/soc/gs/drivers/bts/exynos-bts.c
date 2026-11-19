@@ -22,7 +22,7 @@
 #include <linux/suspend.h>
 #include <soc/google/cal-if.h>
 #include <dt-bindings/soc/google/gs-bts.h>
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #if IS_ENABLED(CONFIG_EXYNOS_PM_QOS)
 #include <soc/google/exynos_pm_qos.h>
 #else

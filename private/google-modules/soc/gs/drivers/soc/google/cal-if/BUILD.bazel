@@ -112,6 +112,7 @@ ddk_module(
     deps = [
         ":cal_data_c_files",
         "//common:all_headers_aarch64",
+        "//private/google-modules/soc/gs/drivers/soc/google/vh/kernel:systrace",
         "//private/google-modules/soc/gs:headers",
         "//private/google-modules/soc/gs/drivers/soc/google:ect_parser",
         "//private/google-modules/soc/gs/drivers/soc/google:exynos-pd_el3",

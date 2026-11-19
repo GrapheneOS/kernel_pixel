@@ -19,7 +19,7 @@
 #if IS_ENABLED(CONFIG_GS_PERF_DOMAIN)
 #include <perf/core/perf_domain.h>
 #endif
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 
 #include "gs_governor_utils.h"
 #include "gs_lat_governors_trace.h"

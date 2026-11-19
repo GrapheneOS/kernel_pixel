@@ -7,6 +7,7 @@
  */
 
 #include <linux/ktime.h>
+#include <trace/events/pixel_clock.h>
 #include "bcl.h"
 #include "core_pmic/core_pmic_defs.h"
 #include "ifpmic/max77759/max77759_irq.h"

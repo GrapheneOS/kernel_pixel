@@ -28,7 +28,7 @@
 #include <soc/google/exynos_pm_qos.h>
 #include <thermal_core.h>
 
-#include <trace/events/power.h>
+#include <trace/events/pixel_clock.h>
 #include <trace/events/thermal_exynos.h>
 
 #if IS_ENABLED(CONFIG_PIXEL_EM)
