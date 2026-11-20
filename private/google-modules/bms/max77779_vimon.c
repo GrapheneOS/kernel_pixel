@@ -1007,6 +1007,8 @@ void max77779_vimon_remove(struct max77779_vimon_data *data)
 	unsigned int running;
 	struct vimon_client_info *client, *temp_node;
 
+	unregister_reboot_notifier(&data->reboot_notifier);
+
 	mutex_lock(&data->vimon_cb_lock);
 
 	list_for_each_entry_safe(client, temp_node, &vimon_clients, list) {
