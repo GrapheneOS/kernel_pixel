@@ -2069,6 +2069,8 @@ struct wlan_lmac_if_dfs_rx_ops {
 #endif
 };
 
+struct psoc_mlme_wakelock;
+
 /**
  * struct wlan_lmac_if_mlme_rx_ops: Function pointer to call MLME functions
  * @vdev_mgr_start_response: function to handle start response
