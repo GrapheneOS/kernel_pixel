@@ -8523,6 +8523,15 @@ EXPORT_SYMBOL(dhd_bus_retry_hang_recovery);
 
 void dhd_unregister_net(struct net_device *net, bool need_rtnl_lock)
 {
+#if defined(WL_CFG80211) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	if (!net->ieee80211_ptr) {
+		if (need_rtnl_lock)
+			unregister_netdev(net);
+		else
+			unregister_netdevice(net);
+		return;
+	}
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
 	wl_cfg80211_quiesce_wiphy_events(net->ieee80211_ptr);
 #endif
@@ -8548,6 +8557,11 @@ void dhd_unregister_net(struct net_device *net, bool need_rtnl_lock)
 int dhd_register_net(struct net_device *net, bool need_rtnl_lock)
 {
 	int err = 0;
+
+#if defined(WL_CFG80211) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	if (!net->ieee80211_ptr)
+		return need_rtnl_lock ? register_netdev(net) : register_netdevice(net);
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	if (need_rtnl_lock) {
 		rtnl_lock();
