@@ -3,4 +3,5 @@
 # Copyright (C) 2022 Google LLC
 
 build:shusky --config=zuma_base
+build:shusky --localversion_suffix=-shusky
 build:shusky --//private/devices/google/common:kernel=//private/devices/google/shusky:shusky/kernel

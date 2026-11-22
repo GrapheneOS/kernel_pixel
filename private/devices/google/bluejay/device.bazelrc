@@ -3,4 +3,5 @@
 # Copyright (C) 2023 Google LLC
 
 build:bluejay --config=gs101_base
+build:bluejay --localversion_suffix=-bluejay
 build:bluejay --//private/devices/google/common:kernel=//private/devices/google/bluejay:bluejay/kernel

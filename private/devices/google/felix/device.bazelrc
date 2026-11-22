@@ -3,4 +3,5 @@
 # Copyright (C) 2022 Google LLC
 
 build:felix --config=gs201_base
+build:felix --localversion_suffix=-felix
 build:felix --//private/devices/google/common:kernel=//private/devices/google/felix:felix/kernel
