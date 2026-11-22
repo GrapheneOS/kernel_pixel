@@ -3,4 +3,5 @@
 # Copyright (C) 2023 Google LLC
 
 build:tegu --config=zumapro_base
+build:tegu --localversion_suffix=-tegu
 build:tegu --//private/devices/google/common:kernel=//private/devices/google/tegu:tegu/kernel

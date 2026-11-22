@@ -3,4 +3,5 @@
 # Copyright (C) 2023 Google LLC
 
 build:pantah --config=gs201_base
+build:pantah --localversion_suffix=-pantah
 build:pantah --//private/devices/google/common:kernel=//private/devices/google/pantah:pantah/kernel

@@ -3,4 +3,5 @@
 # Copyright (C) 2023 Google LLC
 
 build:raviole --config=gs101_base
+build:raviole --localversion_suffix=-raviole
 build:raviole --//private/devices/google/common:kernel=//private/devices/google/raviole:raviole/kernel
