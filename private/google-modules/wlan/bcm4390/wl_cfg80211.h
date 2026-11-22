@@ -1484,6 +1484,7 @@ struct net_info {
 	u64 association_generation; /* protected by net_list_sync */
 	u32 wiphy_event_id; /* core identifier cached under net_list_sync */
 	bool wiphy_events_quiescing; /* protected by net_list_sync and wiphy_event_sync */
+	u64 link_generation[IEEE80211_MLD_MAX_NUM_LINKS];
 #endif
 	struct net_device *ndev;
 	struct wireless_dev *wdev;
@@ -2187,6 +2188,8 @@ struct wl_wiphy_event {
 	wl_wiphy_event_func_t deliver;
 	u64 generation;
 	u64 association_generation;
+	u64 link_generation;
+	int link_id;
 	bool wake_held;
 	u32 wdev_id;
 	enum nl80211_iftype iftype;
@@ -2581,7 +2584,9 @@ wl_cfg80211_event_wdev(struct wiphy *wiphy, const struct wl_wiphy_event *event)
 
 		/* Test before touching wdev: the entry may outlive its unregister. */
 		if (info->wiphy_events_quiescing || info->wiphy_event_id != event->wdev_id ||
-			info->association_generation != event->association_generation)
+			info->association_generation != event->association_generation ||
+			(event->link_id >= 0 && info->link_generation[event->link_id] !=
+			 event->link_generation))
 			continue;
 		candidate = info->wdev;
 		if (candidate && candidate->identifier == event->wdev_id &&

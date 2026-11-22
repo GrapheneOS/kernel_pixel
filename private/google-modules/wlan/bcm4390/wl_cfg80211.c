@@ -6730,6 +6730,10 @@ wl_cfg80211_ml_link_del(struct bcm_cfg80211 *cfg, struct wireless_dev *wdev,
 					(ml_link->cfg_idx == link->cfg_idx)) {
 				WL_INFORM_MEM(("matching link found for ifidx:%d bsscfgidx:%d\n",
 					link->if_idx, link->cfg_idx));
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+				if (ml_link->link_id < IEEE80211_MLD_MAX_NUM_LINKS)
+					mld_netinfo->link_generation[ml_link->link_id]++;
+#endif
 				(void)memset_s(ml_link, sizeof(wl_mlo_link_t), 0,
 					sizeof(wl_mlo_link_t));
 				mld_netinfo->mlinfo.num_links--;
@@ -18398,6 +18402,9 @@ wl_cfg80211_queue_wiphy_event(struct bcm_cfg80211 *cfg, struct wireless_dev *wde
 	unsigned long flags;
 	int err = -ENODEV;
 
+	if (event->link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+		return -EINVAL;
+
 	/* Snapshot and publication share the barrier with interface quiesce. */
 	mutex_lock(&cfg->wiphy_event_sync);
 	if (cfg->wiphy_events_stopped)
@@ -18411,6 +18418,8 @@ wl_cfg80211_queue_wiphy_event(struct bcm_cfg80211 *cfg, struct wireless_dev *wde
 			info->wiphy_event_id = event->wdev_id;
 			event->iftype = wdev->iftype;
 			event->association_generation = info->association_generation;
+			if (event->link_id >= 0)
+				event->link_generation = info->link_generation[event->link_id];
 			err = 0;
 			break;
 		}
@@ -27010,6 +27019,7 @@ static int wl_queue_external_auth(struct bcm_cfg80211 *cfg, struct wireless_dev 
 
 	/* START requests contain inline addresses/SSID and no PMKID pointer. */
 	event->params = *params;
+	event->event.link_id = -1;
 	err = wl_cfg80211_queue_wiphy_event(cfg, wdev, &event->event, wl_external_auth_work);
 	if (err)
 		kfree(event);
