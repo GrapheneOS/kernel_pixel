@@ -4590,6 +4590,9 @@ wl_cfg80211_start_ap(
 	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
 #endif /* BCMDONGLEHOST */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	wl_cfg80211_invalidate_wiphy_events(dev->ieee80211_ptr);
+#endif
 	WL_DBG(("Enter \n"));
 
 	if ((bssidx = wl_get_bssidx_by_wdev(cfg, dev->ieee80211_ptr)) < 0) {
@@ -4841,14 +4844,25 @@ wl_cfg80211_stop_ap(
 		return (-ENODEV);
 #endif
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	/* Serialize cache invalidation and cancellation with FW CSA production. */
+	mutex_lock(&cfg->if_sync);
+#endif
 	wl_clr_drv_status(cfg, AP_CREATING, dev);
 	wl_clr_drv_status(cfg, AP_BSS_UP_IN_PROG, dev);
 	wl_clr_drv_status(cfg, AP_CREATED, dev);
 	netinfo = wl_get_netinfo_by_wdev(cfg, dev->ieee80211_ptr);
 	if (!netinfo) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+		mutex_unlock(&cfg->if_sync);
+#endif
 		return (-ENODEV);
 	}
 	netinfo->ap_chanspec = INVCHANSPEC;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	wl_cfg80211_invalidate_wiphy_events(dev->ieee80211_ptr);
+	mutex_unlock(&cfg->if_sync);
+#endif
 
 	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP) {
 		dev_role = NL80211_IFTYPE_AP;
@@ -6654,6 +6668,46 @@ int wl_chspec_chandef(chanspec_t chanspec,
 	return 0;
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+struct wl_ap_channel_event {
+	struct wl_wiphy_event event;
+	struct cfg80211_chan_def chandef;
+};
+
+static void wl_notify_ap_channel(struct wiphy *wiphy, struct wl_wiphy_event *base)
+{
+	struct wl_ap_channel_event *event = container_of(base, struct wl_ap_channel_event, event);
+	struct wireless_dev *wdev = wl_cfg80211_event_wdev(wiphy, base);
+
+	if (!wdev || (wdev->iftype != NL80211_IFTYPE_AP &&
+		      wdev->iftype != NL80211_IFTYPE_P2P_GO))
+		return;
+	if (!((wdev->valid_links ?: BIT(0)) & BIT(base->link_id)))
+		return;
+
+	cfg80211_ch_switch_notify(wdev->netdev, &event->chandef, base->link_id);
+}
+
+static int wl_queue_ap_channel(struct wireless_dev *wdev, const struct cfg80211_chan_def *chandef,
+			       unsigned int link_id)
+{
+	struct wl_ap_channel_event *event;
+	int err;
+
+	event = kzalloc(sizeof(*event), GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
+
+	event->chandef = *chandef;
+	event->event.link_id = link_id;
+	err = wl_cfg80211_queue_wiphy_event(wiphy_priv(wdev->wiphy), wdev, &event->event,
+					    wl_notify_ap_channel);
+	if (err)
+		kfree(event);
+	return err;
+}
+#endif
+
 void
 wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec,
 	struct wiphy *wiphy, uint8 link_id)
@@ -6689,6 +6743,16 @@ wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec,
 	}
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION (3, 8, 0))
 	freq = chandef.chan ? chandef.chan->center_freq : chandef.center_freq1;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP ||
+	    dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO) {
+		int err = wl_queue_ap_channel(dev->ieee80211_ptr, &chandef, link_id);
+
+		if (err)
+			WL_ERR(("Failed to queue AP channel switch: %d\n", err));
+		return;
+	}
+#endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 9, 0))
 	cfg80211_ch_switch_notify(dev, &chandef, 0);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)) || defined(WL_CH_SWITCH_BKPORT)
