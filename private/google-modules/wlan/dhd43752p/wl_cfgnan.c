@@ -10051,18 +10051,18 @@ wl_cfgnan_attach(struct bcm_cfg80211 *cfg)
 	}
 
 	nancfg = cfg->nancfg;
-#ifdef WL_NMI_IF
-	if (wl_cfgnan_register_nmi_ndev(cfg) < 0) {
-		WL_ERR(("NAN NMI ndev reg failed in attach \n"));
-		return -ENODEV;
-	}
-#endif /* WL_NMI_IF */
 	mutex_init(&nancfg->nan_sync);
 	init_waitqueue_head(&nancfg->nan_event_wait);
 	INIT_DELAYED_WORK(&nancfg->nan_disable, wl_cfgnan_delayed_disable);
 	INIT_DELAYED_WORK(&nancfg->nan_nmi_rand, wl_cfgnan_periodic_nmi_rand_addr);
 	nancfg->nan_dp_state = NAN_DP_STATE_DISABLED;
 	init_waitqueue_head(&nancfg->ndp_if_change_event);
+#ifdef WL_NMI_IF
+	if (wl_cfgnan_register_nmi_ndev(cfg) < 0) {
+		WL_ERR(("NAN NMI ndev reg failed in attach \n"));
+		return -ENODEV;
+	}
+#endif /* WL_NMI_IF */
 
 done:
 	return err;
