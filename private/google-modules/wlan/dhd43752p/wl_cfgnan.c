@@ -10069,6 +10069,18 @@ done:
 
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+void wl_cfgnan_stop_work(struct bcm_cfg80211 *cfg)
+{
+	if (!cfg || !cfg->nancfg)
+		return;
+
+	if (disable_delayed_work_sync(&cfg->nancfg->nan_disable))
+		DHD_NAN_WAKE_UNLOCK(cfg->pub);
+	disable_delayed_work_sync(&cfg->nancfg->nan_nmi_rand);
+}
+#endif
+
 void
 wl_cfgnan_detach(struct bcm_cfg80211 *cfg)
 {

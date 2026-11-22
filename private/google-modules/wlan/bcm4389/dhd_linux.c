@@ -14191,6 +14191,13 @@ void dhd_detach(dhd_pub_t *dhdp)
 	if (!dhd)
 		return;
 
+#if defined(WL_CFG80211) && defined(WL_NAN) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	/* The disable worker takes RTNL and both workers use the primary device. */
+	if ((dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) && dhd->iflist[0] &&
+	    dhd->iflist[0]->net && dhd->iflist[0]->net->ieee80211_ptr)
+		wl_cfgnan_stop_work(wl_get_cfg(dhd->iflist[0]->net));
+#endif
+
 	/* primary interface 0 */
 	ifp = dhd->iflist[0];
 
