@@ -16170,6 +16170,9 @@ wl_cfg80211_queue_wiphy_event(struct bcm_cfg80211 *cfg, struct wireless_dev *wde
 	unsigned long flags;
 	int err = -ENODEV;
 
+	if (event->link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+		return -EINVAL;
+
 	/* Snapshot and publication share the barrier with interface quiesce. */
 	mutex_lock(&cfg->wiphy_event_sync);
 	if (cfg->wiphy_events_stopped)
@@ -24547,6 +24550,7 @@ static int wl_queue_external_auth(struct bcm_cfg80211 *cfg, struct wireless_dev 
 
 	/* START requests contain inline addresses/SSID and no PMKID pointer. */
 	event->params = *params;
+	event->event.link_id = -1;
 	err = wl_cfg80211_queue_wiphy_event(cfg, wdev, &event->event, wl_external_auth_work);
 	if (err)
 		kfree(event);

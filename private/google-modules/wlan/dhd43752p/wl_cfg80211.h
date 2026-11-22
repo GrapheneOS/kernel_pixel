@@ -1874,6 +1874,7 @@ struct wl_wiphy_event {
 	wl_wiphy_event_func_t deliver;
 	u64 generation;
 	u64 association_generation;
+	int link_id;
 	bool wake_held;
 	u32 wdev_id;
 	enum nl80211_iftype iftype;
