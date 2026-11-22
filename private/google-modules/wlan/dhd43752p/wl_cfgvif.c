@@ -1273,6 +1273,10 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	mutex_lock(&cfg->if_sync);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	wl_cfg80211_invalidate_wiphy_events(ndev->ieee80211_ptr);
+#endif
+
 	netinfo = wl_get_netinfo_by_wdev(cfg, ndev->ieee80211_ptr);
 	if (unlikely(!netinfo)) {
 #ifdef WL_STATIC_IF

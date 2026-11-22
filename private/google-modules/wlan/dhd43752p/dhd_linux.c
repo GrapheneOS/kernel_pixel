@@ -8523,6 +8523,10 @@ EXPORT_SYMBOL(dhd_bus_retry_hang_recovery);
 
 void dhd_unregister_net(struct net_device *net, bool need_rtnl_lock)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	wl_cfg80211_quiesce_wiphy_events(net->ieee80211_ptr);
+#endif
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0))
 	if (need_rtnl_lock) {
 		rtnl_lock();
@@ -8559,6 +8563,10 @@ int dhd_register_net(struct net_device *net, bool need_rtnl_lock)
 		err = register_netdevice(net);
 	}
 #endif /* KERNEL_VER >= KERNEL_VERSION(5, 15, 0) */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	if (!err)
+		wl_cfg80211_resume_wiphy_events(net->ieee80211_ptr);
+#endif
 	return err;
 }
 
@@ -10448,6 +10456,9 @@ dhd_update_iflist_info(dhd_pub_t *dhdp, struct net_device *ndev, int ifidx,
 	/* For static if delete case, cleanup the if before ifidx update */
 	if ((if_state == NDEV_STATE_FW_IF_DELETED) ||
 		(if_state == NDEV_STATE_FW_IF_FAILED)) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+		wl_cfg80211_quiesce_wiphy_events(ndev->ieee80211_ptr);
+#endif
 		dhd_cleanup_if(ifp->net);
 		dev_priv = DHD_DEV_PRIV(ndev);
 		dev_priv->ifidx = ifidx;
@@ -10512,6 +10523,9 @@ dhd_allocate_if(dhd_pub_t *dhdpub, int ifidx, const char *name,
 				return NULL;
 			}
 
+#if defined(WL_CFG80211) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+			wl_cfg80211_quiesce_wiphy_events(ifp->net->ieee80211_ptr);
+#endif
 			dhd_dev_priv_clear(ifp->net); /* clear net_device private */
 
 			/* in unregister_netdev case, the interface gets freed by net->destructor
@@ -10731,6 +10745,11 @@ dhd_remove_if(dhd_pub_t *dhdpub, int ifidx, bool need_rtnl_lock)
 	ifp = dhdinfo->iflist[ifidx];
 
 	if (ifp != NULL) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+		if (ifp->net)
+			wl_cfg80211_quiesce_wiphy_events(ifp->net->ieee80211_ptr);
+#endif
+
 #ifdef DHD_4WAYM4_FAIL_DISCONNECT
 		cancel_delayed_work_sync(&ifp->m4state_work);
 #endif /* DHD_4WAYM4_FAIL_DISCONNECT */
