@@ -854,6 +854,9 @@ s32 wl_cfgnan_delete_ndp(struct bcm_cfg80211 *cfg, struct net_device *nan_ndev);
 int wl_cfgnan_set_enable_merge(struct net_device *ndev,
 	struct bcm_cfg80211 *cfg, uint8 enable, uint32 *status);
 int wl_cfgnan_attach(struct bcm_cfg80211 *cfg);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+void wl_cfgnan_stop_work(struct bcm_cfg80211 *cfg);
+#endif
 void wl_cfgnan_detach(struct bcm_cfg80211 *cfg);
 int wl_cfgnan_get_status(struct net_device *ndev, wl_nan_conf_status_t *nan_status);
 #ifdef WL_NAN_INSTANT_MODE

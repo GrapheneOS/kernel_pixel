@@ -14827,6 +14827,13 @@ void dhd_detach(dhd_pub_t *dhdp)
 	if (!dhd)
 		return;
 
+#if defined(WL_CFG80211) && defined(WL_NAN) && (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	/* The disable worker takes RTNL and both workers use the primary device. */
+	if ((dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) && dhd->iflist[0] &&
+	    dhd->iflist[0]->net && dhd->iflist[0]->net->ieee80211_ptr)
+		wl_cfgnan_stop_work(wl_get_cfg(dhd->iflist[0]->net));
+#endif
+
 #if defined(GDB_PROXY) && defined(PCIE_FULL_DONGLE) && defined(BCMINTERNAL)
 	gdb_proxy_fs_remove(dhd);
 #endif /* defined(GDB_PROXY) && defined(PCIE_FULL_DONGLE) && defined(BCMINTERNAL) */
