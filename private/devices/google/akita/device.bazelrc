@@ -3,4 +3,5 @@
 # Copyright (C) 2022 Google LLC
 
 build:akita --config=zuma_base
+build:akita --localversion_suffix=-akita
 build:akita --//private/devices/google/common:kernel=//private/devices/google/akita:akita/kernel

@@ -3,4 +3,5 @@
 # Copyright (C) 2023 Google LLC
 
 build:lynx --config=gs201_base
+build:lynx --localversion_suffix=-lynx
 build:lynx --//private/devices/google/common:kernel=//private/devices/google/lynx:lynx/kernel

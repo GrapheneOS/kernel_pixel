@@ -3,4 +3,5 @@
 # Copyright (C) 2024 Google LLC
 
 build:stallion --config=zumapro_base
+build:stallion --localversion_suffix=-stallion
 build:stallion --//private/devices/google/common:kernel=//private/devices/google/stallion:stallion/kernel

@@ -3,5 +3,6 @@
 # Copyright (C) 2023 Google LLC
 
 build:caimito --config=zumapro_base
+build:caimito --localversion_suffix=-caimito
 build:caimito --//private/devices/google/common:kernel=//private/devices/google/caimito:caimito/kernel
 build:caimito --//private/google-modules/touch/common:touch_udfps_notification=enabled
