@@ -1207,7 +1207,7 @@ exit:
 	return ret;
 }
 
-static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u16 *in_array,
+static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u8 *in_array,
 				   const int in_array_size, u16 *out_array,
 				   const int out_array_max_size)
 {
@@ -1222,7 +1222,7 @@ static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u16 *in_array,
 	u16 *temp_out_array = out_array;
 
 	for (i = 0; i < in_array_size; i++) {
-		u16 curr_word = in_array[i];
+		u16 curr_word = syna_pal_le2_to_uint(in_array + i * sizeof(u16));
 		if ((curr_word & ESCAPE_MASK) == ESCAPE_BIT) {
 			repetition = (curr_word & ~ESCAPE_MASK);
 			if (out_array_size + repetition > out_array_max_size)
@@ -1252,12 +1252,21 @@ static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u16 *in_array,
 }
 
 static void syna_parse_heatmap(struct syna_tcm *tcm, const unsigned char *heatmap_data,
-		unsigned short heatmap_data_size)
+		unsigned int heatmap_data_size)
 {
 	int i, j;
 	uint16_t *temp_buffer;
 	unsigned int rows = tcm->tcm_dev->rows;
 	unsigned int cols = tcm->tcm_dev->cols;
+	unsigned int words = heatmap_data_size / sizeof(u16);
+
+	if (heatmap_data_size % sizeof(u16) || rows > words || cols > words - rows)
+		return;
+
+	if (!tcm->self_data || !tcm->mutual_data) {
+		LOGE("There is no self_data or mutual_data");
+		return;
+	}
 
 	temp_buffer = syna_pal_mem_alloc(cols * rows, sizeof(u_int16_t));
 	if (!temp_buffer) {
@@ -1265,21 +1274,17 @@ static void syna_parse_heatmap(struct syna_tcm *tcm, const unsigned char *heatma
 		return;
 	}
 
-	if (!tcm->self_data || !tcm->mutual_data) {
-		LOGE("There is no self_data or mutual_data");
-		return;
-	}
-
 	/* Parse self data. */
 	for (i = 0; i < rows; i++)
-		tcm->self_data[i] = ((uint16_t *) heatmap_data)[cols + i];
+		tcm->self_data[i] = syna_pal_le2_to_uint(
+				heatmap_data + (cols + i) * sizeof(u16));
 
 	for (i = 0; i < cols; i++)
-		tcm->self_data[rows + i] = ((uint16_t *) heatmap_data)[i];
+		tcm->self_data[rows + i] = syna_pal_le2_to_uint(heatmap_data + i * sizeof(u16));
 
 	/* Parse mutual data. */
-	syna_dev_ptflib_decoder(tcm, &((u16 *) heatmap_data)[cols + rows],
-			heatmap_data_size / 2 - cols - rows, temp_buffer, cols * rows);
+	syna_dev_ptflib_decoder(tcm, heatmap_data + (cols + rows) * sizeof(u16),
+			words - cols - rows, temp_buffer, cols * rows);
 
 	for (i = 0; i < cols; i++) {
 		for (j = 0; j < rows; j++)
@@ -2321,12 +2326,10 @@ static int syna_dev_process_events(const unsigned char code,
 	int size_raw_data;
 	struct tcm_dev *tcm_dev = tcm->tcm_dev;
 	struct custom_fw_status *status;
-	unsigned char *touch_data = 0;
-	unsigned short touch_data_size = 0;
-	unsigned char *heatmap_data_start = 0;
-	unsigned char *heatmap_data = 0;
-	unsigned short heatmap_data_size = 0;
-	unsigned short crc16 = 0, crc_in_package = 0;
+	unsigned char *touch_data;
+	const unsigned char *heatmap_data;
+	unsigned int touch_data_size, heatmap_data_size, metadata_size;
+	unsigned int payload_size = report_size;
 
 	tcm->abnormal_gesture_reported = false;
 
@@ -2344,15 +2347,23 @@ static int syna_dev_process_events(const unsigned char code,
 	if ((tcm->char_dev_ref_count > 0) && !tcm->concurrent_reporting)
 		return 0;
 
-	if (code == REPORT_TOUCH) {
-		if (tcm->enable_touch_crc) {
-			crc_in_package = (unsigned short)syna_pal_le2_to_uint(&report[report_size - 2]);
-			crc16 = syna_tcm_crc16((unsigned char *)report, report_size - 2, 0xFFFF);
-			if (crc16 != crc_in_package) {
-				LOGE("Mismatched CRC, crc16:%04X (%04X)\n", crc16, crc_in_package);
-				return -EIO;
-			}
+	if (tcm->enable_touch_crc && (code == REPORT_TOUCH || code == REPORT_FW_STATUS ||
+			code == REPORT_TOUCH_AND_HEATMAP ||
+			code == REPORT_TOUCH_AND_HEATMAP_WITH_METADATA)) {
+		u16 crc16, crc_in_package;
+
+		if (payload_size < sizeof(u16))
+			return -EINVAL;
+		payload_size -= sizeof(u16);
+		crc_in_package = syna_pal_le2_to_uint(report + payload_size);
+		crc16 = syna_tcm_crc16((unsigned char *)report, payload_size, 0xFFFF);
+		if (crc16 != crc_in_package) {
+			LOGE("Mismatched CRC, crc16:%04X (%04X)\n", crc16, crc_in_package);
+			return -EIO;
 		}
+	}
+
+	if (code == REPORT_TOUCH) {
 		/* parse touch report once received */
 		retval = syna_tcm_parse_touch_report(tcm->tcm_dev,
 				(unsigned char *)report,
@@ -2393,6 +2404,8 @@ static int syna_dev_process_events(const unsigned char code,
 #endif
 		break;
 	case REPORT_HEAT_MAP_WITH_METADATA:
+		if (report_size < SIMULATION_DATA_SIZE)
+			return -EINVAL;
 		LOGD("Heat map data received, size:%d\n", report_size - SIMULATION_DATA_SIZE);
 #if IS_ENABLED(CONFIG_GOOG_TOUCH_INTERFACE)
 		syna_parse_heatmap(tcm, &report[SIMULATION_DATA_SIZE],
@@ -2400,17 +2413,8 @@ static int syna_dev_process_events(const unsigned char code,
 #endif
 		break;
 	case REPORT_FW_STATUS:
-		if (tcm->enable_touch_crc) {
-			crc_in_package = (unsigned short)syna_pal_le2_to_uint(&report[report_size - 2]);
-			crc16 = syna_tcm_crc16((unsigned char *)report, report_size - 2, 0xFFFF);
-			if (crc16 != crc_in_package) {
-				LOGE("Mismatched CRC, crc16:%04X (%04X)\n", crc16, crc_in_package);
-				return -EIO;
-			}
-		}
-		/* for 'fw status' ($c2) report,
-		 * report size shall be 2-byte only; the
-		 */
+		if (payload_size < sizeof(*status))
+			return -EINVAL;
 		status = (struct custom_fw_status *)&report[0];
 		LOGI("Status: moisture:%d noise:%d freq-change:%d, grip:%d, palm:%d, fast relax:%d\n",
 			status->b0_moisture, status->b1_noise_state,
@@ -2420,50 +2424,22 @@ static int syna_dev_process_events(const unsigned char code,
 #endif
 		break;
 	case REPORT_TOUCH_AND_HEATMAP:
-		if (tcm->enable_touch_crc) {
-			crc_in_package = (unsigned short)syna_pal_le2_to_uint(&report[report_size - 2]);
-			crc16 = syna_tcm_crc16((unsigned char *)report, report_size - 2, 0xFFFF);
-			if (crc16 != crc_in_package) {
-				LOGE("Mismatched CRC, crc16:%04X (%04X)\n", crc16, crc_in_package);
-				return -EIO;
-			}
-		}
-		/* touch data */
-		touch_data_size = (report[1] << 8) | report[0];
-		touch_data = (unsigned char *)&report[2];
-
-		retval = syna_tcm_parse_touch_report(tcm->tcm_dev,
-				touch_data,
-				touch_data_size,
-				&tcm->tp_data);
-		if (retval < 0) {
-			LOGE("Fail to parse touch report\n");
-			return retval;
-		}
-		/* forward the touch event to system */
-		syna_dev_report_input_events(tcm);
-
-		/* heatmap data */
-		heatmap_data_start = touch_data + touch_data_size;
-		heatmap_data_size = (heatmap_data_start[1] << 8) | heatmap_data_start[0];
-		heatmap_data = touch_data + touch_data_size + 2;
-		LOGD("$c5 Heat map data received, size:%d\n", heatmap_data_size);
-#if IS_ENABLED(CONFIG_GOOG_TOUCH_INTERFACE)
-		syna_parse_heatmap(tcm, heatmap_data, heatmap_data_size);
-#endif
-		break;
 	case REPORT_TOUCH_AND_HEATMAP_WITH_METADATA:
-		if (tcm->enable_touch_crc) {
-			crc_in_package = (unsigned short)syna_pal_le2_to_uint(&report[report_size - 2]);
-			crc16 = syna_tcm_crc16((unsigned char *)report, report_size - 2, 0xFFFF);
-			if (crc16 != crc_in_package) {
-				LOGE("Mismatched CRC, crc16:%04X (%04X)\n", crc16, crc_in_package);
-				return -EIO;
-			}
-		}
-		/* touch data */
-		touch_data_size = (report[1] << 8) | report[0];
-		touch_data = (unsigned char *)&report[2];
+		/* Each payload is preceded by a little-endian 16-bit length. */
+		if (payload_size < 4)
+			return -EINVAL;
+		touch_data_size = syna_pal_le2_to_uint(report);
+		if (touch_data_size > payload_size - 4)
+			return -EINVAL;
+		touch_data = (unsigned char *)report + 2;
+		heatmap_data_size = syna_pal_le2_to_uint(touch_data + touch_data_size);
+		if (heatmap_data_size > payload_size - 4 - touch_data_size)
+			return -EINVAL;
+		heatmap_data = touch_data + touch_data_size + 2;
+		metadata_size = code == REPORT_TOUCH_AND_HEATMAP_WITH_METADATA ?
+			SIMULATION_DATA_SIZE : 0;
+		if (heatmap_data_size < metadata_size)
+			return -EINVAL;
 
 		retval = syna_tcm_parse_touch_report(tcm->tcm_dev,
 				touch_data,
@@ -2476,31 +2452,27 @@ static int syna_dev_process_events(const unsigned char code,
 		/* forward the touch event to system */
 		syna_dev_report_input_events(tcm);
 
-		/* heatmap data */
-		heatmap_data_start = touch_data + touch_data_size;
-		heatmap_data_size = (heatmap_data_start[1] << 8) | heatmap_data_start[0];
-		heatmap_data = touch_data + touch_data_size + 2;
-		heatmap_data_size -= SIMULATION_DATA_SIZE;
 		LOGD("$%2X Heat map data received, size:%d\n",
-			REPORT_TOUCH_AND_HEATMAP_WITH_METADATA, heatmap_data_size);
+			code, heatmap_data_size - metadata_size);
 
-		memcpy(tcm->simulation_data, heatmap_data, SIMULATION_DATA_SIZE);
+		if (metadata_size)
+			memcpy(tcm->simulation_data, heatmap_data, metadata_size);
 
-		if (tcm->abnormal_gesture_reported) {
-			for (i = 0; i < SIMULATION_DATA_SIZE; i+=30) {
+		if (metadata_size && tcm->abnormal_gesture_reported) {
+			for (i = 0; i < SIMULATION_DATA_SIZE; i += 30)
 				LOGI("simdata:%*phN", min(30, SIMULATION_DATA_SIZE - i),
-						heatmap_data + i);
-			}
+				     heatmap_data + i);
 		}
 
-		if (tcm->sysfs_debug_simulation_data) {
+		if (metadata_size && tcm->sysfs_debug_simulation_data) {
 			LOGI("simdata=");
 			for (i = 0; i < report_size; i+=30)
 				LOGI("%*phN", min(30, report_size - i), report + i);
 		}
 
 #if IS_ENABLED(CONFIG_GOOG_TOUCH_INTERFACE)
-		syna_parse_heatmap(tcm, &heatmap_data[SIMULATION_DATA_SIZE], heatmap_data_size);
+		syna_parse_heatmap(tcm, heatmap_data + metadata_size,
+				heatmap_data_size - metadata_size);
 #endif
 		break;
 	default:
