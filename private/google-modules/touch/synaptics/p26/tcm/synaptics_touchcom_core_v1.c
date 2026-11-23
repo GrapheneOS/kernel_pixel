@@ -869,7 +869,7 @@ static int syna_tcm_v1_continued_read(struct tcm_dev *tcm_dev,
 
 	syna_tcm_buf_lock(&tcm_msg->temp);
 
-	for (iterations = 0; iterations < chunks; iterations++) {
+	for (iterations = 0; iterations < chunks && remaining_length; iterations++) {
 
 		last = ((iterations + 1) == chunks);
 
@@ -930,9 +930,11 @@ static int syna_tcm_v1_continued_read(struct tcm_dev *tcm_dev,
 					tcm_msg->temp.buf_size,
 					(tcm_msg->has_crc) && last);
 			if (retval < 0) {
-				retry++;
 				LOGE("Fail to read %d bytes from device\n",
 					xfer_length + 2);
+				if (retval != -ERR_TCMMSG)
+					goto exit;
+				retry++;
 				continue;
 			}
 
@@ -947,6 +949,8 @@ static int syna_tcm_v1_continued_read(struct tcm_dev *tcm_dev,
 			retry++;
 		} while (retry < retry_limit);
 
+		if (retval < 0)
+			goto exit;
 		if (code != STATUS_CONTINUED_READ) {
 			LOGE("Incorrect status code 0x%02x at iteration %d, chunks:%d\n",
 					code, iterations, chunks);
@@ -973,6 +977,11 @@ static int syna_tcm_v1_continued_read(struct tcm_dev *tcm_dev,
 
 		offset += xfer_length;
 		remaining_length -= xfer_length;
+	}
+
+	if (remaining_length) {
+		retval = -ERR_TCMMSG;
+		goto exit;
 	}
 
 	tcm_msg->in.data_length = offset;
@@ -1122,9 +1131,7 @@ static int syna_tcm_v1_read_message(struct tcm_dev *tcm_dev,
 	/* retrieve the remaining data, if any */
 	retval = syna_tcm_v1_continued_read(tcm_dev, len);
 	if (retval < 0) {
-		LOGE("Fail to do continued read, length: %d (%02x %02x %02x %02x)\n",
-			len, header->data[0], header->data[1],
-			header->data[2], header->data[3]);
+		LOGE("Fail to do continued read, length: %d, error: %d\n", len, retval);
 		goto exit;
 	}
 
