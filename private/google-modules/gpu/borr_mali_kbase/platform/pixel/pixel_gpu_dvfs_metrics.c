@@ -10,6 +10,8 @@
 #include <linux/of.h>
 #endif
 #include <linux/clk.h>
+#include <linux/cred.h>
+#include <linux/sched.h>
 #include <trace/events/power.h>
 
 /* SOC includes */
@@ -266,8 +268,6 @@ int gpu_dvfs_kctx_init(struct kbase_context *kctx)
 	struct kbase_device *kbdev = kctx->kbdev;
 	struct pixel_context *pc = kbdev->platform_context;
 	struct pixel_platform_data *pd = kctx->platform_data;
-	struct task_struct *task;
-	struct pid *pid;
 	kuid_t uid;
 	u8 uid_hash;
 	unsigned long flags;
@@ -275,12 +275,8 @@ int gpu_dvfs_kctx_init(struct kbase_context *kctx)
 	struct gpu_dvfs_metrics_uid_stats *stats = NULL;
 	int ret = 0;
 
-	/* Get UID from task_struct */
-	pid = find_get_pid(kctx->kprcs->tgid);
-	task = get_pid_task(pid, PIDTYPE_TGID);
-	uid = task->cred->uid;
-	put_task_struct(task);
-	put_pid(pid);
+	/* Account the context to the thread-group leader's real UID. */
+	uid = task_uid(current->group_leader);
 	uid_hash = gpu_dvfs_hash_uid_stats(__kuid_val(uid));
 
 	mutex_lock(&kbdev->kctx_list_lock);
