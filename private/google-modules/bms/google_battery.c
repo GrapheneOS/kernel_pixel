@@ -6653,17 +6653,15 @@ static int msc_logic(struct batt_drv *batt_drv)
 			   batt_drv->vbatt_idx, vbatt_idx, vtier, fv_uv, vbatt, ibatt,
 			   batt_drv->checked_cv_cnt, batt_drv->checked_ov_cnt);
 
-	} else if (batt_drv->vbatt_idx == gbms_msc_get_last_voltage_idx(profile, temp_idx)) {
+	} else if (batt_drv->vbatt_idx >= gbms_msc_get_last_voltage_idx(profile, temp_idx)) {
 		const int chg_type = batt_drv->chg_state.f.chg_type;
 		const int vtier = profile->volt_limits[vbatt_idx];
 		int log_level;
 
 		/*
-		 * will not adjust charger voltage only in the configured
-		 * last tier.
-		 * NOTE: might not be the "real" last tier since can I have
-		 * tiers with max charge current == 0.
-		 * NOTE: should I use a voltage limit instead?
+		 * Voltage-based tier selection can land above the last tier
+		 * with nonzero current at this temperature. Keep the selected
+		 * tier's current limit and skip the next-tier lookup.
 		 */
 
 		if (chg_type == POWER_SUPPLY_CHARGE_TYPE_FAST)
