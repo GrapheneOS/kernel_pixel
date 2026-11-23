@@ -106,12 +106,13 @@ static void aoc_usb_xhci_reset_work_handler(struct work_struct *work)
 	ret = device_attach(xhci_dev);
 	if (ret <= 0)
 		dev_err(dwc3_dev, "%s: Failed to re-bind XHCI, ret = %d\n", __func__, ret);
+	else
+		dev_info(xhci_dev, "%s: Finished XHCI reset sequence\n", __func__);
 
 	offload_data->is_resetting_xhci = false;
 	/* Allow DWC3 to auto suspend again */
 	pm_runtime_put_sync(dwc3_dev);
 	put_device(xhci_dev);
-	dev_info(xhci_dev, "%s: Finished XHCI reset sequence\n", __func__);
 }
 
 static int aoc_usb_reset_xhci(void)
