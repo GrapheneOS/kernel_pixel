@@ -1051,7 +1051,7 @@ exit:
 	return ret;
 }
 
-static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u16 *in_array,
+static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u8 *in_array,
 				   const int in_array_size, u16 *out_array,
 				   const int out_array_max_size)
 {
@@ -1066,7 +1066,7 @@ static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u16 *in_array,
 	u16 *temp_out_array = out_array;
 
 	for (i = 0; i < in_array_size; i++) {
-		u16 curr_word = in_array[i];
+		u16 curr_word = syna_pal_le2_to_uint(in_array + i * sizeof(u16));
 		if ((curr_word & ESCAPE_MASK) == ESCAPE_BIT) {
 			repetition = (curr_word & ~ESCAPE_MASK);
 			if (out_array_size + repetition > out_array_max_size)
@@ -1095,13 +1095,22 @@ static int syna_dev_ptflib_decoder(struct syna_tcm *tcm, const u16 *in_array,
 	return out_array_size;
 }
 
-static void syna_parse_heatmap(struct syna_tcm *tcm, unsigned char *heatmap_data,
-		unsigned short heatmap_data_size)
+static void syna_parse_heatmap(struct syna_tcm *tcm, const unsigned char *heatmap_data,
+		unsigned int heatmap_data_size)
 {
 	int i, j;
 	uint16_t *temp_buffer;
 	unsigned int rows = tcm->tcm_dev->rows;
 	unsigned int cols = tcm->tcm_dev->cols;
+	unsigned int words = heatmap_data_size / sizeof(u16);
+
+	if (heatmap_data_size % sizeof(u16) || rows > words || cols > words - rows)
+		return;
+
+	if (!tcm->self_data || !tcm->mutual_data) {
+		LOGE("There is no self_data or mutual_data");
+		return;
+	}
 
 	temp_buffer = kcalloc(cols * rows, sizeof(u_int16_t), GFP_KERNEL);
 	if (!temp_buffer) {
@@ -1109,21 +1118,17 @@ static void syna_parse_heatmap(struct syna_tcm *tcm, unsigned char *heatmap_data
 		return;
 	}
 
-	if (!tcm->self_data || !tcm->mutual_data) {
-		LOGE("There is no self_data or mutual_data");
-		return;
-	}
-
 	/* Parse self data. */
 	for (i = 0; i < rows; i++)
-		tcm->self_data[i] = ((uint16_t *) heatmap_data)[cols + i];
+		tcm->self_data[i] = syna_pal_le2_to_uint(
+				heatmap_data + (cols + i) * sizeof(u16));
 
 	for (i = 0; i < cols; i++)
-		tcm->self_data[rows + i] = ((uint16_t *) heatmap_data)[i];
+		tcm->self_data[rows + i] = syna_pal_le2_to_uint(heatmap_data + i * sizeof(u16));
 
 	/* Parse mutual data. */
-	syna_dev_ptflib_decoder(tcm, &((u16 *) heatmap_data)[cols + rows],
-			heatmap_data_size / 2 - cols - rows, temp_buffer, cols * rows);
+	syna_dev_ptflib_decoder(tcm, heatmap_data + (cols + rows) * sizeof(u16),
+			words - cols - rows, temp_buffer, cols * rows);
 
 	for (i = 0; i < cols; i++) {
 		for (j = 0; j < rows; j++)
@@ -2140,11 +2145,9 @@ static irqreturn_t syna_dev_interrupt_thread(int irq, void *data)
 	struct custom_fw_status *status;
 	struct syna_hw_attn_data *attn = &tcm->hw_if->bdata_attn;
 	struct tcm_dev *tcm_dev = tcm->tcm_dev;
-	unsigned char *touch_data = 0;
-	unsigned short touch_data_size = 0;
-	unsigned char *heatmap_data_start = 0;
-	unsigned char *heatmap_data = 0;
-	unsigned short heatmap_data_size = 0;
+	unsigned char *touch_data;
+	const unsigned char *heatmap_data;
+	unsigned int touch_data_size, heatmap_data_size, report_size;
 
 	if (unlikely(gpio_get_value(attn->irq_gpio) != attn->irq_on_state))
 		goto exit;
@@ -2221,11 +2224,18 @@ static irqreturn_t syna_dev_interrupt_thread(int irq, void *data)
 			tcm->event_data.data_length);
 		break;
 	case REPORT_TOUCH_AND_HEATMAP:
-		/* parse $c5 report containing touch and heatmap data */
-
-		/* touch data */
-		touch_data_size = (tcm->event_data.buf[1] << 8) | tcm->event_data.buf[0];
+		report_size = tcm->event_data.data_length;
+		/* Each payload is preceded by a little-endian 16-bit length. */
+		if (report_size < 4)
+			goto exit;
+		touch_data_size = syna_pal_le2_to_uint(tcm->event_data.buf);
+		if (touch_data_size > report_size - 4)
+			goto exit;
 		touch_data = tcm->event_data.buf + 2;
+		heatmap_data_size = syna_pal_le2_to_uint(touch_data + touch_data_size);
+		if (heatmap_data_size > report_size - 4 - touch_data_size)
+			goto exit;
+		heatmap_data = touch_data + touch_data_size + 2;
 
 		retval = syna_tcm_parse_touch_report(tcm->tcm_dev,
 				touch_data,
@@ -2237,11 +2247,6 @@ static irqreturn_t syna_dev_interrupt_thread(int irq, void *data)
 		}
 		/* forward the touch event to system */
 		syna_dev_report_input_events(tcm);
-
-		/* heatmap data */
-		heatmap_data_start = touch_data + touch_data_size;
-		heatmap_data_size = (heatmap_data_start[1] << 8) | heatmap_data_start[0];
-		heatmap_data = touch_data + touch_data_size + 2;
 
 		syna_parse_heatmap(tcm, heatmap_data, heatmap_data_size);
 
