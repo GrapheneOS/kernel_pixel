@@ -3808,6 +3808,15 @@ bool wl_cfg80211_cleanup_failed_vif(struct net_device *ndev)
 }
 #endif
 
+void wl_cfg80211_set_vif_wdev(struct net_device *ndev, struct wireless_dev *wdev)
+{
+	ndev->ieee80211_ptr = wdev;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
+	ndev->needs_free_netdev = true;
+	ndev->priv_destructor = wl_release_vif_wdev;
+#endif
+}
+
 struct net_device *
 wl_cfg80211_post_ifcreate(struct net_device *ndev,
 	wl_if_event_info *event, u8 *addr,
@@ -3928,11 +3937,7 @@ wl_cfg80211_post_ifcreate(struct net_device *ndev,
 		wdev->wiphy = bcmcfg_to_wiphy(cfg);
 		wdev->iftype = iface_type;
 
-		new_ndev->ieee80211_ptr = wdev;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
-		new_ndev->needs_free_netdev = true;
-		new_ndev->priv_destructor = wl_release_vif_wdev;
-#endif
+		wl_cfg80211_set_vif_wdev(new_ndev, wdev);
 		SET_NETDEV_DEV(new_ndev, wiphy_dev(wdev->wiphy));
 
 		NETDEV_ADDR_SET(new_ndev, ETH_ALEN, addr, ETH_ALEN);
@@ -19038,19 +19043,6 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 	INIT_DELAYED_WORK(&cfg->remove_iface_work, wl_cfgvif_delayed_remove_iface_work);
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
 
-#ifdef WL_NAN
-	err = wl_cfgnan_attach(cfg);
-	if (err) {
-		WL_ERR(("Failed to attach nan module %d\n", err));
-		goto cfg80211_attach_out;
-	}
-#endif /* WL_NAN */
-	cfg->rssi_sum_report = FALSE;
-#ifdef WL_BAM
-	wl_bad_ap_mngr_init(cfg);
-#endif	/* WL_BAM */
-
-
 #if defined(DHD_DSCP_POLICY)
 	err = dhd_dscp_policy_attach(cfg);
 	if (err != BCME_OK) {
@@ -19059,6 +19051,20 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 	}
 #endif /* defined(DHD_DSCP_POLICY) */
 
+#ifdef WL_NAN
+	err = wl_cfgnan_attach(cfg);
+	if (err) {
+		WL_ERR(("Failed to attach nan module %d\n", err));
+#ifdef DHD_DSCP_POLICY
+		dhd_dscp_policy_detach(cfg);
+#endif
+		goto cfg80211_attach_out;
+	}
+#endif /* WL_NAN */
+	cfg->rssi_sum_report = FALSE;
+#ifdef WL_BAM
+	wl_bad_ap_mngr_init(cfg);
+#endif	/* WL_BAM */
 
 	return err;
 

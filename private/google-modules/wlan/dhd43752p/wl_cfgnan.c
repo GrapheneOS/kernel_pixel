@@ -10022,6 +10022,8 @@ wl_cfgnan_attach(struct bcm_cfg80211 *cfg)
 #ifdef WL_NMI_IF
 	if (wl_cfgnan_register_nmi_ndev(cfg) < 0) {
 		WL_ERR(("NAN NMI ndev reg failed in attach \n"));
+		MFREE(cfg->osh, nancfg, sizeof(*nancfg));
+		cfg->nancfg = NULL;
 		return -ENODEV;
 	}
 #endif /* WL_NMI_IF */
