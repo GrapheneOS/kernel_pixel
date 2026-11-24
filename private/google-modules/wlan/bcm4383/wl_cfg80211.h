@@ -2504,6 +2504,8 @@ struct bcm_cfg80211 {
 	bool feature_mask_init_done;
 };
 
+void wl_cfg80211_set_vif_wdev(struct net_device *ndev, struct wireless_dev *wdev);
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 18, 0))
 /* May sleep; no RTNL/wiphy acquisition occurs while holding event_sync. */
 void wl_cfg80211_quiesce_wiphy_events(struct wireless_dev *wdev);
