@@ -17086,15 +17086,6 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 	INIT_DELAYED_WORK(&cfg->remove_iface_work, wl_cfgvif_delayed_remove_iface_work);
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) */
 
-#ifdef WL_NAN
-	err = wl_cfgnan_attach(cfg);
-	if (err) {
-		WL_ERR(("Failed to attach nan module %d\n", err));
-		goto cfg80211_attach_out;
-	}
-#endif /* WL_NAN */
-	cfg->rssi_sum_report = FALSE;
-
 #if defined(DHD_DSCP_POLICY)
 	err = dhd_dscp_policy_attach(cfg);
 	if (err != BCME_OK) {
@@ -17102,6 +17093,18 @@ s32 wl_cfg80211_attach(struct net_device *ndev, void *context)
 		goto cfg80211_attach_out;
 	}
 #endif /* defined(DHD_DSCP_POLICY) */
+
+#ifdef WL_NAN
+	err = wl_cfgnan_attach(cfg);
+	if (err) {
+		WL_ERR(("Failed to attach nan module %d\n", err));
+#ifdef DHD_DSCP_POLICY
+		dhd_dscp_policy_detach(cfg);
+#endif
+		goto cfg80211_attach_out;
+	}
+#endif /* WL_NAN */
+	cfg->rssi_sum_report = FALSE;
 
 	return err;
 

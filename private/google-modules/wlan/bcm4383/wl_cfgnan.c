@@ -12780,7 +12780,7 @@ fail:
 s32
 _wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg, u16 iftype, char *ifname)
 {
-	struct net_device *ndev;
+	struct net_device *ndev = NULL;
 	struct wireless_dev *wdev = NULL;
 	struct net_device *primary_ndev;
 #ifdef DHD_USE_RANDMAC
@@ -12817,7 +12817,7 @@ _wl_cfgnan_register_nmi_ndev(struct bcm_cfg80211 *cfg, u16 iftype, char *ifname)
 	}
 	wdev->wiphy = cfg->wdev->wiphy;
 	wdev->iftype = iftype;
-	ndev->ieee80211_ptr = wdev;
+	wl_cfg80211_set_vif_wdev(ndev, wdev);
 	SET_NETDEV_DEV(ndev, wiphy_dev(wdev->wiphy));
 	wdev->netdev = ndev;
 	if (dhd_register_static_if(cfg->pub, ndev,
@@ -12889,6 +12889,8 @@ wl_cfgnan_attach(struct bcm_cfg80211 *cfg)
 #ifdef WL_NMI_IF
 	if (wl_cfgnan_register_nmi_ndev(cfg) < 0) {
 		WL_ERR(("NAN NMI ndev reg failed in attach \n"));
+		MFREE(cfg->osh, nancfg, sizeof(*nancfg));
+		cfg->nancfg = NULL;
 		return -ENODEV;
 	}
 #endif /* WL_NMI_IF */

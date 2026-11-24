@@ -2515,6 +2515,8 @@ struct bcm_cfg80211 {
 	uint32 actfrm_fail_cnt;
 };
 
+void wl_cfg80211_set_vif_wdev(struct net_device *ndev, struct wireless_dev *wdev);
+
 typedef struct wl_multink_config {
 	uint16	id;
 	uint16	len;
