@@ -2318,9 +2318,8 @@ static int syna_dev_process_events(const unsigned char code,
 #endif
 		break;
 	case REPORT_FW_STATUS:
-		/* for 'fw status' ($c2) report,
-		 * report size shall be 2-byte only; the
-		 */
+		if (report_size < sizeof(*status))
+			return -EINVAL;
 		status = (struct custom_fw_status *)&report[0];
 		LOGI("Status: moisture:%d noise:%d freq-change:%d, grip:%d, palm:%d, fast relax:%d\n",
 			status->b0_moisture, status->b1_noise_state,
