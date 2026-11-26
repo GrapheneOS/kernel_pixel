@@ -243,6 +243,7 @@ device_build(
         gki_module("drivers/virtio/virtio_pci_modern_dev.ko"),
         gki_module("fs/netfs/netfs.ko"),
         gki_module("kernel/kheaders.ko"),
+        gki_module("lib/crc/crc-ccitt.ko"),
         gki_module("lib/crypto/libarc4.ko"),
         gki_module("mm/zsmalloc.ko"),
         gki_module("net/6lowpan/6lowpan.ko"),
