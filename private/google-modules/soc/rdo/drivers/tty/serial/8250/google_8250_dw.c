@@ -349,7 +349,7 @@ static void dw8250_tx_wait_empty(struct uart_port *p)
 	}
 }
 
-static void dw8250_serial_out(struct uart_port *p, int offset, int value)
+static void dw8250_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
 
@@ -359,7 +359,7 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 		dw8250_check_lcr(p, value);
 }
 
-static void dw8250_serial_out38x(struct uart_port *p, int offset, int value)
+static void dw8250_serial_out38x(struct uart_port *p, unsigned int offset, u32 value)
 {
 	/* Allow the TX to drain before we reconfigure */
 	if (offset == UART_LCR)
@@ -368,7 +368,7 @@ static void dw8250_serial_out38x(struct uart_port *p, int offset, int value)
 	dw8250_serial_out(p, offset, value);
 }
 
-static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
+static u32 dw8250_serial_in(struct uart_port *p, unsigned int offset)
 {
 	unsigned int value = readb(p->membase + (offset << p->regshift));
 
@@ -376,7 +376,7 @@ static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
 }
 
 #ifdef CONFIG_64BIT
-static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
+static u32 dw8250_serial_inq(struct uart_port *p, unsigned int offset)
 {
 	unsigned int value;
 
@@ -385,7 +385,7 @@ static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
 	return dw8250_modify_msr(p, offset, value);
 }
 
-static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
+static void dw8250_serial_outq(struct uart_port *p, unsigned int offset, u32 value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
 
@@ -399,7 +399,7 @@ static void dw8250_serial_outq(struct uart_port *p, int offset, int value)
 }
 #endif /* CONFIG_64BIT */
 
-static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
+static void dw8250_serial_out32(struct uart_port *p, unsigned int offset, u32 value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
 
@@ -409,14 +409,14 @@ static void dw8250_serial_out32(struct uart_port *p, int offset, int value)
 		dw8250_check_lcr(p, value);
 }
 
-static unsigned int dw8250_serial_in32(struct uart_port *p, int offset)
+static u32 dw8250_serial_in32(struct uart_port *p, unsigned int offset)
 {
 	unsigned int value = readl(p->membase + (offset << p->regshift));
 
 	return dw8250_modify_msr(p, offset, value);
 }
 
-static void dw8250_serial_out32be(struct uart_port *p, int offset, int value)
+static void dw8250_serial_out32be(struct uart_port *p, unsigned int offset, u32 value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
 
@@ -426,7 +426,7 @@ static void dw8250_serial_out32be(struct uart_port *p, int offset, int value)
 		dw8250_check_lcr(p, value);
 }
 
-static unsigned int dw8250_serial_in32be(struct uart_port *p, int offset)
+static u32 dw8250_serial_in32be(struct uart_port *p, unsigned int offset)
 {
        unsigned int value = ioread32be(p->membase + (offset << p->regshift));
 

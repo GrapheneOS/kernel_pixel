@@ -6,10 +6,10 @@
 #define _GOOGLE_SERIAL_8250_H
 
 #include <linux/errno.h>
+#include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/platform_device.h>
 #include <misc/logbuffer.h>
-#include "google_serial_core.h"
 
 struct uart_8250_port;
 
@@ -45,8 +45,8 @@ struct plat_serial8250_port {
 	unsigned int	type;		/* If UPF_FIXED_TYPE */
 	upf_t		flags;		/* UPF_* flags */
 	u16		bugs;		/* port bugs */
-	unsigned int	(*serial_in)(struct uart_port *port, int offset);
-	void		(*serial_out)(struct uart_port *port, int offset, int value);
+	u32		(*serial_in)(struct uart_port *port, unsigned int offset);
+	void		(*serial_out)(struct uart_port *port, unsigned int offset, u32 value);
 	u32		(*dl_read)(struct uart_8250_port *up);
 	void		(*dl_write)(struct uart_8250_port *up, u32 value);
 	void		(*set_termios)(struct uart_port *port,

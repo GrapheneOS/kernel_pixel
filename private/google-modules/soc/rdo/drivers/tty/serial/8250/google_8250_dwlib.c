@@ -10,7 +10,6 @@
 #include <linux/property.h>
 
 #include "google_serial_8250.h"
-#include "google_serial_core.h"
 #include "google_8250_dwlib.h"
 
 /* Offsets for the DesignWare specific registers */

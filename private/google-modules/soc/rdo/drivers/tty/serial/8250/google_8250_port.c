@@ -342,75 +342,75 @@ static void default_serial_dl_write(struct uart_8250_port *up, u32 value)
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
 }
 
-static unsigned int hub6_serial_in(struct uart_port *p, int offset)
+static u32 hub6_serial_in(struct uart_port *p, unsigned int offset)
 {
 	offset = offset << p->regshift;
 	outb(p->hub6 - 1 + offset, p->iobase);
 	return inb(p->iobase + 1);
 }
 
-static void hub6_serial_out(struct uart_port *p, int offset, int value)
+static void hub6_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	outb(p->hub6 - 1 + offset, p->iobase);
 	outb(value, p->iobase + 1);
 }
 
-static unsigned int mem_serial_in(struct uart_port *p, int offset)
+static u32 mem_serial_in(struct uart_port *p, unsigned int offset)
 {
 	offset = offset << p->regshift;
 	return readb(p->membase + offset);
 }
 
-static void mem_serial_out(struct uart_port *p, int offset, int value)
+static void mem_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	writeb(value, p->membase + offset);
 }
 
-static void mem16_serial_out(struct uart_port *p, int offset, int value)
+static void mem16_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	writew(value, p->membase + offset);
 }
 
-static unsigned int mem16_serial_in(struct uart_port *p, int offset)
+static u32 mem16_serial_in(struct uart_port *p, unsigned int offset)
 {
 	offset = offset << p->regshift;
 	return readw(p->membase + offset);
 }
 
-static void mem32_serial_out(struct uart_port *p, int offset, int value)
+static void mem32_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	writel(value, p->membase + offset);
 }
 
-static unsigned int mem32_serial_in(struct uart_port *p, int offset)
+static u32 mem32_serial_in(struct uart_port *p, unsigned int offset)
 {
 	offset = offset << p->regshift;
 	return readl(p->membase + offset);
 }
 
-static void mem32be_serial_out(struct uart_port *p, int offset, int value)
+static void mem32be_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	iowrite32be(value, p->membase + offset);
 }
 
-static unsigned int mem32be_serial_in(struct uart_port *p, int offset)
+static u32 mem32be_serial_in(struct uart_port *p, unsigned int offset)
 {
 	offset = offset << p->regshift;
 	return ioread32be(p->membase + offset);
 }
 
-static unsigned int io_serial_in(struct uart_port *p, int offset)
+static u32 io_serial_in(struct uart_port *p, unsigned int offset)
 {
 	offset = offset << p->regshift;
 	return inb(p->iobase + offset);
 }
 
-static void io_serial_out(struct uart_port *p, int offset, int value)
+static void io_serial_out(struct uart_port *p, unsigned int offset, u32 value)
 {
 	offset = offset << p->regshift;
 	outb(value, p->iobase + offset);
@@ -2406,7 +2406,7 @@ int google_serial8250_do_startup(struct uart_port *port)
 		 * on a regular basis.
 		 */
 		if ((!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) ||
-		    up->port.flags & UPF_ERR_THRE) {
+		    up->port.flags & UPF_BUG_THRE) {
 			up->bugs |= UART_BUG_THRE;
 		}
 	}
@@ -3024,6 +3024,8 @@ static int serial8250_request_std_resource(struct uart_8250_port *up)
 		if (!request_region(port->iobase, size, "serial"))
 			ret = -EBUSY;
 		break;
+	case UPIO_UNKNOWN:
+		break;
 	}
 	return ret;
 }
@@ -3054,6 +3056,8 @@ static void serial8250_release_std_resource(struct uart_8250_port *up)
 	case UPIO_HUB6:
 	case UPIO_PORT:
 		release_region(port->iobase, size);
+		break;
+	case UPIO_UNKNOWN:
 		break;
 	}
 }
