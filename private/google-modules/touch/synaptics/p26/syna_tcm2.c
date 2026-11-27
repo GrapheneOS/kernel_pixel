@@ -1327,6 +1327,9 @@ static void syna_gti_init(struct syna_tcm *tcm)
 	unsigned int self_data_size =
 			sizeof(u_int16_t) * (tcm->tcm_dev->rows + tcm->tcm_dev->cols);
 
+	/* The buffers below are sized from the sensor grid. */
+	tcm->tcm_dev->grid_in_use = true;
+
 	tcm->mutual_data = devm_kzalloc(&pdev->dev, mutual_data_size, GFP_KERNEL);
 	if (!tcm->mutual_data) {
 		LOGE("Failed to allocate mutual_sensing_data");

@@ -3151,6 +3151,9 @@ static int syna_dev_probe(struct platform_device *pdev)
 	tcm->syna_hc.status_event_cnt = 0;
 	tcm->syna_hc.touch_idx_state = 0;
 
+	/* The offload, heatmap and raw buffers are sized from the sensor grid. */
+	tcm_dev->grid_in_use = true;
+
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_OFFLOAD)
 	tcm->offload.caps.touch_offload_major_version = TOUCH_OFFLOAD_INTERFACE_MAJOR_VERSION;
 	tcm->offload.caps.touch_offload_minor_version = TOUCH_OFFLOAD_INTERFACE_MINOR_VERSION;

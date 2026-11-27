@@ -1294,6 +1294,7 @@ int syna_tcm_get_app_info(struct tcm_dev *tcm_dev,
 {
 	int retval = 0;
 	unsigned int app_status;
+	unsigned int rows, cols;
 	unsigned int resp_data_len = 0;
 	unsigned int copy_size;
 	struct tcm_application_info *info;
@@ -1369,12 +1370,25 @@ int syna_tcm_get_app_info(struct tcm_dev *tcm_dev,
 		goto exit;
 	}
 
+	cols = syna_pal_le2_to_uint(info->num_of_image_cols);
+	rows = syna_pal_le2_to_uint(info->num_of_image_rows);
+
+	/* Buffers are sized from the sensor grid. It has to fit in a raw
+	 * report, which has a 16-bit length, and stay the same once they exist.
+	 */
+	if (!rows || !cols || rows * cols + rows + cols > U16_MAX / sizeof(u16) ||
+	    (tcm_dev->grid_in_use && (rows != tcm_dev->rows || cols != tcm_dev->cols))) {
+		LOGE("Invalid sensor grid %u x %u\n", rows, cols);
+		retval = -ERR_INVAL;
+		goto exit;
+	}
+
 	tcm_dev->max_objects = syna_pal_le2_to_uint(info->max_objects);
 	tcm_dev->max_x = syna_pal_le2_to_uint(info->max_x);
 	tcm_dev->max_y = syna_pal_le2_to_uint(info->max_y);
 
-	tcm_dev->cols = syna_pal_le2_to_uint(info->num_of_image_cols);
-	tcm_dev->rows = syna_pal_le2_to_uint(info->num_of_image_rows);
+	tcm_dev->cols = cols;
+	tcm_dev->rows = rows;
 	syna_pal_mem_cpy((unsigned char *)tcm_dev->config_id,
 			MAX_SIZE_CONFIG_ID,
 			info->customer_config_id,

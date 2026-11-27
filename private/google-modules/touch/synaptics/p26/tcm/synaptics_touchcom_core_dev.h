@@ -741,6 +741,8 @@ struct tcm_dev {
 	unsigned int max_objects;
 	unsigned int rows;
 	unsigned int cols;
+	/* buffers have been sized from rows and cols, so they can't change */
+	bool grid_in_use;
 	unsigned char config_id[MAX_SIZE_CONFIG_ID];
 
 	/* capability of each read/write data transferred */
