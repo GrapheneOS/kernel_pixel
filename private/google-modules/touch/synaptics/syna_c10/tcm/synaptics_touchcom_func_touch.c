@@ -282,6 +282,16 @@ int syna_tcm_parse_touch_report(struct tcm_dev *tcm_dev,
 
 	while (idx < config_size) {
 		code = config_data[idx++];
+		/* Object fields are stored in the current contact slot. A loop
+		 * without an explicit index can advance it past the last one.
+		 */
+		if (obj >= MAX_NUM_OBJECTS &&
+		    code >= TOUCH_REPORT_OBJECT_N_CLASSIFICATION &&
+		    code <= TOUCH_REPORT_OBJECT_N_RX_POSITION_TIXELS) {
+			LOGE("Invalid object index %d\n", obj);
+			return _EINVAL;
+		}
+
 		switch (code) {
 		case TOUCH_REPORT_END:
 			goto exit;
@@ -334,6 +344,10 @@ int syna_tcm_parse_touch_report(struct tcm_dev *tcm_dev,
 			if (retval < 0) {
 				LOGE("Fail to get object index\n");
 				return retval;
+			}
+			if (data >= MAX_NUM_OBJECTS) {
+				LOGE("Invalid object index %d\n", data);
+				return _EINVAL;
 			}
 			obj = data;
 			touch_data->obji = data;
